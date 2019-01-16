@@ -13,6 +13,7 @@
 # limitations under the License.
 
 PROVIDER_NAME=SampleProvider
+PROJECT_NAME=gardener
 
 #########################################
 # Rules for running helper scripts
@@ -21,6 +22,10 @@ PROVIDER_NAME=SampleProvider
 .PHONY: rename-provider
 rename-provider:
 	@./hack/rename-provider ${PROVIDER_NAME}
+
+.PHONY: rename-project
+rename-provider:
+	@./hack/rename-project ${PROJECT_NAME}
 
 #########################################
 # Rules for re-vendoring
