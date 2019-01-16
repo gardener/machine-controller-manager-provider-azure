@@ -22,7 +22,10 @@ Modifications Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights 
 package sampleprovider
 
 import (
+	"fmt"
+
 	cmicommon "github.com/gardener/machine-controller-manager-provider-sampleprovider/pkg/cmi-common"
+	api "github.com/gardener/machine-controller-manager-provider-sampleprovider/pkg/sampleprovider/apis"
 	"github.com/gardener/machine-spec/lib/go/cmi"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -36,6 +39,13 @@ type MachineServer struct {
 
 // CreateMachine is used to create a new machine
 func (ms *MachineServer) CreateMachine(ctx context.Context, req *cmi.CreateMachineRequest) (*cmi.CreateMachineResponse, error) {
+	// Sample code to access provider spec
+	// Delete the 4 following line in the controller implementation
+	dummyObject := api.SampleProviderProviderSpec{
+		APIVersion: "v1alpha1",
+	}
+	fmt.Println("APIVersion of object ", dummyObject.APIVersion)
+
 	return nil, status.Error(codes.Unimplemented, "")
 }
 

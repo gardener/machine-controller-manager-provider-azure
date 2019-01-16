@@ -17,5 +17,25 @@ package api
 // SampleProviderProviderSpec contains the fields of
 // provider spec that the driver expects
 type SampleProviderProviderSpec struct {
-	// TODO`
+	// APIVersion mentions the APIVersion of the object being passed
+	APIVersion string
+
+	// TODO: Add the raw extension struct expected while recieving machine operating requests
+	// Some dummy examples are mentioned below
+
+	// MachineImageName contains the image name from which machine is to be spawned
+	MachineImageName string
+	// MachineType constains the type of machine to be spawned
+	MachineType string
+	// Tags to be placed on the VM
+	Tags map[string]string `json:"tags,omitempty"`
+}
+
+// Secrets stores the cloud-provider specific sensitive-information.
+// +Optional secrets to be passed while performing machine operations on the cloud provider
+type Secrets struct {
+	// cloud config file (base64 encoded)
+	UserData string `json:"userData,omitempty"`
+	// CloudCredentials (base64 encoded)
+	CloudCredentials string `json:"cloudCredentials,omitempty"`
 }
