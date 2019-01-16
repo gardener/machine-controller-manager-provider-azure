@@ -21,3 +21,11 @@ PROVIDER_NAME=SampleProvider
 .PHONY: rename-provider
 rename-provider:
 	@./hack/rename-provider ${PROVIDER_NAME}
+
+#########################################
+# Rules for re-vendoring
+#########################################
+
+.PHONY: revendor
+revendor:
+	@dep ensure -v
