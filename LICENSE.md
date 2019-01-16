@@ -245,7 +245,7 @@ Golang license (https://github.com/golang/net/blob/master/LICENSE )
 gRPC-Go  
 Copyright 2016 gRPC authors.  
 https://github.com/grpc/grpc-go/tree/v1.18.0  
-Golang license (https://github.com/grpc/grpc-go/tree/v1.18.0/LICENSE )
+Apache 2 license (https://github.com/grpc/grpc-go/tree/v1.18.0/LICENSE )
 
 ## Golang license
 
