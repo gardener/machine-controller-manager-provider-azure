@@ -14,4 +14,4 @@ Following are the basic principles kept in mind while developing the external dr
     * Kubeconfig may not be available to external-drivers.
 
 ## Support for a new provider
-- Steps to be followed while implementing a new provider are mentioned [here](https://github.com/gardener/machine-controller-manager/blob/master/docs/development/new_cp_support.md)
+- Steps to be followed while implementing a new provider are mentioned [here](https://github.com/gardener/machine-controller-manager/blob/cmi-client/docs/development/new_cp_support.md)
