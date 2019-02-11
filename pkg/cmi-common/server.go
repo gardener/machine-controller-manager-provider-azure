@@ -110,6 +110,6 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids cmi.IdentityServer, m
 		cmi.RegisterMachineServer(server, ms)
 	}
 
-	glog.Infof("Listening for connections on address: %#v", listener.Addr())
+	glog.V(1).Infof("Listening for connections on address: %#v", listener.Addr())
 	server.Serve(listener)
 }

@@ -36,7 +36,7 @@ var (
 
 func init() {
 	flag.Set("logtostderr", "true")
-	flag.Set("verbose", "5")
+	flag.Set("v", "5")
 }
 
 func main() {

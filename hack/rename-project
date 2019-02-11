@@ -16,8 +16,8 @@
 
 project_name=$1
 
-sed -i '' "s/gardener/$project_name/g" pkg/sampleprovider/driver.go
-sed -i '' "s/gardener/$project_name/g" pkg/sampleprovider/machineserver.go
-sed -i '' "s/gardener/$project_name/g" app/controller/main.go
+sed -i '' -e "s/gardener/$project_name/g" pkg/sampleprovider/driver.go
+sed -i '' -e "s/gardener/$project_name/g" pkg/sampleprovider/machineserver.go
+sed -i '' -e "s/gardener/$project_name/g" app/controller/cmi-server.go
 
 echo "Rename project from gardener to $project_name."

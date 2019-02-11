@@ -1,0 +1,20 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: machine-controller-manager
+  namespace: test
+spec:
+  selector:
+    matchLabels:
+      run: machine-controller-manager
+  template:
+    metadata:
+      labels:
+        run: machine-controller-manager
+    spec:
+      containers:
+      - command:
+        - ./cmi-server
+        - --endpoint=tcp://127.0.0.1:8080
+        image: eu.gcr.io/gardener-project/gardener/machine-controller-manager-provider-gcp:0.1.0-dev
+        name: cmi-server

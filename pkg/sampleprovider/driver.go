@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 This file was copied and modified from the kubernetes-csi/drivers project
-https://github.com/kubernetes-csi/drivers/blob/release-1.0/pkg/sampleprovider/driver.go
+https://github.com/kubernetes-csi/drivers/blob/release-1.0/pkg/nfs/driver.go
 
 Modifications Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights reserved.
 */
@@ -25,6 +25,11 @@ import (
 	cmicommon "github.com/gardener/machine-controller-manager-provider-sampleprovider/pkg/cmi-common"
 	"github.com/golang/glog"
 )
+
+// MachineServer contains the machine server info
+type MachineServer struct {
+	*cmicommon.DefaultMachineServer
+}
 
 // Driver returns the new provider details
 type Driver struct {
@@ -48,7 +53,7 @@ var (
 
 // NewDriver returns a newly created driver object
 func NewDriver(endpoint string) *Driver {
-	glog.Infof("Driver: %v version: %v", driverName, version)
+	glog.V(1).Infof("Driver: %v version: %v", driverName, version)
 
 	d := &Driver{}
 
