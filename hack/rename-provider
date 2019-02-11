@@ -20,6 +20,7 @@ small_case=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 sed -i '' -e "s/sampleprovider/$small_case/g" app/controller/cmi-server.go
 sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/driver.go
 sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/machineserver.go
+sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/machineserver.go
 sed -i '' -e "s/sampleprovider/$small_case/g" Makefile
 sed -i '' -e "s/sampleprovider/$small_case/g" README.md
 sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/apis/provider-spec.go
