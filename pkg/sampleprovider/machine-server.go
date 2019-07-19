@@ -40,7 +40,6 @@ import (
 // Implementation of few methods like - ShutDownMachine() are optional, however we highly recommend implementing it as well.
 
 // CreateMachine handles a machine creation request
-// REQUIRED METHOD
 //
 // REQUEST PARAMETERS (cmi.CreateMachineRequest)
 // Name                 string              Contains the identification name/tag used to link the machine object with VM on cloud provider
@@ -66,7 +65,6 @@ func (ms *MachineServer) CreateMachine(ctx context.Context, req *cmi.CreateMachi
 }
 
 // DeleteMachine handles a machine deletion request
-// REQUIRED METHOD
 //
 // REQUEST PARAMETERS (cmi.DeleteMachineRequest)
 // MachineID        string              Contains the unique identification of the VM at the cloud provider
@@ -122,6 +120,24 @@ func (ms *MachineServer) ListMachines(ctx context.Context, req *cmi.ListMachines
 func (ms *MachineServer) ShutDownMachine(ctx context.Context, req *cmi.ShutDownMachineRequest) (*cmi.ShutDownMachineResponse, error) {
 	// Log messages to track start of request
 	glog.V(2).Infof("ShutDown machine request has been recieved for %q", req.MachineID)
+	return nil, status.Error(codes.Unimplemented, "")
+}
+
+// GetListOfVolumeIDsForExistingPVs returns a list of Volume IDs for all PV Specs for whom an provider specific volume is found
+//
+// To get Volume ID from PV Spec refer. It depends on the Cloud-provider
+// - https://github.com/kubernetes/api/blob/release-1.15/core/v1/types.go#L297-L339
+// - https://github.com/kubernetes/api/blob/release-1.15//core/v1/types.go#L175-L257
+//
+// REQUEST PARAMETERS (cmi.GetListOfVolumeIDsForExistingPVsRequest)
+// PVSpecList       bytes(blob)         PVSpecsList is a list PV specs for whom volume IDs are required. Driver should parse this raw data into pre-defined list of PVSpecs.
+//
+// RESPONSE PARAMETERS (cmi.ListMachinesResponse)
+// VolumeIDs        repeated string      VolumeIDs is a repeated list of VolumeIDs.
+//
+func (ms *MachineServer) GetListOfVolumeIDsForExistingPVs(ctx context.Context, req *cmi.GetListOfVolumeIDsForExistingPVsRequest) (*cmi.GetListOfVolumeIDsForExistingPVsResponse, error) {
+	// Log messages to track start of request
+	glog.V(2).Infof("GetListOfVolumeIDsForExistingPVs request has been recieved for %q", req.PVSpecList)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
