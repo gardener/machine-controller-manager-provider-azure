@@ -17,7 +17,7 @@ To the left are the list of copied files -> and to the right the current locatio
 
     app/nfsplugin/main.go -> app/sampleprovider/cmi-server.go
     pkg/nfs/driver.go -> pkg/sampleprovider/driver.go
-    pkg/nfs/nodeserver.go -> pkg/sampleprovider/machineserver.go
+    pkg/nfs/nodeserver.go -> pkg/sampleprovider/machine-server.go
     pkg/csi-common/driver.go -> pkg/cmi-common/driver.go
     pkg/csi-common/identityserver-default.go -> pkg/cmi-common/identity-server-defaults.go
     pkg/csi-common/nodeserver-default.go -> pkg/cmi-common/machine-server-defaults.go

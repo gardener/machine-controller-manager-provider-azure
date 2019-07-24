@@ -19,8 +19,8 @@ small_case=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 
 sed -i '' -e "s/sampleprovider/$small_case/g" app/controller/cmi-server.go
 sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/driver.go
-sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/machineserver.go
-sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/machineserver.go
+sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/machine-server.go
+sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/machine-server.go
 sed -i '' -e "s/sampleprovider/$small_case/g" Makefile
 sed -i '' -e "s/sampleprovider/$small_case/g" README.md
 sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/apis/provider-spec.go
@@ -30,7 +30,10 @@ sed -i '' -e "s/sampleprovider/$small_case/g" hack/rename-provider
 
 mv pkg/sampleprovider pkg/$small_case
 
-echo "Rename provider SampleProvider to $normal_case."
-echo "Create a new git repository with the name machine-controller-manager-provider-$small_case"
-echo "Update origin to point to this newly created repository"
+sed -i '' -e "s/sampleprovider/$small_case/g" go.mod
+sed -i '' -e "s/sampleprovider/$small_case/g" CODEOWNERS
+sed -i '' -e "s/sampleprovider/$small_case/g" NOTICE.md
+sed -i '' -e "s/SampleProvider/$normal_case/g" README.md
 
+echo "Renamed provider Azure to $normal_case."
+echo "Update CODEOWNERS to reflect relevant owners"
