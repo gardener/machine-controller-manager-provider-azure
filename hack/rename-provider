@@ -25,15 +25,15 @@ sed -i '' -e "s/sampleprovider/$small_case/g" Makefile
 sed -i '' -e "s/sampleprovider/$small_case/g" README.md
 sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/apis/provider-spec.go
 
+sed -i '' -e "1 s/sampleprovider/$small_case/" go.mod
+sed -i '' -e "s/sampleprovider/$small_case/g" CODEOWNERS
+sed -i '' -e "s/sampleprovider/$small_case/g" NOTICE.md
+sed -i '' -e "s/SampleProvider/$normal_case/g" README.md
+
 sed -i '' -e "s/SampleProvider/$normal_case/g" hack/rename-provider
 sed -i '' -e "s/sampleprovider/$small_case/g" hack/rename-provider
 
 mv pkg/sampleprovider pkg/$small_case
-
-sed -i '' -e "s/sampleprovider/$small_case/g" go.mod
-sed -i '' -e "s/sampleprovider/$small_case/g" CODEOWNERS
-sed -i '' -e "s/sampleprovider/$small_case/g" NOTICE.md
-sed -i '' -e "s/SampleProvider/$normal_case/g" README.md
 
 echo "Renamed provider Azure to $normal_case."
 echo "Update CODEOWNERS to reflect relevant owners"
