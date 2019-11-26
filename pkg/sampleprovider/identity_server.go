@@ -69,7 +69,7 @@ func (ids *IdentityPlugin) GetPluginCapabilities(ctx context.Context, req *cmi.G
 	}
 
 	for _, c := range cl {
-		glog.V(3).Infof("Enabling controller service capability: %v", c.String())
+		glog.V(4).Infof("Enabling controller service capability: %v", c.String())
 		cmc = append(cmc, NewPluginCapability(c))
 	}
 

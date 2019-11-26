@@ -19,6 +19,7 @@ small_case=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 
 sed -i '' -e "s/sampleprovider/$small_case/g" app/controller/cmi-plugin.go
 sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/plugin.go
+sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/identity_server.go
 sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/machine_server.go
 sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/machine_server.go
 sed -i '' -e "s/sampleprovider/$small_case/g" Makefile
@@ -35,5 +36,5 @@ sed -i '' -e "s/sampleprovider/$small_case/g" hack/rename-provider
 
 mv pkg/sampleprovider pkg/$small_case
 
-echo "Renamed provider Azure to $normal_case."
-echo "Update CODEOWNERS to reflect relevant owners"
+echo "Renamed provider SampleProvider to $normal_case."
+echo "PLEASE Update CODEOWNERS file to reflect relevant owners"
