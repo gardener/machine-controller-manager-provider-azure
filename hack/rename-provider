@@ -17,13 +17,13 @@
 normal_case=$1
 small_case=$(echo "$1" | tr '[:upper:]' '[:lower:]')
 
-sed -i '' -e "s/sampleprovider/$small_case/g" app/controller/cmi-server.go
-sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/driver.go
-sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/machine-server.go
-sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/machine-server.go
+sed -i '' -e "s/sampleprovider/$small_case/g" app/controller/cmi-plugin.go
+sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/plugin.go
+sed -i '' -e "s/sampleprovider/$small_case/g" pkg/sampleprovider/machine_server.go
+sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/machine_server.go
 sed -i '' -e "s/sampleprovider/$small_case/g" Makefile
 sed -i '' -e "s/sampleprovider/$small_case/g" README.md
-sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/apis/provider-spec.go
+sed -i '' -e "s/SampleProvider/$normal_case/g" pkg/sampleprovider/apis/provider_spec.go
 
 sed -i '' -e "1 s/sampleprovider/$small_case/" go.mod
 sed -i '' -e "s/sampleprovider/$small_case/g" CODEOWNERS

@@ -15,7 +15,7 @@ limitations under the License.
 package api
 
 // SampleProviderProviderSpec contains the fields of
-// provider spec that the driver expects
+// provider spec that the plugin expects
 type SampleProviderProviderSpec struct {
 	// APIVersion mentions the APIVersion of the object being passed
 	APIVersion string

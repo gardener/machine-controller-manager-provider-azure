@@ -15,13 +15,13 @@ Commit-ID: b776760b257e955d86d279e1bba375b06e9cbe6e.
 Commit-Message:  Merge pull request #129 from pohly/hostpath-1.0.0 -backport-2  
 To the left are the list of copied files -> and to the right the current location they are at.  
 
-    app/nfsplugin/main.go -> app/sampleprovider/cmi-server.go
-    pkg/nfs/driver.go -> pkg/sampleprovider/driver.go
-    pkg/nfs/nodeserver.go -> pkg/sampleprovider/machine-server.go
-    pkg/csi-common/driver.go -> pkg/cmi-common/driver.go
-    pkg/csi-common/identityserver-default.go -> pkg/cmi-common/identity-server-defaults.go
-    pkg/csi-common/nodeserver-default.go -> pkg/cmi-common/machine-server-defaults.go
-    pkg/csi-common/server.go -> pkg/cmi-common/server.go
-    pkg/csi-common/utils.go -> pkg/cmi-common/utils.go
+    app/nfsplugin/main.go -> app/sampleprovider/cmi-plugin.go
+    pkg/nfs/driver.go -> pkg/sampleprovider/plugin.go
+    pkg/nfs/nodeserver.go -> pkg/sampleprovider/machine_server.go
+    pkg/csi-common/driver.go -> pkg/cmicommon/plugin.go
+    pkg/csi-common/identityserver-default.go -> pkg/cmicommon/identity_server_defaults.go
+    pkg/csi-common/nodeserver-default.go -> pkg/cmicommon/machine_server_defaults.go
+    pkg/csi-common/server.go -> pkg/cmicommon/server.go
+    pkg/csi-common/utils.go -> pkg/cmicommon/utils.go
 
 

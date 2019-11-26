@@ -29,33 +29,28 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// NOTE: Do not make changes to these calls.
-// Implement your calls at pkg/<provider-name>/machine-server.go
-
 // DefaultMachineServer contains the machine server info
 // It implements the cmi.MachineClient interface
-type DefaultMachineServer struct {
-	Driver *CMIDriver
-}
+type DefaultMachineServer struct{}
 
 // CreateMachine method handles default machine creation request
 func (ms *DefaultMachineServer) CreateMachine(ctx context.Context, req *cmi.CreateMachineRequest) (*cmi.CreateMachineResponse, error) {
 	// Log messages to track start of request
-	glog.V(2).Infof("Create machine request has been recieved for %q", req.Name)
+	glog.V(2).Infof("Create machine request has been recieved for %q", req.MachineName)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // DeleteMachine method handles default machine deletion request
 func (ms *DefaultMachineServer) DeleteMachine(ctx context.Context, req *cmi.DeleteMachineRequest) (*cmi.DeleteMachineResponse, error) {
 	// Log messages to track start of request
-	glog.V(2).Infof("Delete machine request has been recieved for %q", req.MachineID)
+	glog.V(2).Infof("Delete machine request has been recieved for %q", req.MachineName)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-// GetMachine method handles default machine get request
-func (ms *DefaultMachineServer) GetMachine(ctx context.Context, req *cmi.GetMachineRequest) (*cmi.GetMachineResponse, error) {
+// GetMachineStatus method handles default machine get request
+func (ms *DefaultMachineServer) GetMachineStatus(ctx context.Context, req *cmi.GetMachineStatusRequest) (*cmi.GetMachineStatusResponse, error) {
 	// Log messages to track start of request
-	glog.V(2).Infof("Get machine request has been recieved for %q", req.MachineID)
+	glog.V(2).Infof("Get machine request has been recieved for %q", req.MachineName)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
@@ -69,21 +64,13 @@ func (ms *DefaultMachineServer) ListMachines(ctx context.Context, req *cmi.ListM
 // ShutDownMachine method handles default machines shutdown request
 func (ms *DefaultMachineServer) ShutDownMachine(ctx context.Context, req *cmi.ShutDownMachineRequest) (*cmi.ShutDownMachineResponse, error) {
 	// Log messages to track start of request
-	glog.V(2).Infof("ShutDown machine request has been recieved for %q", req.MachineID)
+	glog.V(2).Infof("ShutDown machine request has been recieved for %q", req.MachineName)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-// GetListOfVolumeIDsForExistingPVs method handles default getPVIDs request
-func (ms *DefaultMachineServer) GetListOfVolumeIDsForExistingPVs(ctx context.Context, req *cmi.GetListOfVolumeIDsForExistingPVsRequest) (*cmi.GetListOfVolumeIDsForExistingPVsResponse, error) {
+// GetVolumeIDs method handles default getPVIDs request
+func (ms *DefaultMachineServer) GetVolumeIDs(ctx context.Context, req *cmi.GetVolumeIDsRequest) (*cmi.GetVolumeIDsResponse, error) {
 	// Log messages to track start of request
 	glog.V(2).Infof("GetListOfVolumeIDsForExistingPVs request has been recieved for %v", req.PVSpecList)
 	return nil, status.Error(codes.Unimplemented, "")
-}
-
-// ControllerGetCapabilities implements the default GRPC callout.
-// Default supports all capabilities
-func (ms *DefaultMachineServer) ControllerGetCapabilities(ctx context.Context, req *cmi.ControllerGetCapabilitiesRequest) (*cmi.ControllerGetCapabilitiesResponse, error) {
-	glog.V(2).Infof("Using default ControllerGetCapabilities")
-	// TODO: Update later to return default caps.
-	return &cmi.ControllerGetCapabilitiesResponse{}, nil
 }

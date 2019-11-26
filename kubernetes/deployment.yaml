@@ -13,10 +13,10 @@ spec:
         run: machine-controller-manager
     spec:
       containers:
-      - name: cmi-server
+      - name: cmi-plugin
         image: eu.gcr.io/gardener-project/gardener/machine-controller-manager-provider-gcp:0.1.0-dev
         command:
-        - ./cmi-server
+        - ./cmi-plugin
         - --endpoint=tcp://127.0.0.1:8080
       - name: machine-controller-manager
         image: eu.gcr.io/gardener-project/gardener/machine-controller-manager:1.0.0
