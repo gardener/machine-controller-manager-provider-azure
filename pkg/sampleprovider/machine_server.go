@@ -22,6 +22,7 @@ Modifications Copyright (c) 2019 SAP SE or an SAP affiliate company. All rights 
 package sampleprovider
 
 import (
+	"encoding/json"
 	"fmt"
 
 	api "github.com/gardener/machine-controller-manager-provider-sampleprovider/pkg/sampleprovider/apis"
@@ -30,6 +31,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // NOTE
@@ -63,7 +65,7 @@ import (
 //
 func (ms *MachinePlugin) CreateMachine(ctx context.Context, req *cmi.CreateMachineRequest) (*cmi.CreateMachineResponse, error) {
 	// Log messages to track start of request
-	glog.V(2).Infof("Create machine request has been recieved for %q", req.MachineName)
+	glog.V(2).Infof("Create machine request has been received for %q", req.MachineName)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
@@ -81,7 +83,7 @@ func (ms *MachinePlugin) CreateMachine(ctx context.Context, req *cmi.CreateMachi
 //
 func (ms *MachinePlugin) DeleteMachine(ctx context.Context, req *cmi.DeleteMachineRequest) (*cmi.DeleteMachineResponse, error) {
 	// Log messages to track start of request
-	glog.V(2).Infof("Delete machine request has been recieved for %q", req.MachineName)
+	glog.V(2).Infof("Delete machine request has been received for %q", req.MachineName)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
@@ -89,8 +91,8 @@ func (ms *MachinePlugin) DeleteMachine(ctx context.Context, req *cmi.DeleteMachi
 // OPTIONAL METHOD
 //
 // REQUEST PARAMETERS (cmi.GetMachineStatusRequest)
-// MachineName          string              Contains the name of the machine object for whose status is to be retrived
-// ProviderSpec         bytes(blob)         Template/Configuration of the machine whose status is to be retrived
+// MachineName          string              Contains the name of the machine object for whose status is to be retrieved
+// ProviderSpec         bytes(blob)         Template/Configuration of the machine whose status is to be retrieved
 // Secrets              map<string,bytes>   (Optional) Contains a map from string to string contains any cloud specific secrets that can be used by the provider
 //
 // RESPONSE PARAMETERS (cmi.GetMachineStatueResponse)
@@ -100,9 +102,14 @@ func (ms *MachinePlugin) DeleteMachine(ctx context.Context, req *cmi.DeleteMachi
 // NodeName             string              Returns the name of the node-object that the VM register's with Kubernetes.
 //                                          This could be different from req.MachineName as well
 //
+// The request should return a NOT_FOUND (5) status error code if the machine is not existing
 func (ms *MachinePlugin) GetMachineStatus(ctx context.Context, req *cmi.GetMachineStatusRequest) (*cmi.GetMachineStatusResponse, error) {
 	// Log messages to track start of request
-	glog.V(2).Infof("Get machine request has been recieved for %q", req.MachineName)
+	glog.V(2).Infof("Get machine request has been received for %q", req.MachineName)
+
+	// If the machine is not existing, return a NotFound error code
+	// return nil, status.Error(codes.NotFound, "")
+
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
@@ -121,7 +128,8 @@ func (ms *MachinePlugin) GetMachineStatus(ctx context.Context, req *cmi.GetMachi
 //
 func (ms *MachinePlugin) ListMachines(ctx context.Context, req *cmi.ListMachinesRequest) (*cmi.ListMachinesResponse, error) {
 	// Log messages to track start of request
-	glog.V(2).Infof("List machines request has been recieved for %q", req.ProviderSpec)
+	glog.V(2).Infof("List machines request has been received")
+	glog.V(4).Infof("ProviderSpec = %q", req.ProviderSpec)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
@@ -135,7 +143,15 @@ func (ms *MachinePlugin) ListMachines(ctx context.Context, req *cmi.ListMachines
 //
 func (ms *MachinePlugin) GetVolumeIDs(ctx context.Context, req *cmi.GetVolumeIDsRequest) (*cmi.GetVolumeIDsResponse, error) {
 	// Log messages to track start of request
-	glog.V(2).Infof("GetListOfVolumeIDsForExistingPVs request has been recieved for %q", req.PVSpecList)
+	glog.V(2).Infof("GetVolumeIDs request has been received")
+	glog.V(4).Infof("PVSpecList = %q", req.PVSpecList)
+
+	var volumeSpecs []*corev1.PersistentVolumeSpec
+	err := json.Unmarshal(req.PVSpecList, &volumeSpecs)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
@@ -153,7 +169,7 @@ func (ms *MachinePlugin) GetVolumeIDs(ctx context.Context, req *cmi.GetVolumeIDs
 //
 func (ms *MachinePlugin) ShutDownMachine(ctx context.Context, req *cmi.ShutDownMachineRequest) (*cmi.ShutDownMachineResponse, error) {
 	// Log messages to track start of request
-	glog.V(2).Infof("ShutDown machine request has been recieved for %q", req.MachineName)
+	glog.V(2).Infof("ShutDown machine request has been received for %q", req.MachineName)
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
