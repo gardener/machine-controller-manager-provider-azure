@@ -11,6 +11,7 @@
 *.DS_Store
 *amd64
 *.html
+main
 
 # Output of the go coverage tool
 *coverprofile.out*

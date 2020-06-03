@@ -3,6 +3,19 @@ Copyright (c) 2018-2019 SAP SE or an SAP affiliate company. All rights reserved.
 
 ## Seed Source
 
+### Current
+
+The current seed source code is derived from the Machine Controller Manager repo under the Gardener project.
+
+Machine Controller Manager  
+Copyright 2020 The Machine Controller Manager Authors.  
+https://github.com/gardener/machine-controller-manager/releases/tag/v0.29.0  
+https://github.com/gardener/machine-controller-manager/blob/v0.29.0/LICENSE.md  
+
+This project however is inturn derived from several smaller kubernetes/kubernetes pieces. Refer [here](https://github.com/gardener/machine-controller-manager/blob/v0.29.0/NOTICE.md)
+
+### Deprecated
+
 The source code of this component was seeded based on a copy of the following files from container-storage-interface/spec. 
 
 Container Storage Interface (CSI) Drivers  
