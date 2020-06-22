@@ -26,13 +26,9 @@ TARGET_KUBECONFIG  := dev/target-kubeconfig.yaml
 # Rules for running helper scripts
 #########################################
 
-.PHONY: rename-provider
-rename-provider:
-	@./hack/rename-provider ${PROVIDER_NAME}
-
 .PHONY: rename-project
 rename-project:
-	@./hack/rename-project ${PROJECT_NAME}
+	@./hack/rename-project ${PROJECT_NAME} ${PROVIDER_NAME}
 
 #########################################
 # Rules for starting machine-controller locally
