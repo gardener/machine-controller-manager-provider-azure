@@ -4,7 +4,7 @@ github.com/beorn7/perks/quantile
 github.com/davecgh/go-spew/spew
 # github.com/evanphx/json-patch v4.2.0+incompatible
 github.com/evanphx/json-patch
-# github.com/gardener/machine-controller-manager v0.29.0 => github.com/prashanth26/machine-controller-manager v0.0.0-20200601182012-6f9dee78a746
+# github.com/gardener/machine-controller-manager v0.29.0 => github.com/gardener/machine-controller-manager v0.33.1-0.20200828071210-90f8b67cc5e6
 github.com/gardener/machine-controller-manager/pkg/apis/machine
 github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1
 github.com/gardener/machine-controller-manager/pkg/apis/machine/validation

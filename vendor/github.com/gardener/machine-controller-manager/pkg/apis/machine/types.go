@@ -72,6 +72,9 @@ type MachineSpec struct {
 	ProviderID string
 
 	NodeTemplateSpec NodeTemplateSpec
+
+	// Configuration for the machine-controller.
+	*MachineConfiguration
 }
 
 // NodeTemplateSpec describes the data a node should have when created from a template
@@ -90,6 +93,24 @@ type MachineTemplateSpec struct {
 	// Specification of the desired behavior of the machine.
 	// More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status
 	Spec MachineSpec
+}
+
+// MachineConfiguration describes the configurations useful for the machine-controller.
+type MachineConfiguration struct {
+	// MachineDrainTimeout is the time out after which machine is deleted force-fully.
+	MachineDrainTimeout *metav1.Duration
+
+	// MachineHealthTimeout is the timeout after which machine is declared unhealthy/failed.
+	MachineHealthTimeout *metav1.Duration
+
+	// MachineCreationTimeout is the timeout after which machinie creation is declared failed.
+	MachineCreationTimeout *metav1.Duration
+
+	// MaxEvictRetries is the number of retries that will be attempted while draining the node.
+	MaxEvictRetries *int32
+
+	// NodeConditions are the set of conditions if set to true for MachineHealthTimeOut, machine will be declared failed.
+	NodeConditions *string
 }
 
 // +genclient
@@ -598,46 +619,6 @@ type MachineDeploymentList struct {
 	Items []MachineDeployment
 }
 
-// describes the attributes of a scale subresource
-type ScaleSpec struct {
-	// desired number of machines for the scaled object.
-	Replicas int32
-}
-
-// represents the current status of a scale subresource.
-type ScaleStatus struct {
-	// actual number of observed machines of the scaled object.
-	Replicas int32
-
-	// label query over machines that should match the replicas count. More info: http://kubernetes.io/docs/user-guide/labels#label-selectors
-	Selector *metav1.LabelSelector
-
-	// label selector for machines that should match the replicas count. This is a serializated
-	// version of both map-based and more expressive set-based selectors. This is done to
-	// avoid introspection in the clients. The string will be in the same format as the
-	// query-param syntax. If the target type only supports map-based selectors, both this
-	// field and map-based selector field are populated.
-	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors
-	TargetSelector string
-}
-
-// +genclient
-// +genclient:noVerbs
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// represents a scaling request for a resource.
-type Scale struct {
-	metav1.TypeMeta
-	// Standard object metadata; More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#metadata.
-	metav1.ObjectMeta
-
-	// defines the behavior of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status.
-	Spec ScaleSpec
-
-	// current status of the scale. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status. Read-only.
-	Status ScaleStatus
-}
-
 /********************** OpenStackMachineClass APIs ***************/
 
 // +genclient
@@ -678,6 +659,7 @@ type OpenStackMachineClassSpec struct {
 	SecretRef        *corev1.SecretReference
 	PodNetworkCidr   string
 	RootDiskSize     int // in GB
+	UseConfigDrive   *bool
 }
 
 type OpenStackNetwork struct {
@@ -723,6 +705,7 @@ type AWSMachineClassSpec struct {
 	Monitoring        bool
 	NetworkInterfaces []AWSNetworkInterfaceSpec
 	Tags              map[string]string
+	SpotPrice         *string
 	SecretRef         *corev1.SecretReference
 
 	// TODO add more here
@@ -779,6 +762,18 @@ type AWSEbsBlockDeviceSpec struct {
 	// Condition: This parameter is required for requests to create io1 volumes;
 	// it is not used in requests to create gp2, st1, sc1, or standard volumes.
 	Iops int64
+
+	// Identifier (key ID, key alias, ID ARN, or alias ARN) for a customer managed
+	// CMK under which the EBS volume is encrypted.
+	//
+	// This parameter is only supported on BlockDeviceMapping objects called by
+	// RunInstances (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html),
+	// RequestSpotFleet (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RequestSpotFleet.html),
+	// and RequestSpotInstances (https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RequestSpotInstances.html).
+	KmsKeyID *string
+
+	// The ID of the snapshot.
+	SnapshotID *string
 
 	// The size of the volume, in GiB.
 	//

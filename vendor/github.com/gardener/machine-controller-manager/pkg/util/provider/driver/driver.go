@@ -26,11 +26,19 @@ import (
 
 // Driver is the common interface for creation/deletion of the VMs over different cloud-providers.
 type Driver interface {
+	// CreateMachine call is responsible for VM creation on the provider
 	CreateMachine(context.Context, *CreateMachineRequest) (*CreateMachineResponse, error)
+	// DeleteMachine call is responsible for VM deletion/termination on the provider
 	DeleteMachine(context.Context, *DeleteMachineRequest) (*DeleteMachineResponse, error)
+	// GetMachineStatus call get's the status of the VM backing the machine object on the provider
 	GetMachineStatus(context.Context, *GetMachineStatusRequest) (*GetMachineStatusResponse, error)
+	// ListMachines lists all the machines that might have been created by the supplied machineClass
 	ListMachines(context.Context, *ListMachinesRequest) (*ListMachinesResponse, error)
+	// GetVolumeIDs returns a list volumeIDs for the list of PVSpecs
 	GetVolumeIDs(context.Context, *GetVolumeIDsRequest) (*GetVolumeIDsResponse, error)
+	// GenerateMachineClassForMigration returns the generic machineClass for provider specific machine class CR
+	// e.g. AWSMachineClass --> MachineClass
+	GenerateMachineClassForMigration(context.Context, *GenerateMachineClassForMigrationRequest) (*GenerateMachineClassForMigrationResponse, error)
 }
 
 // CreateMachineRequest is the create request for VM creation
@@ -127,3 +135,19 @@ type GetVolumeIDsResponse struct {
 	// VolumeIDs is a list of VolumeIDs.
 	VolumeIDs []string
 }
+
+// GenerateMachineClassForMigrationRequest is the request for generating the generic machineClass
+// for the provider specific machine class
+type GenerateMachineClassForMigrationRequest struct {
+	// ProviderSpecificMachineClass is provider specfic machine class object.
+	// E.g. AWSMachineClass
+	ProviderSpecificMachineClass interface{}
+	// MachineClass is the machine class object generated that is to be filled up
+	MachineClass *v1alpha1.MachineClass
+	// ClassSpec contains the class spec object to determine the machineClass kind
+	ClassSpec *v1alpha1.ClassSpec
+}
+
+// GenerateMachineClassForMigrationResponse is the response for generating the generic machineClass
+// for the provider specific machine class
+type GenerateMachineClassForMigrationResponse struct{}
