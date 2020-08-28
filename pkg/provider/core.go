@@ -144,3 +144,30 @@ func (p *Provider) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeIDsReq
 
 	return &driver.GetVolumeIDsResponse{}, status.Error(codes.Unimplemented, "")
 }
+
+// GenerateMachineClassForMigration helps in migration of one kind of machineClass CR to another kind.
+// For instance an machineClass custom resource of `AWSMachineClass` to `MachineClass`.
+// Implement this functionality only if something like this is desired in your setup.
+// If you don't require this functionality leave is as is. (return Unimplemented)
+//
+// The following are the tasks typically expected out of this method
+// 1. Validate if the incoming classSpec is valid one for migration (e.g. has the right kind).
+// 2. Migrate/Copy over all the fields/spec from req.ProviderSpecificMachineClass to req.MachineClass
+// For an example refer
+//		https://github.com/prashanth26/machine-controller-manager-provider-gcp/blob/migration/pkg/gcp/machine_controller.go#L222-L233
+//
+// REQUEST PARAMETERS (driver.GenerateMachineClassForMigration)
+// ProviderSpecificMachineClass    interface{}                             ProviderSpecificMachineClass is provider specfic machine class object (E.g. AWSMachineClass). Typecasting is required here.
+// MachineClass 				   *v1alpha1.MachineClass                  MachineClass is the machine class object that is to be filled up by this method.
+// ClassSpec                       *v1alpha1.ClassSpec                     Somemore classSpec details useful while migration.
+//
+// RESPONSE PARAMETERS (driver.GenerateMachineClassForMigration)
+// NONE
+//
+func (p *Provider) GenerateMachineClassForMigration(ctx context.Context, req *driver.GenerateMachineClassForMigrationRequest) (*driver.GenerateMachineClassForMigrationResponse, error) {
+	// Log messages to track start and end of request
+	klog.V(2).Infof("MigrateMachineClass request has been recieved for %q", req.ClassSpec)
+	defer klog.V(2).Infof("MigrateMachineClass request has been processed successfully for %q", req.ClassSpec)
+
+	return &driver.GenerateMachineClassForMigrationResponse{}, status.Error(codes.Unimplemented, "")
+}
