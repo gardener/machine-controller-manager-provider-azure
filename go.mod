@@ -1,4 +1,4 @@
-module github.com/gardener/machine-controller-manager-provider-sampleprovider
+module github.com/gardener/machine-controller-manager-provider-azure
 
 go 1.13
 

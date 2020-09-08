@@ -1,8 +1,8 @@
-# machine-controller-manager-provider-sampleprovider
-Out of tree (controller based) implementation for `SampleProvider` as a new provider.
+# machine-controller-manager-provider-azure
+Out of tree (controller based) implementation for `Azure` as a new provider.
 
 ## About
-- This is a sample repository that provides the blueprint required to implement a new (hyperscale) provider. We call the new provider as `SampleProvider` for our ease.
+- This is a sample repository that provides the blueprint required to implement a new (hyperscale) provider. We call the new provider as `Azure` for our ease.
 - Each provider implements the interface defined at [MCM OOT driver](https://github.com/gardener/machine-controller-manager/blob/master/pkg/util/provider/driver/driver.go).
 
 ## Fundamental Design Principles:
