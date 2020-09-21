@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"os"
 
-	cp "github.com/gardener/machine-controller-manager-provider-azure/pkg/provider"
+	cp "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	_ "github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheus" // for client metric registration
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/app"
@@ -46,9 +46,9 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	provider := cp.NewProvider(&spi.PluginSPIImpl{})
+	driver := cp.NewAzureDriver(&spi.PluginSPIImpl{})
 
-	if err := app.Run(s, provider); err != nil {
+	if err := app.Run(s, driver); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}

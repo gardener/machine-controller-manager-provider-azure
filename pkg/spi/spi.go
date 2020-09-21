@@ -16,12 +16,13 @@ limitations under the License.
 
 package spi
 
+import (
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/client"
+	corev1 "k8s.io/api/core/v1"
+)
+
 // SessionProviderInterface provides an interface to deal with cloud provider session
 // Example interfaces are listed below.
 type SessionProviderInterface interface {
-	// NewSession(*corev1.Secret, string) (*session.Session, error)
-	// NewEC2API(*session.Session) ec2iface.EC2API
+	Setup(cloudConfig *corev1.Secret) (*client.AzureDriverClients, error)
 }
-
-// PluginSPIImpl is the real implementation of SPI interface that makes the calls to the provider SDK.
-type PluginSPIImpl struct{}

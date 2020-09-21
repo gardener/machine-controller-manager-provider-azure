@@ -1,7 +1,34 @@
+# github.com/Azure/azure-sdk-for-go v42.2.0+incompatible
+github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute
+github.com/Azure/azure-sdk-for-go/profiles/latest/marketplaceordering/mgmt/marketplaceordering
+github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network
+github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/resources
+github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute
+github.com/Azure/azure-sdk-for-go/services/marketplaceordering/mgmt/2015-06-01/marketplaceordering
+github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-04-01/network
+github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2019-05-01/resources
+github.com/Azure/azure-sdk-for-go/version
+# github.com/Azure/go-autorest/autorest v0.10.1
+github.com/Azure/go-autorest/autorest
+github.com/Azure/go-autorest/autorest/azure
+# github.com/Azure/go-autorest/autorest/adal v0.8.2
+github.com/Azure/go-autorest/autorest/adal
+# github.com/Azure/go-autorest/autorest/date v0.2.0
+github.com/Azure/go-autorest/autorest/date
+# github.com/Azure/go-autorest/autorest/to v0.3.0
+github.com/Azure/go-autorest/autorest/to
+# github.com/Azure/go-autorest/autorest/validation v0.2.0
+github.com/Azure/go-autorest/autorest/validation
+# github.com/Azure/go-autorest/logger v0.1.0
+github.com/Azure/go-autorest/logger
+# github.com/Azure/go-autorest/tracing v0.5.0
+github.com/Azure/go-autorest/tracing
 # github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
 github.com/beorn7/perks/quantile
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
+# github.com/dgrijalva/jwt-go v3.2.0+incompatible
+github.com/dgrijalva/jwt-go
 # github.com/evanphx/json-patch v4.2.0+incompatible
 github.com/evanphx/json-patch
 # github.com/gardener/machine-controller-manager v0.29.0 => github.com/gardener/machine-controller-manager v0.33.1-0.20200828071210-90f8b67cc5e6
@@ -21,6 +48,7 @@ github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alph
 github.com/gardener/machine-controller-manager/pkg/fakeclient
 github.com/gardener/machine-controller-manager/pkg/features
 github.com/gardener/machine-controller-manager/pkg/handlers
+github.com/gardener/machine-controller-manager/pkg/metrics
 github.com/gardener/machine-controller-manager/pkg/options
 github.com/gardener/machine-controller-manager/pkg/util/client/leaderelectionconfig
 github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheus

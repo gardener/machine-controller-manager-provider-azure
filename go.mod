@@ -3,10 +3,14 @@ module github.com/gardener/machine-controller-manager-provider-azure
 go 1.13
 
 require (
+	github.com/Azure/azure-sdk-for-go v42.2.0+incompatible
+	github.com/Azure/go-autorest/autorest v0.10.1
+	github.com/Azure/go-autorest/autorest/adal v0.8.2
+	github.com/Azure/go-autorest/autorest/to v0.3.0
 	github.com/gardener/machine-controller-manager v0.29.0
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
-	github.com/prometheus/client_golang v1.5.1 // indirect
+	github.com/prometheus/client_golang v1.5.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.5.1 // indirect
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2 // indirect
