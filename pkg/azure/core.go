@@ -19,6 +19,7 @@ package azure
 
 import (
 	"context"
+	"strings"
 
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
@@ -83,7 +84,7 @@ func (d *Driver) CreateMachine(ctx context.Context, req *driver.CreateMachineReq
 
 	virtualMachine, err := d.createVMNicDisk(req)
 	if err != nil {
-		return nil, status.Error(codes.Unimplemented, "")
+		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
 	return &driver.CreateMachineResponse{ProviderID: *virtualMachine.ID, NodeName: *virtualMachine.Name}, nil
@@ -105,7 +106,31 @@ func (d *Driver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineReq
 	klog.V(2).Infof("Machine deletion request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine deletion request has been processed for %q", req.Machine.Name)
 
-	return &driver.DeleteMachineResponse{}, status.Error(codes.Unimplemented, "")
+	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	d.AzureProviderSpec = providerSpec
+
+	var (
+		vmName            = strings.ToLower(req.Machine.Name)
+		resourceGroupName = providerSpec.ResourceGroup
+		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
+		diskName          = dependencyNameFromVMName(vmName, diskSuffix)
+		dataDiskNames     []string
+	)
+	if providerSpec.Properties.StorageProfile.DataDisks != nil && len(providerSpec.Properties.StorageProfile.DataDisks) > 0 {
+		dataDiskNames = getAzureDataDiskNames(providerSpec.Properties.StorageProfile.DataDisks, vmName, dataDiskSuffix)
+	}
+
+	clients, err := d.SPI.Setup(req.Secret)
+	if err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
+
+	err = clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+	if err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
+
+	return &driver.DeleteMachineResponse{}, nil
 }
 
 // GetMachineStatus handles a machine get status request
@@ -149,6 +174,18 @@ func (d *Driver) ListMachines(ctx context.Context, req *driver.ListMachinesReque
 	// Log messages to track start and end of request
 	klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
 	defer klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
+
+	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	d.AzureProviderSpec = providerSpec
+
+	var resourceGroupName = providerSpec.ResourceGroup
+
+	clients, err := d.SPI.Setup(req.Secret)
+	if err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
+
+	clients.VM.List(ctx, resourceGroupName)
 
 	return &driver.ListMachinesResponse{}, status.Error(codes.Unimplemented, "")
 }
