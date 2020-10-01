@@ -13,12 +13,10 @@ import (
 )
 
 func decodeProviderSpecAndSecret(machineClass *v1alpha1.MachineClass, secret *corev1.Secret) (*api.AzureProviderSpec, error) {
-	var (
-		providerSpec *api.AzureProviderSpec
-	)
+	var providerSpec *api.AzureProviderSpec
 
 	// Extract providerSpec
-	err := json.Unmarshal(machineClass.ProviderSpec.Raw, &providerSpec)
+	err := json.Unmarshal(machineClass.ProviderSpec.Raw, providerSpec)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

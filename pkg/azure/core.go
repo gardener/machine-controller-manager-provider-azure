@@ -21,8 +21,11 @@ import (
 	"context"
 	"strings"
 
+	compute "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
+	clientutils "github.com/gardener/machine-controller-manager-provider-azure/pkg/client"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
@@ -63,6 +66,9 @@ type Driver struct {
 	AzureProviderSpec *api.AzureProviderSpec
 	Secret            *corev1.Secret
 }
+
+// AzureMachineClassKind for Azure Machine Class
+const AzureMachineClassKind = "AzureMachineClass"
 
 // NewAzureDriver returns an empty AzureDriver object
 func NewAzureDriver(spi spi.SessionProviderInterface) driver.Driver {
@@ -154,7 +160,29 @@ func (d *Driver) GetMachineStatus(ctx context.Context, req *driver.GetMachineSta
 	klog.V(2).Infof("Get request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine get request has been processed successfully for %q", req.Machine.Name)
 
-	return &driver.GetMachineStatusResponse{}, status.Error(codes.Unimplemented, "")
+	var machineStatusResponse = &driver.GetMachineStatusResponse{}
+
+	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	if err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
+	d.AzureProviderSpec = providerSpec
+
+	listMachineRequest := &driver.ListMachinesRequest{MachineClass: req.MachineClass, Secret: req.Secret}
+
+	machines, err := d.ListMachines(ctx, listMachineRequest)
+	if err != nil {
+		return nil, err
+	}
+	for providerID, VMName := range machines.MachineList {
+		if VMName == req.Machine.Name {
+			machineStatusResponse.NodeName = VMName
+			machineStatusResponse.ProviderID = providerID
+			return machineStatusResponse, nil
+		}
+	}
+
+	return nil, status.Error(codes.NotFound, "")
 }
 
 // ListMachines lists all the machines possibilly created by a providerSpec
@@ -178,16 +206,35 @@ func (d *Driver) ListMachines(ctx context.Context, req *driver.ListMachinesReque
 	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
 	d.AzureProviderSpec = providerSpec
 
-	var resourceGroupName = providerSpec.ResourceGroup
+	var (
+		resourceGroupName = providerSpec.ResourceGroup
+		items             []compute.VirtualMachine
+		result            compute.VirtualMachineListResultPage
+		listOfVMs         = make(map[string]string)
+	)
 
 	clients, err := d.SPI.Setup(req.Secret)
 	if err != nil {
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
-	clients.VM.List(ctx, resourceGroupName)
+	result, err = clients.VM.List(ctx, resourceGroupName)
 
-	return &driver.ListMachinesResponse{}, status.Error(codes.Unimplemented, "")
+	items = append(items, result.Values()...)
+	for result.NotDone() {
+		err = result.NextWithContext(ctx)
+		if err != nil {
+			return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "VM.List")
+		}
+		items = append(items, result.Values()...)
+	}
+
+	for _, item := range items {
+		listOfVMs[*item.ID] = *item.Name
+	}
+
+	clientutils.OnARMAPISuccess(prometheusServiceVM, "VM.List")
+	return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
 }
 
 // GetVolumeIDs returns a list of Volume IDs for all PV Specs for whom an provider volume was found
@@ -230,5 +277,13 @@ func (d *Driver) GenerateMachineClassForMigration(ctx context.Context, req *driv
 	klog.V(2).Infof("MigrateMachineClass request has been recieved for %q", req.ClassSpec)
 	defer klog.V(2).Infof("MigrateMachineClass request has been processed successfully for %q", req.ClassSpec)
 
-	return &driver.GenerateMachineClassForMigrationResponse{}, status.Error(codes.Unimplemented, "")
+	azureMachineClass := req.ProviderSpecificMachineClass.(*v1alpha1.AzureMachineClass)
+
+	// Check if incoming CR is valid CR for migration
+	// In this case, the MachineClassKind to be matching
+	if req.ClassSpec.Kind != AzureMachineClassKind {
+		return nil, status.Error(codes.Internal, "Migration cannot be done for this machineClass kind")
+	}
+
+	return &driver.GenerateMachineClassForMigrationResponse{}, fillUpMachineClass(azureMachineClass, req.MachineClass)
 }

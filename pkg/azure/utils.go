@@ -3,6 +3,7 @@ package azure
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,7 +14,11 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	clientutils "github.com/gardener/machine-controller-manager-provider-azure/pkg/client"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
 )
 
@@ -468,4 +473,47 @@ func (d *Driver) createVMNicDisk(req *driver.CreateMachineRequest) (*compute.Vir
 	clientutils.OnARMAPISuccess(prometheusServiceVM, "VM.CreateOrUpdate")
 
 	return &VM, nil
+}
+
+func fillUpMachineClass(azureMachineClass *v1alpha1.AzureMachineClass, machineClass *v1alpha1.MachineClass) error {
+	var (
+		err        error
+		properties api.AzureVirtualMachineProperties
+		subnetInfo api.AzureSubnetInfo
+	)
+
+	// Extract the Properties object from the AzureMachineClass
+	// to fill it up in the MachineClass
+	data, _ := json.Marshal(azureMachineClass.Spec.Properties)
+	err = json.Unmarshal(data, &properties)
+
+	// Extract the Subnet Info object form the AzureMachineClass
+	// to fill it up in the MachineClass
+	data, _ = json.Marshal(azureMachineClass.Spec.SubnetInfo)
+	err = json.Unmarshal(data, &subnetInfo)
+
+	providerSpec := &api.AzureProviderSpec{
+		Location:      azureMachineClass.Spec.Location,
+		Tags:          azureMachineClass.Spec.Tags,
+		Properties:    properties,
+		ResourceGroup: azureMachineClass.Spec.ResourceGroup,
+		SubnetInfo:    subnetInfo,
+	}
+
+	// Marshal providerSpec into Raw Bytes
+	providerSpecMarshal, err := json.Marshal(providerSpec)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+
+	machineClass.SecretRef = azureMachineClass.Spec.SecretRef
+	machineClass.Name = azureMachineClass.Name
+	machineClass.Labels = azureMachineClass.Labels
+	machineClass.Annotations = azureMachineClass.Annotations
+	machineClass.Finalizers = azureMachineClass.Finalizers
+	machineClass.ProviderSpec = runtime.RawExtension{
+		Raw: providerSpecMarshal,
+	}
+
+	return err
 }
