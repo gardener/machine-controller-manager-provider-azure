@@ -16,7 +16,7 @@ func decodeProviderSpecAndSecret(machineClass *v1alpha1.MachineClass, secret *co
 	var providerSpec *api.AzureProviderSpec
 
 	// Extract providerSpec
-	err := json.Unmarshal(machineClass.ProviderSpec.Raw, providerSpec)
+	err := json.Unmarshal(machineClass.ProviderSpec.Raw, &providerSpec)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

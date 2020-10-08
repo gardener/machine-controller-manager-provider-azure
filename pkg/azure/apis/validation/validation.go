@@ -62,9 +62,6 @@ func validateSpecSubnetInfo(subnetInfo api.AzureSubnetInfo) []error {
 	if "" == subnetInfo.SubnetName {
 		allErrs = append(allErrs, fmt.Errorf("Subnet name is required for subnet info"))
 	}
-	if nil == subnetInfo.VnetResourceGroup {
-		allErrs = append(allErrs, fmt.Errorf("Vnet Resource Group is required for subnet info"))
-	}
 
 	return allErrs
 }
@@ -158,24 +155,29 @@ func validateSpecProperties(properties api.AzureVirtualMachineProperties) []erro
 }
 
 func validateSpecTags(tags map[string]string) []error {
+
+	var fldPath *field.Path
 	var allErrs []error
+
+	fldPath = field.NewPath("providerSpec")
 	clusterName := ""
 	nodeRole := ""
 
 	for key := range tags {
-		if strings.Contains(key, "kubernetes.io/cluster/") {
+		if strings.Contains(key, "kubernetes.io-cluster-") {
 			clusterName = key
-		} else if strings.Contains(key, "kubernetes.io/role/") {
+		} else if strings.Contains(key, "kubernetes.io-role-") {
 			nodeRole = key
 		}
 	}
 
 	if clusterName == "" {
-		allErrs = append(allErrs, fmt.Errorf("Tag is required of the form kubernetes.io/cluster/****"))
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io-cluster-"), "Tag required of the form kubernetes.io-cluster-****"))
 	}
 	if nodeRole == "" {
-		allErrs = append(allErrs, fmt.Errorf("Tag is required of the form kubernetes.io/role/****"))
+		allErrs = append(allErrs, field.Required(fldPath.Child("kubernetes.io-role-"), "Tag required of the form kubernetes.io-role-****"))
 	}
+
 	return allErrs
 }
 

@@ -269,6 +269,7 @@ func (d *Driver) createVMNicDisk(req *driver.CreateMachineRequest) (*compute.Vir
 	if err != nil {
 		return nil, err
 	}
+
 	var (
 		ctx               = context.Background()
 		vmName            = strings.ToLower(req.Machine.Name)
@@ -287,7 +288,7 @@ func (d *Driver) createVMNicDisk(req *driver.CreateMachineRequest) (*compute.Vir
 	}
 
 	// Check if the machine should assigned to a vnet in a different resource group.
-	if vnetResourceGroup != "" {
+	if providerSpec.SubnetInfo.VnetResourceGroup != nil {
 		vnetResourceGroup = *providerSpec.SubnetInfo.VnetResourceGroup
 	}
 

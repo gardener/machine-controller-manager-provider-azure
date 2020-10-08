@@ -21,9 +21,7 @@ import (
 	"context"
 	"strings"
 
-	compute "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
-	clientutils "github.com/gardener/machine-controller-manager-provider-azure/pkg/client"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -136,6 +134,7 @@ func (d *Driver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineReq
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
+	// return &driver.DeleteMachineResponse{}, status.Error(codes.Unimplemented, "")
 	return &driver.DeleteMachineResponse{}, nil
 }
 
@@ -162,12 +161,6 @@ func (d *Driver) GetMachineStatus(ctx context.Context, req *driver.GetMachineSta
 
 	var machineStatusResponse = &driver.GetMachineStatusResponse{}
 
-	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
-	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
-	}
-	d.AzureProviderSpec = providerSpec
-
 	listMachineRequest := &driver.ListMachinesRequest{MachineClass: req.MachineClass, Secret: req.Secret}
 
 	machines, err := d.ListMachines(ctx, listMachineRequest)
@@ -182,7 +175,7 @@ func (d *Driver) GetMachineStatus(ctx context.Context, req *driver.GetMachineSta
 		}
 	}
 
-	return nil, status.Error(codes.NotFound, "")
+	return nil, status.Error(codes.Unimplemented, "")
 }
 
 // ListMachines lists all the machines possibilly created by a providerSpec
@@ -200,41 +193,41 @@ func (d *Driver) GetMachineStatus(ctx context.Context, req *driver.GetMachineSta
 //
 func (d *Driver) ListMachines(ctx context.Context, req *driver.ListMachinesRequest) (*driver.ListMachinesResponse, error) {
 	// Log messages to track start and end of request
-	klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
-	defer klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
+	// klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
+	// defer klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
 
-	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
-	d.AzureProviderSpec = providerSpec
+	// providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	// d.AzureProviderSpec = providerSpec
 
-	var (
-		resourceGroupName = providerSpec.ResourceGroup
-		items             []compute.VirtualMachine
-		result            compute.VirtualMachineListResultPage
-		listOfVMs         = make(map[string]string)
-	)
+	// var (
+	// 	resourceGroupName = providerSpec.ResourceGroup
+	// 	items             []compute.VirtualMachine
+	// 	result            compute.VirtualMachineListResultPage
+	// 	listOfVMs         = make(map[string]string)
+	// )
 
-	clients, err := d.SPI.Setup(req.Secret)
-	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
-	}
+	// clients, err := d.SPI.Setup(req.Secret)
+	// if err != nil {
+	// 	return nil, status.Error(codes.Unknown, err.Error())
+	// }
 
-	result, err = clients.VM.List(ctx, resourceGroupName)
+	// result, err = clients.VM.List(ctx, resourceGroupName)
+	// items = append(items, result.Values()...)
+	// for result.NotDone() {
+	// 	err = result.NextWithContext(ctx)
+	// 	if err != nil {
+	// 		return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "VM.List")
+	// 	}
+	// 	items = append(items, result.Values()...)
+	// }
 
-	items = append(items, result.Values()...)
-	for result.NotDone() {
-		err = result.NextWithContext(ctx)
-		if err != nil {
-			return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "VM.List")
-		}
-		items = append(items, result.Values()...)
-	}
+	// for _, item := range items {
+	// 	listOfVMs[*item.ID] = *item.Name
+	// }
 
-	for _, item := range items {
-		listOfVMs[*item.ID] = *item.Name
-	}
-
-	clientutils.OnARMAPISuccess(prometheusServiceVM, "VM.List")
-	return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
+	// clientutils.OnARMAPISuccess(prometheusServiceVM, "VM.List")
+	// return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
+	return &driver.ListMachinesResponse{}, status.Error(codes.Unimplemented, "")
 }
 
 // GetVolumeIDs returns a list of Volume IDs for all PV Specs for whom an provider volume was found
