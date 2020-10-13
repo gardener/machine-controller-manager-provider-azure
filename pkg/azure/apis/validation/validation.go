@@ -29,8 +29,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-const nameFmt string = `[-a-z0-9]+`
-const nameMaxLength int = 63
+const (
+	nameFmt       string = `[-a-z0-9]+`
+	nameMaxLength int    = 63
+)
 
 var nameRegexp = regexp.MustCompile("^" + nameFmt + "$")
 
@@ -144,11 +146,21 @@ func validateSpecProperties(properties api.AzureVirtualMachineProperties) []erro
 		allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.adminUsername"), "AdminUsername is required"))
 	}
 
-	if properties.Zone == nil && properties.AvailabilitySet == nil {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.availabilitySet"), "Machine need to be assigned to a zone or an AvailabilitySet"))
+	if properties.Zone == nil && properties.MachineSet == nil && properties.AvailabilitySet == nil {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.machineSet|.availabilitySet"), "Machine need to be assigned to a zone, a MachineSet or an AvailabilitySet"))
 	}
-	if properties.Zone != nil && properties.AvailabilitySet != nil {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.availabilitySet"), "Machine cannot be assigned to a zone and an AvailabilitySet in parallel"))
+
+	if properties.Zone != nil && (properties.MachineSet != nil || properties.AvailabilitySet != nil) {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.machineSet|.availabilitySet"), "Machine cannot be assigned to a zone, a MachineSet and an AvailabilitySet in parallel"))
+	}
+
+	if properties.Zone == nil {
+		if properties.MachineSet != nil && properties.AvailabilitySet != nil {
+			allErrs = append(allErrs, field.Forbidden(fldPath.Child("machineSet|.availabilitySet"), "Machine cannot be assigned a MachineSet and an AvailabilitySet in parallel"))
+		}
+		if properties.MachineSet != nil && !(properties.MachineSet.Kind == api.MachineSetKindVMO || properties.MachineSet.Kind == api.MachineSetKindAvailabilitySet) {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("machineSet"), properties.MachineSet.Kind, fmt.Sprintf("Invalid MachineSet kind. Use either '%s' or '%s'", api.MachineSetKindVMO, api.MachineSetKindAvailabilitySet)))
+		}
 	}
 
 	return allErrs

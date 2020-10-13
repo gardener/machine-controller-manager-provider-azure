@@ -13,6 +13,13 @@ limitations under the License.
 
 package api
 
+const (
+	// MachineSetKindAvailabilitySet is the machine set kind for AvailabilitySet
+	MachineSetKindAvailabilitySet string = "availabilityset"
+	// MachineSetKindVMO is the machine set kind for VirtualMachineScaleSet Orchestration Mode VM (VMO)
+	MachineSetKindVMO string = "vmo"
+)
+
 // AzureProviderSpec is the spec to be used while parsing the calls.
 type AzureProviderSpec struct {
 	Location      string                        `json:"location,omitempty"`
@@ -24,19 +31,26 @@ type AzureProviderSpec struct {
 
 // AzureVirtualMachineProperties is describes the properties of a Virtual Machine.
 type AzureVirtualMachineProperties struct {
-	HardwareProfile AzureHardwareProfile `json:"hardwareProfile,omitempty"`
-	StorageProfile  AzureStorageProfile  `json:"storageProfile,omitempty"`
-	OsProfile       AzureOSProfile       `json:"osProfile,omitempty"`
-	NetworkProfile  AzureNetworkProfile  `json:"networkProfile,omitempty"`
-	AvailabilitySet *AzureSubResource    `json:"availabilitySet,omitempty"`
-	IdentityID      *string              `json:"identityID,omitempty"`
-	Zone            *int                 `json:"zone,omitempty"`
+	HardwareProfile AzureHardwareProfile   `json:"hardwareProfile,omitempty"`
+	StorageProfile  AzureStorageProfile    `json:"storageProfile,omitempty"`
+	OsProfile       AzureOSProfile         `json:"osProfile,omitempty"`
+	NetworkProfile  AzureNetworkProfile    `json:"networkProfile,omitempty"`
+	AvailabilitySet *AzureSubResource      `json:"availabilitySet,omitempty"`
+	IdentityID      *string                `json:"identityID,omitempty"`
+	Zone            *int                   `json:"zone,omitempty"`
+	MachineSet      *AzureMachineSetConfig `json:"machineSet,omitempty"`
 }
 
 // AzureHardwareProfile is specifies the hardware settings for the virtual machine.
 // Refer github.com/Azure/azure-sdk-for-go/arm/compute/models.go for VMSizes
 type AzureHardwareProfile struct {
 	VMSize string `json:"vmSize,omitempty"`
+}
+
+// AzureMachineSetConfig contains the information about the machine set
+type AzureMachineSetConfig struct {
+	ID   string `json:"id"`
+	Kind string `json:"kind"`
 }
 
 // AzureStorageProfile is specifies the storage settings for the virtual machine disks.
