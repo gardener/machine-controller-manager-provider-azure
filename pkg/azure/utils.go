@@ -65,7 +65,7 @@ func getAzureDataDiskNames(azureDataDisks []api.AzureDataDisk, vmname, suffix st
 	return azureDataDiskNames
 }
 
-func (d *Driver) getNICParameters(vmName string, subnet *network.Subnet) network.Interface {
+func (d *MachinePlugin) getNICParameters(vmName string, subnet *network.Subnet) network.Interface {
 
 	var (
 		nicName            = dependencyNameFromVMName(vmName, nicSuffix)
@@ -101,7 +101,7 @@ func (d *Driver) getNICParameters(vmName string, subnet *network.Subnet) network
 	return NICParameters
 }
 
-func (d *Driver) generateDataDisks(vmName string, azureDataDisks []api.AzureDataDisk) []compute.DataDisk {
+func (d *MachinePlugin) generateDataDisks(vmName string, azureDataDisks []api.AzureDataDisk) []compute.DataDisk {
 	var dataDisks []compute.DataDisk
 	for i, azureDataDisk := range azureDataDisks {
 
@@ -139,7 +139,7 @@ func (d *Driver) generateDataDisks(vmName string, azureDataDisks []api.AzureData
 	return dataDisks
 }
 
-func (d *Driver) getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string) compute.VirtualMachine {
+func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string) compute.VirtualMachine {
 
 	var (
 		diskName    = dependencyNameFromVMName(vmName, diskSuffix)
@@ -241,7 +241,7 @@ func (d *Driver) getVMParameters(vmName string, image *compute.VirtualMachineIma
 	return VMParameters
 }
 
-func getImageReference(d *Driver) compute.ImageReference {
+func getImageReference(d *MachinePlugin) compute.ImageReference {
 	imageRefClass := d.AzureProviderSpec.Properties.StorageProfile.ImageReference
 	if imageRefClass.ID != "" {
 		return compute.ImageReference{
@@ -262,7 +262,7 @@ func getImageReference(d *Driver) compute.ImageReference {
 	}
 }
 
-func (d *Driver) createVMNicDisk(req *driver.CreateMachineRequest) (*compute.VirtualMachine, error) {
+func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*compute.VirtualMachine, error) {
 
 	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
 	d.AzureProviderSpec = providerSpec

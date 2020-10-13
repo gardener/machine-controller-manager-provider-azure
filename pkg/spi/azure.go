@@ -15,6 +15,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// MachinePlugin implements the driver.Driver
+// It also implements the PluginSPI interface
+type MachinePlugin struct {
+	SPI SessionProviderInterface
+}
+
 // PluginSPIImpl is the real implementation of SPI interface that makes the calls to the Azure SDK.
 type PluginSPIImpl struct{}
 
@@ -27,7 +33,11 @@ func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*client.AzureDriverClient
 		clientSecret   = strings.TrimSpace(string(secret.Data[v1alpha1.AzureClientSecret]))
 		env            = azure.PublicCloud
 	)
-	return NewClients(subscriptionID, tenantID, clientID, clientSecret, env)
+	newClients, err := NewClients(subscriptionID, tenantID, clientID, clientSecret, env)
+	if err != nil {
+		return nil, err
+	}
+	return newClients, nil
 }
 
 // NewClients returns the authenticated Azure clients

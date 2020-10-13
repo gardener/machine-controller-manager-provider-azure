@@ -21,7 +21,9 @@ import (
 	"context"
 	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
+	clientutils "github.com/gardener/machine-controller-manager-provider-azure/pkg/client"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -58,8 +60,8 @@ import (
 //                                                Could be helpful to continue operations in future requests.
 //
 
-// Driver is the driver struct for holding Azure machine information
-type Driver struct {
+// MachinePlugin is the driver struct for holding Azure machine information
+type MachinePlugin struct {
 	SPI               spi.SessionProviderInterface
 	AzureProviderSpec *api.AzureProviderSpec
 	Secret            *corev1.Secret
@@ -69,8 +71,8 @@ type Driver struct {
 const AzureMachineClassKind = "AzureMachineClass"
 
 // NewAzureDriver returns an empty AzureDriver object
-func NewAzureDriver(spi spi.SessionProviderInterface) driver.Driver {
-	return &Driver{
+func NewAzureDriver(spi spi.SessionProviderInterface) *MachinePlugin {
+	return &MachinePlugin{
 		SPI: spi,
 	}
 }
@@ -80,7 +82,7 @@ func NewAzureDriver(spi spi.SessionProviderInterface) driver.Driver {
 // These could be done using tag(s)/resource-groups etc.
 // This logic is used by safety controller to delete orphan VMs which are not backed by any machine CRD
 //
-func (d *Driver) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (*driver.CreateMachineResponse, error) {
+func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (*driver.CreateMachineResponse, error) {
 	// Log messages to track request
 	klog.V(2).Infof("Machine creation request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine creation request has been processed for %q", req.Machine.Name)
@@ -105,7 +107,7 @@ func (d *Driver) CreateMachine(ctx context.Context, req *driver.CreateMachineReq
 // LastKnownState        bytes(blob)              (Optional) Last known state of VM during the current operation.
 //                                                Could be helpful to continue operations in future requests.
 //
-func (d *Driver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {
+func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {
 	// Log messages to track delete request
 	klog.V(2).Infof("Machine deletion request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine deletion request has been processed for %q", req.Machine.Name)
@@ -154,7 +156,7 @@ func (d *Driver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineReq
 //                                                This could be different from req.MachineName as well
 //
 // The request should return a NOT_FOUND (5) status error code if the machine is not existing
-func (d *Driver) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (*driver.GetMachineStatusResponse, error) {
+func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (*driver.GetMachineStatusResponse, error) {
 	// Log messages to track start and end of request
 	klog.V(2).Infof("Get request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine get request has been processed successfully for %q", req.Machine.Name)
@@ -191,46 +193,46 @@ func (d *Driver) GetMachineStatus(ctx context.Context, req *driver.GetMachineSta
 // MachineList           map<string,string>  A map containing the keys as the MachineID and value as the MachineName
 //                                           for all machine's who where possibilly created by this ProviderSpec
 //
-func (d *Driver) ListMachines(ctx context.Context, req *driver.ListMachinesRequest) (*driver.ListMachinesResponse, error) {
+func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachinesRequest) (*driver.ListMachinesResponse, error) {
 	// Log messages to track start and end of request
-	// klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
-	// defer klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
+	klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
+	defer klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
 
-	// providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
-	// d.AzureProviderSpec = providerSpec
+	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	d.AzureProviderSpec = providerSpec
 
-	// var (
-	// 	resourceGroupName = providerSpec.ResourceGroup
-	// 	items             []compute.VirtualMachine
-	// 	result            compute.VirtualMachineListResultPage
-	// 	listOfVMs         = make(map[string]string)
-	// )
+	var (
+		resourceGroupName = providerSpec.ResourceGroup
+		items             []compute.VirtualMachine
+		result            compute.VirtualMachineListResultPage
+		listOfVMs         = make(map[string]string)
+	)
 
-	// clients, err := d.SPI.Setup(req.Secret)
-	// if err != nil {
-	// 	return nil, status.Error(codes.Unknown, err.Error())
-	// }
+	clients, err := d.SPI.Setup(req.Secret)
+	if err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
 
-	// result, err = clients.VM.List(ctx, resourceGroupName)
-	// items = append(items, result.Values()...)
-	// for result.NotDone() {
-	// 	err = result.NextWithContext(ctx)
-	// 	if err != nil {
-	// 		return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "VM.List")
-	// 	}
-	// 	items = append(items, result.Values()...)
-	// }
+	result, err = clients.VM.List(ctx, resourceGroupName)
+	items = append(items, result.Values()...)
+	for result.NotDone() {
+		err = result.NextWithContext(ctx)
+		if err != nil {
+			return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "VM.List")
+		}
+		items = append(items, result.Values()...)
+	}
 
-	// for _, item := range items {
-	// 	listOfVMs[*item.ID] = *item.Name
-	// }
+	for _, item := range items {
+		listOfVMs[*item.ID] = *item.Name
+	}
 
-	// clientutils.OnARMAPISuccess(prometheusServiceVM, "VM.List")
-	// return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
-	return &driver.ListMachinesResponse{}, status.Error(codes.Unimplemented, "")
+	clientutils.OnARMAPISuccess(prometheusServiceVM, "VM.List")
+	return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
+	// return &driver.ListMachinesResponse{}, status.Error(codes.Unimplemented, "")
 }
 
-// GetVolumeIDs returns a list of Volume IDs for all PV Specs for whom an provider volume was found
+// GetVolumeIDs returns a list of Volume IDs for all PV Specs for whom a provider volume was found
 //
 // REQUEST PARAMETERS (driver.GetVolumeIDsRequest)
 // PVSpecList            []*corev1.PersistentVolumeSpec       PVSpecsList is a list PV specs for whom volume-IDs are required.
@@ -238,7 +240,7 @@ func (d *Driver) ListMachines(ctx context.Context, req *driver.ListMachinesReque
 // RESPONSE PARAMETERS (driver.GetVolumeIDsResponse)
 // VolumeIDs             []string                             VolumeIDs is a repeated list of VolumeIDs.
 //
-func (d *Driver) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
+func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
 	// Log messages to track start and end of request
 	klog.V(2).Infof("GetVolumeIDs request has been recieved for %q", req.PVSpecs)
 	defer klog.V(2).Infof("GetVolumeIDs request has been processed successfully for %q", req.PVSpecs)
@@ -265,7 +267,7 @@ func (d *Driver) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeIDsReque
 // RESPONSE PARAMETERS (driver.GenerateMachineClassForMigration)
 // NONE
 //
-func (d *Driver) GenerateMachineClassForMigration(ctx context.Context, req *driver.GenerateMachineClassForMigrationRequest) (*driver.GenerateMachineClassForMigrationResponse, error) {
+func (d *MachinePlugin) GenerateMachineClassForMigration(ctx context.Context, req *driver.GenerateMachineClassForMigrationRequest) (*driver.GenerateMachineClassForMigrationResponse, error) {
 	// Log messages to track start and end of request
 	klog.V(2).Infof("MigrateMachineClass request has been recieved for %q", req.ClassSpec)
 	defer klog.V(2).Infof("MigrateMachineClass request has been processed successfully for %q", req.ClassSpec)
