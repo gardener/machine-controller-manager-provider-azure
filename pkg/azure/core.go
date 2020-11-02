@@ -93,7 +93,9 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
-	return &driver.CreateMachineResponse{ProviderID: *virtualMachine.ID, NodeName: *virtualMachine.Name}, nil
+	providerID := encodeMachineID(*virtualMachine.Location, *virtualMachine.Name)
+
+	return &driver.CreateMachineResponse{ProviderID: providerID, NodeName: *virtualMachine.Name}, nil
 }
 
 // DeleteMachine handles a machine deletion request
@@ -245,7 +247,20 @@ func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeI
 	klog.V(2).Infof("GetVolumeIDs request has been recieved for %q", req.PVSpecs)
 	defer klog.V(2).Infof("GetVolumeIDs request has been processed successfully for %q", req.PVSpecs)
 
-	return &driver.GetVolumeIDsResponse{}, status.Error(codes.Unimplemented, "")
+	names := []string{}
+	specs := req.PVSpecs
+
+	for i := range specs {
+		spec := specs[i]
+		if spec.AzureDisk == nil {
+			// Not an azure volume
+			continue
+		}
+		name := spec.AzureDisk.DiskName
+		names = append(names, name)
+	}
+
+	return &driver.GetVolumeIDsResponse{VolumeIDs: names}, nil
 }
 
 // GenerateMachineClassForMigration helps in migration of one kind of machineClass CR to another kind.

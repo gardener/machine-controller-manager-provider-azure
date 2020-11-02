@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// decodeProviderSpecAndSecret unmarshals the raw providerspec into api.AzureProviderSpec structure
 func decodeProviderSpecAndSecret(machineClass *v1alpha1.MachineClass, secret *corev1.Secret) (*api.AzureProviderSpec, error) {
 	var providerSpec *api.AzureProviderSpec
 
@@ -46,4 +47,8 @@ func decodeProviderSpecAndSecret(machineClass *v1alpha1.MachineClass, secret *co
 	}
 
 	return providerSpec, nil
+}
+
+func encodeMachineID(location, vmName string) string {
+	return fmt.Sprintf("azure:///%s/%s", location, vmName)
 }
