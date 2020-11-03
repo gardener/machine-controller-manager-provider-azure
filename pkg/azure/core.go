@@ -94,6 +94,7 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 	}
 
 	providerID := encodeMachineID(*virtualMachine.Location, *virtualMachine.Name)
+	klog.Infof("Provider ID: %s\nNodeName: %s\n", providerID, *virtualMachine.Name)
 
 	return &driver.CreateMachineResponse{ProviderID: providerID, NodeName: *virtualMachine.Name}, nil
 }
@@ -226,7 +227,7 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 	}
 
 	for _, item := range items {
-		listOfVMs[*item.ID] = *item.Name
+		listOfVMs[encodeMachineID(*item.Location, *item.Name)] = *item.Name
 	}
 
 	clientutils.OnARMAPISuccess(prometheusServiceVM, "VM.List")

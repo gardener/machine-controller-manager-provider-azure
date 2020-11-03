@@ -195,19 +195,20 @@ func validateSpecTags(tags map[string]string) []error {
 
 func validateSecrets(secret *corev1.Secret) []error {
 	var allErrs []error
+
 	if "" == string(secret.Data["azureClientId"]) {
 		allErrs = append(allErrs, fmt.Errorf("Secret azureClientId is required field"))
 	}
 	if "" == string(secret.Data["azureClientSecret"]) {
 		allErrs = append(allErrs, fmt.Errorf("Secret azureClientSecret is required field"))
 	}
-	if "" == string(secret.Data["azureClientId"]) {
-		allErrs = append(allErrs, fmt.Errorf("Secret azureClientId is required field"))
+	if "" == string(secret.Data["azureTenantId"]) {
+		allErrs = append(allErrs, fmt.Errorf("Secret azureTenantId is required field"))
 	}
 	if "" == string(secret.Data["azureSubscriptionId"]) {
 		allErrs = append(allErrs, fmt.Errorf("Secret azureSubscriptionId is required field"))
 	}
-	if "" == string(secret.Data["azureTenantId"]) {
+	if "" == string(secret.Data["userData"]) {
 		allErrs = append(allErrs, fmt.Errorf("Secret UserData is required field"))
 	}
 	return allErrs
