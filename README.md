@@ -1,4 +1,7 @@
 # machine-controller-manager-provider-azure
+
+[![reuse compliant](https://reuse.software/badge/reuse-compliant.svg)](https://reuse.software/)
+
 Out of tree (controller based) implementation for `Azure` as a new provider.
 
 ## About
