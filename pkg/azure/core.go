@@ -116,6 +116,9 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 	defer klog.V(2).Infof("Machine deletion request has been processed for %q", req.Machine.Name)
 
 	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	if err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
 	d.AzureProviderSpec = providerSpec
 
 	var (

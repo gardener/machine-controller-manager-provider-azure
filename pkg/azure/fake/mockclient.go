@@ -24,37 +24,94 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/marketplaceordering/mgmt/marketplaceordering"
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/resources"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute/computeapi"
+
+	"github.com/Azure/azure-sdk-for-go/services/marketplaceordering/mgmt/2015-06-01/marketplaceordering/marketplaceorderingapi"
+	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-04-01/network/networkapi"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis/validation"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/client"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	corev1 "k8s.io/api/core/v1"
 )
 
+// VMClient . . .
+type VMClient struct {
+	VM computeapi.VirtualMachinesClientAPI
+}
+
+// SubnetsClient ...
+type SubnetsClient struct {
+	Subnet networkapi.SubnetsClientAPI
+}
+
+// InterfacesClient ...
+type InterfacesClient struct {
+	Nic networkapi.InterfacesClientAPI
+	ID  string
+}
+
+// DisksClient ...
+type DisksClient struct {
+	Disk computeapi.DisksClientAPI
+}
+
+// VirtualMachineImagesClient ...
+type VirtualMachineImagesClient struct {
+	Images computeapi.VirtualMachineImagesClientAPI
+}
+
+// MarketplaceAgreementsClient ...
+type MarketplaceAgreementsClient struct {
+	Marketplace marketplaceorderingapi.MarketplaceAgreementsClientAPI
+}
+
+// FakeAzureDriverClients . . .
+type FakeAzureDriverClients struct {
+	Subnet      SubnetsClient
+	Nic         InterfacesClient
+	VM          VMClient
+	Disk        DisksClient
+	Deployments resources.DeploymentsClient
+	Images      VirtualMachineImagesClient
+	Marketplace MarketplaceAgreementsClient
+}
+
+// SessionProviderInterface ...
+type SessionProviderInterface interface {
+	Setup(cloudConfig *corev1.Secret) (*FakeAzureDriverClients, error)
+}
+
 //PluginSPIImpl is the mock implementation of PluginSPIImpl
 type PluginSPIImpl struct {
-	SPI spi.SessionProviderInterface
+	SPI               SessionProviderInterface
+	AzureProviderSpec *api.AzureProviderSpec
+	Secret            *corev1.Secret
 }
 
 // NewFakeAzureDriver returns an empty AzureDriver object
-func NewFakeAzureDriver(spi spi.SessionProviderInterface) *PluginSPIImpl {
+func NewFakeAzureDriver(spi SessionProviderInterface) *PluginSPIImpl {
 	return &PluginSPIImpl{
 		SPI: spi,
 	}
 }
 
+// CreateOrUpdate ...
+func (client VMClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, VMName string, parameters compute.VirtualMachine) (*compute.VirtualMachine, error) {
+	var result = &compute.VirtualMachine{}
+	result.Name = &VMName
+	result.Location = parameters.Location
+	return result, nil
+}
+
 //Setup creates a compute service instance using the mock
-func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*client.AzureDriverClients, error) {
+func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*FakeAzureDriverClients, error) {
 
 	var (
 		subscriptionID = strings.TrimSpace(string(secret.Data[v1alpha1.AzureSubscriptionID]))
@@ -73,7 +130,7 @@ func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*client.AzureDriverClient
 }
 
 // NewClients returns the authenticated Azure clients
-func NewClients(subscriptionID, tenantID, clientID, clientSecret string, env azure.Environment) (*client.AzureDriverClients, error) {
+func NewClients(subscriptionID, tenantID, clientID, clientSecret string, env azure.Environment) (*FakeAzureDriverClients, error) {
 	oauthConfig, err := adal.NewOAuthConfig(env.ActiveDirectoryEndpoint, tenantID)
 	if err != nil {
 		return nil, err
@@ -86,28 +143,22 @@ func NewClients(subscriptionID, tenantID, clientID, clientSecret string, env azu
 
 	authorizer := autorest.NewBearerAuthorizer(spToken)
 
-	subnetClient := network.NewSubnetsClient(subscriptionID)
-	subnetClient.Authorizer = authorizer
+	subnetClient := SubnetsClient{}
 
-	interfacesClient := network.NewInterfacesClient(subscriptionID)
-	interfacesClient.Authorizer = authorizer
+	interfacesClient := InterfacesClient{}
 
-	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
-	vmClient.Authorizer = authorizer
+	vmClient := VMClient{}
 
-	vmImagesClient := compute.NewVirtualMachineImagesClient(subscriptionID)
-	vmImagesClient.Authorizer = authorizer
+	vmImagesClient := VirtualMachineImagesClient{}
 
-	diskClient := compute.NewDisksClient(subscriptionID)
-	diskClient.Authorizer = authorizer
+	diskClient := DisksClient{}
 
 	deploymentsClient := resources.NewDeploymentsClient(subscriptionID)
 	deploymentsClient.Authorizer = authorizer
 
-	marketplaceClient := marketplaceordering.NewMarketplaceAgreementsClient(subscriptionID)
-	marketplaceClient.Authorizer = authorizer
+	marketplaceClient := MarketplaceAgreementsClient{}
 
-	return &client.AzureDriverClients{Subnet: subnetClient, Nic: interfacesClient, VM: vmClient, Disk: diskClient, Deployments: deploymentsClient, Images: vmImagesClient, Marketplace: marketplaceClient}, nil
+	return &FakeAzureDriverClients{Subnet: subnetClient, Nic: interfacesClient, VM: vmClient, Disk: diskClient, Deployments: deploymentsClient, Images: vmImagesClient, Marketplace: marketplaceClient}, nil
 }
 
 // decodeProviderSpecAndSecret unmarshals the raw providerspec into api.AzureProviderSpec structure
@@ -130,23 +181,32 @@ func decodeProviderSpecAndSecret(machineClass *v1alpha1.MachineClass, secret *co
 	return providerSpec, nil
 }
 
-// CreateMachine ...
-func (ms *PluginSPIImpl) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (*driver.CreateMachineResponse, error) {
-
-	var providerSpec *api.AzureProviderSpec
-
-	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
-
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	providerID := fmt.Sprintf("azure:///%s/%s", providerSpec.Location, req.Machine.Name)
-	return &driver.CreateMachineResponse{ProviderID: providerID, NodeName: req.Machine.Name}, nil
-}
-
 // DeleteMachine ...
 func (ms *PluginSPIImpl) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {
+
+	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	ms.AzureProviderSpec = providerSpec
+
+	var (
+		vmName            = strings.ToLower(req.Machine.Name)
+		resourceGroupName = providerSpec.ResourceGroup
+		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
+		diskName          = dependencyNameFromVMName(vmName, diskSuffix)
+		dataDiskNames     []string
+	)
+	if providerSpec.Properties.StorageProfile.DataDisks != nil && len(providerSpec.Properties.StorageProfile.DataDisks) > 0 {
+		dataDiskNames = getAzureDataDiskNames(providerSpec.Properties.StorageProfile.DataDisks, vmName, dataDiskSuffix)
+	}
+
+	clients, err := ms.SPI.Setup(req.Secret)
+	if err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
+
+	err = clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+	if err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
 
 	return &driver.DeleteMachineResponse{}, nil
 }
