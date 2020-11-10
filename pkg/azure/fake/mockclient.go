@@ -210,3 +210,8 @@ func (ms *PluginSPIImpl) DeleteMachine(ctx context.Context, req *driver.DeleteMa
 
 	return &driver.DeleteMachineResponse{}, nil
 }
+
+// DeleteVMNicDisks deletes the VM and associated Disks and NIC
+func (clients *FakeAzureDriverClients) DeleteVMNicDisks(ctx context.Context, resourceGroupName string, VMName string, nicName string, diskName string, dataDiskNames []string) error {
+	return nil
+}

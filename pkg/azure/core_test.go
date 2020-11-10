@@ -32,11 +32,6 @@ import (
 
 var _ = Describe("MachineController", func() {
 
-	// This is the value of ProviderSpec key of Kind Machine Class for Azure
-	azureProviderSpec := []byte("{\"location\":\"westeurope\",\"properties\":{\"hardwareProfile\":{\"vmSize\":\"Standard_DS2_v2\"},\"osProfile\":{\"adminUsername\":\"core\",\"linuxConfiguration\":{\"disablePasswordAuthentication\":true,\"ssh\":{\"publicKeys\":{\"keyData\":\"dummy keyData\",\"path\":\"/home/core/.ssh/authorized_keys\"}}}},\"storageProfile\":{\"imageReference\":{\"urn\":\"sap:gardenlinux:greatest:27.1.0\"},\"osDisk\":{\"caching\":\"None\",\"createOption\":\"FromImage\",\"diskSizeGB\":50,\"managedDisk\":{\"storageAccountType\":\"Standard_LRS\"}}},\"zone\":2},\"resourceGroup\":\"shoot--i538135--seed-az\",\"subnetInfo\":{\"subnetName\":\"shoot--i538135--seed-az-nodes\",\"vnetName\":\"shoot--i538135--seed-az\"},\"tags\":{\"Name\":\"shoot--i538135--seed-az\",\"kubernetes.io-cluster-shoot--i538135--seed-az\":\"1\",\"kubernetes.io-role-mcm\":\"1\",\"node.kubernetes.io_role\":\"node\",\"worker.garden.sapcloud.io_group\":\"worker-m0exd\",\"worker.gardener.cloud_pool\":\"worker-m0exd\",\"worker.gardener.cloud_system-components\":\"true\"}}")
-
-	azureProviderSpecWithoutLocation := []byte("{\"location\":\"\",\"properties\":{\"hardwareProfile\":{\"vmSize\":\"Standard_DS2_v2\"},\"osProfile\":{\"adminUsername\":\"core\",\"linuxConfiguration\":{\"disablePasswordAuthentication\":true,\"ssh\":{\"publicKeys\":{\"keyData\":\"dummy keyData\",\"path\":\"/home/core/.ssh/authorized_keys\"}}}},\"storageProfile\":{\"imageReference\":{\"urn\":\"sap:gardenlinux:greatest:27.1.0\"},\"osDisk\":{\"caching\":\"None\",\"createOption\":\"FromImage\",\"diskSizeGB\":50,\"managedDisk\":{\"storageAccountType\":\"Standard_LRS\"}}},\"zone\":2},\"resourceGroup\":\"shoot--i538135--seed-az\",\"subnetInfo\":{\"subnetName\":\"shoot--i538135--seed-az-nodes\",\"vnetName\":\"shoot--i538135--seed-az\"},\"tags\":{\"Name\":\"shoot--i538135--seed-az\",\"kubernetes.io-cluster-shoot--i538135--seed-az\":\"1\",\"kubernetes.io-role-mcm\":\"1\",\"node.kubernetes.io_role\":\"node\",\"worker.garden.sapcloud.io_group\":\"worker-m0exd\",\"worker.gardener.cloud_pool\":\"worker-m0exd\",\"worker.gardener.cloud_system-components\":\"true\"}}")
-
 	azureProviderSecret := map[string][]byte{
 		"userData":            []byte("dummy-data"),
 		"azureClientId":       []byte("dummy-client-id"),
@@ -95,11 +90,11 @@ var _ = Describe("MachineController", func() {
 				}
 			},
 
-			Entry("Create a simple machine", &data{
+			Entry("#1 Create a simple machine", &data{
 				action: action{
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy-machine"),
-						MachineClass: newAzureMachineClass(azureProviderSpec),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
 						Secret:       newSecret(azureProviderSecret),
 					},
 				},
@@ -111,11 +106,11 @@ var _ = Describe("MachineController", func() {
 					errToHaveOccurred: false,
 				},
 			}),
-			Entry("CreateMachine fails: Absence of UserData in secret", &data{
+			Entry("#2 CreateMachine fails: Absence of UserData in secret", &data{
 				action: action{
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy-machine"),
-						MachineClass: newAzureMachineClass(azureProviderSpec),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
 						Secret:       newSecret(azureProviderSecretWithoutUserData),
 					},
 				},
@@ -124,11 +119,11 @@ var _ = Describe("MachineController", func() {
 					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret UserData is required field]]]",
 				},
 			}),
-			Entry("CreateMachine fails: Absence of Location in providerspec", &data{
+			Entry("#3 CreateMachine fails: Absence of Location in providerspec", &data{
 				action: action{
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy-machine"),
-						MachineClass: newAzureMachineClass(azureProviderSpecWithoutLocation),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutLocation),
 						Secret:       newSecret(azureProviderSecret),
 					},
 				},
@@ -137,7 +132,7 @@ var _ = Describe("MachineController", func() {
 					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Region is required field]]]",
 				},
 			}),
-			Entry("CreateMachine fails: Unmarshalling for provider spec fails", &data{
+			Entry("#4 CreateMachine fails: Unmarshalling for provider spec fails empty providerSpec", &data{
 				action: action{
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy"),
@@ -148,6 +143,163 @@ var _ = Describe("MachineController", func() {
 				expect: expect{
 					errToHaveOccurred: true,
 					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [unexpected end of JSON input]]",
+				},
+			}),
+			Entry("#5 CreateMachine fails: Absence of Resource Group in providerSpec", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutResourceGroup),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Resource Group Name is required field]]]",
+				},
+			}),
+
+			Entry("#6 CreateMachine fails: Absence of VnetName in providerSpec.subnetinfo", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutVnetName),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [VnetName is required for the subnet info]]]",
+				},
+			}),
+			Entry("#7 CreateMachine fails: Absence of SubnetName in providerSpec.subnetinfo", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutSubnetName),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Subnet name is required for subnet info]]]",
+				},
+			}),
+			Entry("#8 CreateMachine fails: Absence of VMSize in providerSpec.properties.HardwareProfile", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutVMSize),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [VMSize is required]]]",
+				},
+			}),
+			Entry("#10 CreateMachine fails: Absence of Image URN", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutImageURN),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.storageProfile.imageReference: Required value: must specify either a image id or an urn]]]",
+				},
+			}),
+			Entry("#11 CreateMachine fails: Improper of Image URN", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithImproperImageURN),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.storageProfile.imageReference.urn: Required value: Invalid urn format]]]",
+				},
+			}),
+			Entry("#12 CreateMachine fails: Improper of Image URN with empty fields", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithEmptyFieldImageURN),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.storageProfile.imageReference.urn: Required value: Invalid urn format, empty field]]]",
+				},
+			}),
+			Entry("#13 CreateMachine fails: Negative OS disk size", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithNegativeOSDiskSize),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.storageProfile.osDisk.diskSizeGB: Required value: OSDisk size must be positive]]]",
+				},
+			}),
+			Entry("#14 CreateMachine fails: Absence of OSDisk Create Option", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutOSDiskCreateOption),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.storageProfile.osDisk.createOption: Required value: OSDisk create option is required]]]",
+				},
+			}),
+			Entry("#15 CreateMachine fails: Absence of AdminUserName in OSProfile", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutAdminUserName),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.osProfile.adminUsername: Required value: AdminUsername is required]]]",
+				},
+			}),
+			Entry("#16 CreateMachine fails: Absence of Zone, MachineSet and AvailabilitySet", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutAdminUserName),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.osProfile.adminUsername: Required value: AdminUsername is required]]]",
+				},
+			}),
+			Entry("#17 CreateMachine fails: Presence of Zone, MachineSet and AvailablitySet togethr", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutAdminUserName),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.osProfile.adminUsername: Required value: AdminUsername is required]]]",
 				},
 			}),
 		)
@@ -198,7 +350,7 @@ var _ = Describe("MachineController", func() {
 				action: action{
 					machineRequest: &driver.DeleteMachineRequest{
 						Machine:      newMachine("dummy-machine"),
-						MachineClass: newAzureMachineClass(azureProviderSpec),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
 						Secret:       newSecret(azureProviderSecret),
 					},
 				},
