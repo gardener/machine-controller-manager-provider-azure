@@ -110,6 +110,19 @@ func (client VMClient) CreateOrUpdate(ctx context.Context, resourceGroupName str
 	return result, nil
 }
 
+// List ...
+func (client VMClient) List(ctx context.Context, resourceGroupName string) ([]compute.VirtualMachine, error) {
+	var machines []compute.VirtualMachine
+
+	var location, name string
+
+	// the values are defaulted for testing purposes
+	location = "westeurope"
+	name = "dummy"
+	machines = append(machines, compute.VirtualMachine{Location: &location, Name: &name})
+	return machines, nil
+}
+
 //Setup creates a compute service instance using the mock
 func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*FakeAzureDriverClients, error) {
 

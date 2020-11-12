@@ -19,6 +19,7 @@ package azure
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
@@ -182,8 +183,8 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 			return machineStatusResponse, nil
 		}
 	}
-
-	return nil, status.Error(codes.Unimplemented, "")
+	err = fmt.Errorf("Machine '%s' not found", req.Machine.Name)
+	return nil, status.Error(codes.NotFound, err.Error())
 }
 
 // ListMachines lists all the machines possibilly created by a providerSpec
