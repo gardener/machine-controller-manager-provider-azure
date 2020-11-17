@@ -155,20 +155,13 @@ func NewClients(subscriptionID, tenantID, clientID, clientSecret string, env azu
 	}
 
 	authorizer := autorest.NewBearerAuthorizer(spToken)
-
 	subnetClient := SubnetsClient{}
-
 	interfacesClient := InterfacesClient{}
-
 	vmClient := VMClient{}
-
 	vmImagesClient := VirtualMachineImagesClient{}
-
 	diskClient := DisksClient{}
-
 	deploymentsClient := resources.NewDeploymentsClient(subscriptionID)
 	deploymentsClient.Authorizer = authorizer
-
 	marketplaceClient := MarketplaceAgreementsClient{}
 
 	return &FakeAzureDriverClients{Subnet: subnetClient, Nic: interfacesClient, VM: vmClient, Disk: diskClient, Deployments: deploymentsClient, Images: vmImagesClient, Marketplace: marketplaceClient}, nil

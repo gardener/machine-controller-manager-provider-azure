@@ -29,14 +29,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-const (
-	nameFmt       string = `[-a-z0-9]+`
-	nameMaxLength int    = 63
-)
+const nameFmt string = `[-a-z0-9]+`
 
 var nameRegexp = regexp.MustCompile("^" + nameFmt + "$")
 
-// ValidateAzureSpecNSecret validates AWS provider spec
+// ValidateAzureSpecNSecret validates Azure provider spec
 func ValidateAzureSpecNSecret(spec *api.AzureProviderSpec, secrets *corev1.Secret) []error {
 	var allErrs []error
 

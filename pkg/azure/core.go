@@ -143,7 +143,6 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
-	// return &driver.DeleteMachineResponse{}, status.Error(codes.Unimplemented, "")
 	return &driver.DeleteMachineResponse{}, nil
 }
 
@@ -236,7 +235,6 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 
 	clientutils.OnARMAPISuccess(prometheusServiceVM, "VM.List")
 	return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
-	// return &driver.ListMachinesResponse{}, status.Error(codes.Unimplemented, "")
 }
 
 // GetVolumeIDs returns a list of Volume IDs for all PV Specs for whom a provider volume was found
@@ -269,7 +267,7 @@ func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeI
 }
 
 // GenerateMachineClassForMigration helps in migration of one kind of machineClass CR to another kind.
-// For instance an machineClass custom resource of `AWSMachineClass` to `MachineClass`.
+// For instance an machineClass custom resource of `AzureMachineClass` to `MachineClass`.
 // Implement this functionality only if something like this is desired in your setup.
 // If you don't require this functionality leave is as is. (return Unimplemented)
 //
@@ -280,7 +278,7 @@ func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeI
 //		https://github.com/prashanth26/machine-controller-manager-provider-gcp/blob/migration/pkg/gcp/machine_controller.go#L222-L233
 //
 // REQUEST PARAMETERS (driver.GenerateMachineClassForMigration)
-// ProviderSpecificMachineClass    interface{}                             ProviderSpecificMachineClass is provider specfic machine class object (E.g. AWSMachineClass). Typecasting is required here.
+// ProviderSpecificMachineClass    interface{}                             ProviderSpecificMachineClass is provider specfic machine class object (E.g. AzureMachineClass). Typecasting is required here.
 // MachineClass 				   *v1alpha1.MachineClass                  MachineClass is the machine class object that is to be filled up by this method.
 // ClassSpec                       *v1alpha1.ClassSpec                     Somemore classSpec details useful while migration.
 //
