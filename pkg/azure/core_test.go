@@ -20,7 +20,7 @@ import (
 	"context"
 
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
-	fake "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/fake"
+	fake "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock"
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	. "github.com/onsi/ginkgo"
@@ -35,15 +35,15 @@ var _ = Describe("MachineController", func() {
 
 	azureProviderSecret := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientID":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte("dummy-tenant-id"),
 	}
 
-	azureProviderSecretWithoutazureClientId := map[string][]byte{
+	azureProviderSecretWithoutazureClientID := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientId":       []byte(""),
+		"azureClientID":       []byte(""),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte("dummy-tenant-id"),
@@ -51,23 +51,23 @@ var _ = Describe("MachineController", func() {
 
 	azureProviderSecretWithoutazureClientSecret := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientID":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte(""),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte("dummy-tenant-id"),
 	}
 
-	azureProviderSecretWithoutazureTenantId := map[string][]byte{
+	azureProviderSecretWithoutazureTenantID := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientID":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte(""),
 	}
 
-	azureProviderSecretWithoutazureSubscriptionId := map[string][]byte{
+	azureProviderSecretWithoutazureSubscriptionID := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientID":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte(""),
 		"azureTenantId":       []byte("dummy-tenant-id"),
@@ -75,7 +75,7 @@ var _ = Describe("MachineController", func() {
 
 	azureProviderSecretWithoutUserData := map[string][]byte{
 		"userData":            []byte(""),
-		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientID":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte("dummy-tenant-id"),
@@ -392,12 +392,12 @@ var _ = Describe("MachineController", func() {
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy-machine"),
 						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
-						Secret:       newSecret(azureProviderSecretWithoutazureClientId),
+						Secret:       newSecret(azureProviderSecretWithoutazureClientID),
 					},
 				},
 				expect: expect{
 					errToHaveOccurred: true,
-					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret azureClientId is required field]]]",
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret azureClientID is required field]]]",
 				},
 			}),
 			Entry("#23 CreateMachine fails: Absence of azureClientSecret in secret", &data{
@@ -418,7 +418,7 @@ var _ = Describe("MachineController", func() {
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy-machine"),
 						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
-						Secret:       newSecret(azureProviderSecretWithoutazureTenantId),
+						Secret:       newSecret(azureProviderSecretWithoutazureTenantID),
 					},
 				},
 				expect: expect{
@@ -431,7 +431,7 @@ var _ = Describe("MachineController", func() {
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy-machine"),
 						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
-						Secret:       newSecret(azureProviderSecretWithoutazureSubscriptionId),
+						Secret:       newSecret(azureProviderSecretWithoutazureSubscriptionID),
 					},
 				},
 				expect: expect{
