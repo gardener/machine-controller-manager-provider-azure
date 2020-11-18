@@ -9,7 +9,8 @@ package azure
 import (
 	"context"
 
-	fake "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/fake"
+	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
+	fake "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock"
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	. "github.com/onsi/ginkgo"
@@ -20,57 +21,51 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-const (
-	//FailAtNotFound is the error message returned when a resource is not found
-	FailAtNotFound string = "machine codes error: code = [NotFound] message = [machine name=non-existent-dummy-machine, uuid= not found]"
-	//FailAtJSONUnmarshalling is the error message returned when an malformed JSON is sent to the plugin by the caller
-	FailAtJSONUnmarshalling string = "machine codes error: code = [Internal] message = [Machine status \"dummy-machine\" failed on decodeProviderSpecAndSecret: machine codes error: code = [Internal] message = [unexpected end of JSON input]]"
-	//CreateFailAtJSONUnmarshalling is the error message returned when an malformed JSON is sent to the plugin by the caller
-	CreateFailAtJSONUnmarshalling string = "machine codes error: code = [Internal] message = [Create machine \"dummy-machine\" failed on decodeProviderSpecAndSecret: machine codes error: code = [Internal] message = [unexpected end of JSON input]]"
-	//DeleteFailAtJSONUnmarshalling is the error message returned when an malformed JSON is sent to the plugin by the caller
-	DeleteFailAtJSONUnmarshalling string = "machine codes error: code = [Internal] message = [Delete machine \"dummy-machine\" failed on decodeProviderSpecAndSecret: machine codes error: code = [Internal] message = [unexpected end of JSON input]]"
-	//ListFailAtJSONUnmarshalling is the error message returned when an malformed JSON is sent to the plugin by the caller
-	ListFailAtJSONUnmarshalling string = "machine codes error: code = [Internal] message = [List machines failed on decodeProviderSpecAndSecret: machine codes error: code = [Internal] message = [unexpected end of JSON input]]"
-	//FailAtNoSecretsPassed is the error message returned when no secrets are passed to the the plugin by the caller
-	FailAtNoSecretsPassed string = "machine codes error: code = [Internal] message = [Create machine \"dummy-machine\" failed on decodeProviderSpecAndSecret: machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret serviceAccountJSON is required field Secret userData is required field]]]"
-	//FailAtSecretsWithNoUserData is the error message returned when secrets map has no userdata provided by the caller
-	FailAtSecretsWithNoUserData string = "machine codes error: code = [Internal] message = [Create machine \"dummy-machine\" failed on decodeProviderSpecAndSecret: machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret userData is required field]]]"
-	// FailAtInvalidProjectID is the error returned when an invalid project id value is provided by the caller
-	FailAtInvalidProjectID string = "machine codes error: code = [Internal] message = [Create machine \"dummy-machine\" failed: json: cannot unmarshal number into Go struct field .project_id of type string]"
-	//FailAtInvalidZonePostCall is the  error returned when a post call should fail with an invalid zone is sent in the POST call -- this is used to simulate server error
-	FailAtInvalidZonePostCall string = "machine codes error: code = [Internal] message = [Create machine \"dummy-machine\" failed: googleapi: got HTTP response code 400 with body: Invalid post zone\n]"
-	//FailAtInvalidZoneListCall is the  error returned when a list call should fail with an invalid zone is sent in the LIST call -- this is used to simulate server error
-	FailAtInvalidZoneListCall string = "machine codes error: code = [Internal] message = [Machine status \"dummy-machine\" failed: googleapi: got HTTP response code 400 with body: Invalid list zone\n]"
-	//CreateFailAtInvalidZoneListCall is the  error returned when a list call should fail with an invalid zone is sent in the CREATE call -- this is used to simulate server error
-	CreateFailAtInvalidZoneListCall string = "machine codes error: code = [Internal] message = [Create machine \"dummy-machine\" failed: googleapi: got HTTP response code 400 with body: Invalid list zone\n]"
-	//DeleteFailAtInvalidZoneListCall is the  error returned when a list call should fail with an invalid zone is sent in the DELETE call -- this is used to simulate server error
-	DeleteFailAtInvalidZoneListCall string = "machine codes error: code = [Internal] message = [Delete machine \"dummy-machine\" failed: googleapi: got HTTP response code 400 with body: Invalid list zone\n]"
-	//ListFailAtInvalidZoneListCall is the  error returned when a list call should fail with an invalid zone is sent in the LIST call -- this is used to simulate server error
-	ListFailAtInvalidZoneListCall string = "machine codes error: code = [Internal] message = [List machines failed: googleapi: got HTTP response code 400 with body: Invalid list zone\n]"
-	//FailAtMethodNotImplemented is the error returned for methods which are not yet implemented
-	FailAtMethodNotImplemented string = "rpc error: code = Unimplemented desc = "
-	FailAtSpecValidation       string = "machine codes error: code = [Internal] message = [Create machine \"dummy-machine\" failed on decodeProviderSpecAndSecret: machine codes error: code = [Internal] message = [Error while validating ProviderSpec [spec.zone: Required value: zone is required]]]"
-	FailAtNonExistingMachine   string = "rpc error: code = NotFound desc = Machine with the name \"non-existent-dummy-machine\" not found"
-)
-
 var _ = Describe("MachineController", func() {
-
-	// This is the value of ProviderSpec key of Kind Machine Class for Azure
-	azureProviderSpec := []byte("{\"location\":\"westeurope\",\"properties\":{\"hardwareProfile\":{\"vmSize\":\"Standard_DS2_v2\"},\"osProfile\":{\"adminUsername\":\"core\",\"linuxConfiguration\":{\"disablePasswordAuthentication\":true,\"ssh\":{\"publicKeys\":{\"keyData\":\"dummy keyData\",\"path\":\"/home/core/.ssh/authorized_keys\"}}}},\"storageProfile\":{\"imageReference\":{\"urn\":\"sap:gardenlinux:greatest:27.1.0\"},\"osDisk\":{\"caching\":\"None\",\"createOption\":\"FromImage\",\"diskSizeGB\":50,\"managedDisk\":{\"storageAccountType\":\"Standard_LRS\"}}},\"zone\":2},\"resourceGroup\":\"shoot--i538135--seed-az\",\"subnetInfo\":{\"subnetName\":\"shoot--i538135--seed-az-nodes\",\"vnetName\":\"shoot--i538135--seed-az\"},\"tags\":{\"Name\":\"shoot--i538135--seed-az\",\"kubernetes.io-cluster-shoot--i538135--seed-az\":\"1\",\"kubernetes.io-role-mcm\":\"1\",\"node.kubernetes.io_role\":\"node\",\"worker.garden.sapcloud.io_group\":\"worker-m0exd\",\"worker.gardener.cloud_pool\":\"worker-m0exd\",\"worker.gardener.cloud_system-components\":\"true\"}}")
-
-	// azureProviderSpecWithoutLocation := []byte("{\"location\":,\"properties\":{\"hardwareProfile\":{\"vmSize\":\"Standard_DS2_v2\"},\"osProfile\":{\"adminUsername\":\"core\",\"linuxConfiguration\":{\"disablePasswordAuthentication\":true,\"ssh\":{\"publicKeys\":{\"keyData\":\"dummy keyData\",\"path\":\"/home/core/.ssh/authorized_keys\"}}}},\"storageProfile\":{\"imageReference\":{\"urn\":\"sap:gardenlinux:greatest:27.1.0\"},\"osDisk\":{\"caching\":\"None\",\"createOption\":\"FromImage\",\"diskSizeGB\":50,\"managedDisk\":{\"storageAccountType\":\"Standard_LRS\"}}},\"zone\":2},\"resourceGroup\":\"shoot--i538135--seed-az\",\"subnetInfo\":{\"subnetName\":\"shoot--i538135--seed-az-nodes\",\"vnetName\":\"shoot--i538135--seed-az\"},\"tags\":{\"Name\":\"shoot--i538135--seed-az\",\"kubernetes.io-cluster-shoot--i538135--seed-az\":\"1\",\"kubernetes.io-role-mcm\":\"1\",\"node.kubernetes.io_role\":\"node\",\"worker.garden.sapcloud.io_group\":\"worker-m0exd\",\"worker.gardener.cloud_pool\":\"worker-m0exd\",\"worker.gardener.cloud_system-components\":\"true\"}}")
 
 	azureProviderSecret := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientID":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte("dummy-tenant-id"),
 	}
 
+	azureProviderSecretWithoutazureClientID := map[string][]byte{
+		"userData":            []byte("dummy-data"),
+		"azureClientID":       []byte(""),
+		"azureClientSecret":   []byte("dummy-client-secret"),
+		"azureSubscriptionId": []byte("dummy-subcription-id"),
+		"azureTenantId":       []byte("dummy-tenant-id"),
+	}
+
+	azureProviderSecretWithoutazureClientSecret := map[string][]byte{
+		"userData":            []byte("dummy-data"),
+		"azureClientID":       []byte("dummy-client-id"),
+		"azureClientSecret":   []byte(""),
+		"azureSubscriptionId": []byte("dummy-subcription-id"),
+		"azureTenantId":       []byte("dummy-tenant-id"),
+	}
+
+	azureProviderSecretWithoutazureTenantID := map[string][]byte{
+		"userData":            []byte("dummy-data"),
+		"azureClientID":       []byte("dummy-client-id"),
+		"azureClientSecret":   []byte("dummy-client-secret"),
+		"azureSubscriptionId": []byte("dummy-subcription-id"),
+		"azureTenantId":       []byte(""),
+	}
+
+	azureProviderSecretWithoutazureSubscriptionID := map[string][]byte{
+		"userData":            []byte("dummy-data"),
+		"azureClientID":       []byte("dummy-client-id"),
+		"azureClientSecret":   []byte("dummy-client-secret"),
+		"azureSubscriptionId": []byte(""),
+		"azureTenantId":       []byte("dummy-tenant-id"),
+	}
+
 	azureProviderSecretWithoutUserData := map[string][]byte{
 		"userData":            []byte(""),
-		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientID":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte("dummy-tenant-id"),
@@ -118,11 +113,11 @@ var _ = Describe("MachineController", func() {
 				}
 			},
 
-			Entry("Create a simple machine", &data{
+			Entry("#1 Create a simple machine", &data{
 				action: action{
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy-machine"),
-						MachineClass: newAzureMachineClass(azureProviderSpec),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
 						Secret:       newSecret(azureProviderSecret),
 					},
 				},
@@ -134,20 +129,33 @@ var _ = Describe("MachineController", func() {
 					errToHaveOccurred: false,
 				},
 			}),
-			Entry("CreateMachine fails: Absence of UserData in secret", &data{
+			Entry("#2 CreateMachine fails: Absence of UserData in secret", &data{
 				action: action{
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy-machine"),
-						MachineClass: newAzureMachineClass(azureProviderSpec),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
 						Secret:       newSecret(azureProviderSecretWithoutUserData),
 					},
 				},
 				expect: expect{
 					errToHaveOccurred: true,
-					errMessage:        "rpc error: code = Internal desc = rpc error: code = Internal desc = Error while validating ProviderSpec [Secret UserData is required field]",
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret UserData is required field]]]",
 				},
 			}),
-			Entry("CreateMachine fails: Unmarshalling for provider spec fails", &data{
+			Entry("#3 CreateMachine fails: Absence of Location in providerspec", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy-machine"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutLocation),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Region is required field]]]",
+				},
+			}),
+			Entry("#4 CreateMachine fails: Unmarshalling for provider spec fails empty providerSpec", &data{
 				action: action{
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy"),
@@ -157,7 +165,268 @@ var _ = Describe("MachineController", func() {
 				},
 				expect: expect{
 					errToHaveOccurred: true,
-					errMessage:        "rpc error: code = Internal desc = rpc error: code = Internal desc = unexpected end of JSON input",
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [unexpected end of JSON input]]",
+				},
+			}),
+			Entry("#5 CreateMachine fails: Absence of Resource Group in providerSpec", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutResourceGroup),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Resource Group Name is required field]]]",
+				},
+			}),
+
+			Entry("#6 CreateMachine fails: Absence of VnetName in providerSpec.subnetinfo", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutVnetName),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [VnetName is required for the subnet info]]]",
+				},
+			}),
+			Entry("#7 CreateMachine fails: Absence of SubnetName in providerSpec.subnetinfo", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutSubnetName),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Subnet name is required for subnet info]]]",
+				},
+			}),
+			Entry("#8 CreateMachine fails: Absence of VMSize in providerSpec.properties.HardwareProfile", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutVMSize),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [VMSize is required]]]",
+				},
+			}),
+			Entry("#10 CreateMachine fails: Absence of Image URN", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutImageURN),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.storageProfile.imageReference: Required value: must specify either a image id or an urn]]]",
+				},
+			}),
+			Entry("#11 CreateMachine fails: Improper of Image URN", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithImproperImageURN),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.storageProfile.imageReference.urn: Required value: Invalid urn format]]]",
+				},
+			}),
+			Entry("#12 CreateMachine fails: Improper of Image URN with empty fields", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithEmptyFieldImageURN),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.storageProfile.imageReference.urn: Required value: Invalid urn format, empty field]]]",
+				},
+			}),
+			Entry("#13 CreateMachine fails: Negative OS disk size", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithNegativeOSDiskSize),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.storageProfile.osDisk.diskSizeGB: Required value: OSDisk size must be positive]]]",
+				},
+			}),
+			Entry("#14 CreateMachine fails: Absence of OSDisk Create Option", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutOSDiskCreateOption),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.storageProfile.osDisk.createOption: Required value: OSDisk create option is required]]]",
+				},
+			}),
+			Entry("#15 CreateMachine fails: Absence of AdminUserName in OSProfile", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutAdminUserName),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.osProfile.adminUsername: Required value: AdminUsername is required]]]",
+				},
+			}),
+			Entry("#16 CreateMachine fails: Absence of Zone, MachineSet and AvailabilitySet", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithoutZMA),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.zone|.machineSet|.availabilitySet: Forbidden: Machine need to be assigned to a zone, a MachineSet or an AvailabilitySet]]]",
+				},
+			}),
+			Entry("#17 CreateMachine fails: Presence of Zone, MachineSet and AvailablitySet together", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithZMA),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.zone|.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned to a zone, a MachineSet and an AvailabilitySet in parallel]]]",
+				},
+			}),
+			Entry("#18 CreateMachine fails: Assigning MachineSet and AvailablitySet together with no zone", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithMAOnly),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned a MachineSet and an AvailabilitySet in parallel]]]",
+				},
+			}),
+			Entry("#19 CreateMachine fails: Invalid MachineSetKind", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithInvalidMachineSet),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [properties.machineSet: Invalid value: \"machinekind\": Invalid MachineSet kind. Use either '" + api.MachineSetKindVMO + "' or '" + api.MachineSetKindAvailabilitySet + "']]]",
+				},
+			}),
+			Entry("#20 CreateMachine fails: Empty clusterName Tag", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithEmptyClusterNameTag),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [providerSpec.kubernetes.io-cluster-: Required value: Tag required of the form kubernetes.io-cluster-****]]]",
+				},
+			}),
+			Entry("#21 CreateMachine fails: Empty nodeRole Tag", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpecWithEmptyNodeRoleTag),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [providerSpec.kubernetes.io-role-: Required value: Tag required of the form kubernetes.io-role-****]]]",
+				},
+			}),
+			Entry("#22 CreateMachine fails: Absence of azureClientID in secret", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy-machine"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
+						Secret:       newSecret(azureProviderSecretWithoutazureClientID),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret azureClientID is required field]]]",
+				},
+			}),
+			Entry("#23 CreateMachine fails: Absence of azureClientSecret in secret", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy-machine"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
+						Secret:       newSecret(azureProviderSecretWithoutazureClientSecret),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret azureClientSecret is required field]]]",
+				},
+			}),
+			Entry("#24 CreateMachine fails: Absence of azureTenantId in secret", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy-machine"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
+						Secret:       newSecret(azureProviderSecretWithoutazureTenantID),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret azureTenantId is required field]]]",
+				},
+			}),
+			Entry("#25 CreateMachine fails: Absence of azureSubscriptionId in secret", &data{
+				action: action{
+					machineRequest: &driver.CreateMachineRequest{
+						Machine:      newMachine("dummy-machine"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
+						Secret:       newSecret(azureProviderSecretWithoutazureSubscriptionID),
+					},
+				},
+				expect: expect{
+					errToHaveOccurred: true,
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret azureSubscriptionId is required field]]]",
 				},
 			}),
 		)
@@ -204,17 +473,89 @@ var _ = Describe("MachineController", func() {
 				}
 			},
 
-			Entry("Delete a simple machine", &data{
+			Entry("#1 Delete a simple machine", &data{
 				action: action{
 					machineRequest: &driver.DeleteMachineRequest{
 						Machine:      newMachine("dummy-machine"),
-						MachineClass: newAzureMachineClass(azureProviderSpec),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
 						Secret:       newSecret(azureProviderSecret),
 					},
 				},
 				expect: expect{
 					machineResponse:   &driver.DeleteMachineResponse{},
 					errToHaveOccurred: false,
+				},
+			}),
+		)
+	})
+
+	Describe("#Get Machine Status", func() {
+
+		type setup struct {
+		}
+
+		type action struct {
+			machineRequest *driver.GetMachineStatusRequest
+		}
+
+		type expect struct {
+			machineResponse   *driver.GetMachineStatusResponse
+			errToHaveOccurred bool
+			errMessage        string
+		}
+
+		type data struct {
+			setup  setup
+			action action
+			expect expect
+		}
+
+		DescribeTable("# Get Machine Status Table",
+			func(data *data) {
+
+				var mockPluginSPIImpl *fake.PluginSPIImpl
+
+				mockPluginSPIImpl = &fake.PluginSPIImpl{}
+				ms := fake.NewFakeAzureDriver(mockPluginSPIImpl)
+
+				ctx := context.Background()
+				response, err := ms.GetMachineStatus(ctx, data.action.machineRequest)
+
+				if data.expect.errToHaveOccurred {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(data.expect.errMessage))
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(data.expect.machineResponse.NodeName).To(Equal(response.NodeName))
+				}
+			},
+
+			Entry("#1 Get Machine Status a simple machine", &data{
+				action: action{
+					machineRequest: &driver.GetMachineStatusRequest{
+						Machine:      newMachine("dummy"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					machineResponse: &driver.GetMachineStatusResponse{
+						NodeName: "dummy",
+					},
+					errToHaveOccurred: false,
+				},
+			}),
+			Entry("#2 Get Machine Status of a non existing machine", &data{
+				action: action{
+					machineRequest: &driver.GetMachineStatusRequest{
+						Machine:      newMachine("dummy-machine"),
+						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
+						Secret:       newSecret(azureProviderSecret),
+					},
+				},
+				expect: expect{
+					errMessage:        "machine codes error: code = [NotFound] message = [Machine 'dummy-machine' not found]",
+					errToHaveOccurred: true,
 				},
 			}),
 		)

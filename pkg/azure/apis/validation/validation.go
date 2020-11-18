@@ -19,14 +19,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
-const (
-	nameFmt       string = `[-a-z0-9]+`
-	nameMaxLength int    = 63
-)
+const nameFmt string = `[-a-z0-9]+`
 
 var nameRegexp = regexp.MustCompile("^" + nameFmt + "$")
 
-// ValidateAzureSpecNSecret validates AWS provider spec
+// ValidateAzureSpecNSecret validates Azure provider spec
 func ValidateAzureSpecNSecret(spec *api.AzureProviderSpec, secrets *corev1.Secret) []error {
 	var allErrs []error
 
@@ -34,7 +31,7 @@ func ValidateAzureSpecNSecret(spec *api.AzureProviderSpec, secrets *corev1.Secre
 		allErrs = append(allErrs, fmt.Errorf("Region is required field"))
 	}
 	if "" == spec.ResourceGroup {
-		allErrs = append(allErrs, fmt.Errorf("IAM Name is required field"))
+		allErrs = append(allErrs, fmt.Errorf("Resource Group Name is required field"))
 	}
 
 	allErrs = append(allErrs, validateSpecSubnetInfo(spec.SubnetInfo)...)

@@ -272,10 +272,10 @@ func getImageReference(d *MachinePlugin) compute.ImageReference {
 func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*compute.VirtualMachine, error) {
 
 	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
-	d.AzureProviderSpec = providerSpec
 	if err != nil {
 		return nil, err
 	}
+	d.AzureProviderSpec = providerSpec
 
 	var (
 		ctx               = context.Background()
