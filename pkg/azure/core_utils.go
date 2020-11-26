@@ -39,6 +39,7 @@ func decodeProviderSpecAndSecret(machineClass *v1alpha1.MachineClass, secret *co
 	return providerSpec, nil
 }
 
+// encodeMachineID generates the providerID for the nodes
 func encodeMachineID(location, vmName string) string {
 	return fmt.Sprintf("azure:///%s/%s", location, vmName)
 }

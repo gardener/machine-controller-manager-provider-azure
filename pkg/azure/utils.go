@@ -20,7 +20,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
 	"github.com/Azure/go-autorest/autorest/to"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
-	clientutils "github.com/gardener/machine-controller-manager-provider-azure/pkg/client"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
@@ -289,12 +289,13 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 		vmImageRef        *compute.VirtualMachineImage
 	)
 
+	// get the azuredriverclients
 	clients, err := d.SPI.Setup(req.Secret)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if the machine should assigned to a vnet in a different resource group.
+	// Check if the machine should be assigned to a vnet in a different resource group.
 	if providerSpec.SubnetInfo.VnetResourceGroup != nil {
 		vnetResourceGroup = *providerSpec.SubnetInfo.VnetResourceGroup
 	}
@@ -308,7 +309,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 		Subnet fetching
 	*/
 	// Getting the subnet object for subnetName
-	subnet, err := clients.Subnet.Get(
+	subnet, err := clients.GetSubnet().Get(
 		ctx,
 		vnetResourceGroup,
 		vnetName,
@@ -316,9 +317,9 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 		"",
 	)
 	if err != nil {
-		return nil, clientutils.OnARMAPIErrorFail(prometheusServiceSubnet, err, "Subnet.Get failed for %s due to %s", subnetName, err)
+		return nil, spi.OnARMAPIErrorFail(prometheusServiceSubnet, err, "Subnet.Get failed for %s due to %s", subnetName, err)
 	}
-	clientutils.OnARMAPISuccess(prometheusServiceSubnet, "subnet.Get")
+	spi.OnARMAPISuccess(prometheusServiceSubnet, "subnet.Get")
 
 	/*
 		NIC creation
@@ -328,35 +329,36 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	NICParameters := d.getNICParameters(vmName, &subnet)
 
 	// NIC creation request
-	NICFuture, err := clients.Nic.CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters)
+	NICFuture, err := clients.GetNic().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters)
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
 
-		return nil, clientutils.OnARMAPIErrorFail(prometheusServiceNIC, err, "NIC.CreateOrUpdate failed for %s", *NICParameters.Name)
+		return nil, spi.OnARMAPIErrorFail(prometheusServiceNIC, err, "NIC.CreateOrUpdate failed for %s", *NICParameters.Name)
 	}
 
 	// Wait until NIC is created
-	err = NICFuture.WaitForCompletionRef(ctx, clients.Nic.Client)
+	//err = NICFuture.WaitForCompletionRef(ctx, clients.Nic.Client)
+	err = NICFuture.WaitForCompletionRef(ctx, clients.GetClient())
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
 
-		return nil, clientutils.OnARMAPIErrorFail(prometheusServiceNIC, err, "NIC.WaitForCompletionRef failed for %s", *NICParameters.Name)
+		return nil, spi.OnARMAPIErrorFail(prometheusServiceNIC, err, "NIC.WaitForCompletionRef failed for %s", *NICParameters.Name)
 	}
-	clientutils.OnARMAPISuccess(prometheusServiceNIC, "NIC.CreateOrUpdate")
+	spi.OnARMAPISuccess(prometheusServiceNIC, "NIC.CreateOrUpdate")
 
 	// Fetch NIC details
-	NIC, err := NICFuture.Result(clients.Nic)
+	NIC, err := NICFuture.Result(clients.GetNic())
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -373,7 +375,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	if imageRefClass.ID == "" {
 
 		imageReference := getImageReference(d)
-		vmImage, err := clients.Images.Get(
+		vmImage, err := clients.GetImages().Get(
 			ctx,
 			d.AzureProviderSpec.Location,
 			*imageReference.Publisher,
@@ -383,18 +385,18 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 		if err != nil {
 			//Since machine creation failed, delete any infra resources created
-			deleteErr := clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+			deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 			if deleteErr != nil {
 				klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 			}
 
-			return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "VirtualMachineImagesclientutils.Get failed for %s", req.MachineClass.Name)
+			return nil, spi.OnARMAPIErrorFail(prometheusServiceVM, err, "VirtualMachineImagesclientutils.Get failed for %s", req.MachineClass.Name)
 		}
 
 		if vmImage.Plan != nil {
 			// If VMImage.Plan exists, check if agreement is accepted and if not accept it for the subscription
 
-			agreement, err := clients.Marketplace.Get(
+			agreement, err := clients.GetMarketplace().Get(
 				ctx,
 				*vmImage.Plan.Publisher,
 				*vmImage.Plan.Product,
@@ -403,12 +405,12 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 			if err != nil {
 				//Since machine creation failed, delete any infra resources created
-				deleteErr := clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+				deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 				if deleteErr != nil {
 					klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 				}
 
-				return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsclient.Get failed for %s", req.MachineClass.Name)
+				return nil, spi.OnARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsclient.Get failed for %s", req.MachineClass.Name)
 			}
 
 			if agreement.Accepted == nil || *agreement.Accepted == false {
@@ -416,7 +418,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 				klog.V(2).Info("Accepting terms for subscription to make use of the plan")
 
 				agreement.Accepted = to.BoolPtr(true)
-				_, err = clients.Marketplace.Create(
+				_, err = clients.GetMarketplace().Create(
 					ctx,
 					*vmImage.Plan.Publisher,
 					*vmImage.Plan.Product,
@@ -426,12 +428,12 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 				if err != nil {
 					//Since machine creation failed, delete any infra resources created
-					deleteErr := clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+					deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 					if deleteErr != nil {
 						klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 					}
 
-					return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsclientutils.Create failed for %s", req.MachineClass.Name)
+					return nil, spi.OnARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsclientutils.Create failed for %s", req.MachineClass.Name)
 				}
 			}
 		}
@@ -443,44 +445,95 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	VMParameters := d.getVMParameters(vmName, vmImageRef, *NIC.ID)
 
 	// VM creation request
-	VMFuture, err := clients.VM.CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
+	VMFuture, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
 	if err != nil {
 		//Since machine creation failed, delete any infra resources created
-		deleteErr := clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
 
-		return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "VM.CreateOrUpdate failed for %s", *VMParameters.Name)
+		return nil, spi.OnARMAPIErrorFail(prometheusServiceVM, err, "GetVM().CreateOrUpdate failed for %s", *VMParameters.Name)
 	}
 
 	// Wait until VM is created
-	err = VMFuture.WaitForCompletionRef(ctx, clients.VM.Client)
+	err = VMFuture.WaitForCompletionRef(ctx, clients.GetVM().Client)
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
 
-		return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "VM.WaitForCompletionRef failed for %s", *VMParameters.Name)
+		return nil, spi.OnARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.WaitForCompletionRef failed for %s", *VMParameters.Name)
 	}
 	klog.Infof("VM Created in %d", time.Now().Sub(startTime))
 
 	// Fetch VM details
-	VM, err := VMFuture.Result(clients.VM)
+	VM, err := VMFuture.Result(clients.GetVM())
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
 
-		return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.Result failed for %s", *VMParameters.Name)
+		return nil, spi.OnARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.Result failed for %s", *VMParameters.Name)
 	}
-	clientutils.OnARMAPISuccess(prometheusServiceVM, "VM.CreateOrUpdate")
+	spi.OnARMAPISuccess(prometheusServiceVM, "VM.CreateOrUpdate")
 
 	return &VM, nil
+}
+
+// deleteVMNicDisks deletes the VM and associated Disks and NIC
+func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, resourceGroupName string, VMName string, nicName string, diskName string, dataDiskNames []string) error {
+
+	clients, err := d.SPI.Setup(d.Secret)
+	if err != nil {
+		return err
+	}
+	// We try to fetch the VM, detach its data disks and finally delete it
+	if vm, vmErr := clients.GetVM().Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
+
+		clients.WaitForDataDiskDetachment(ctx, resourceGroupName, vm)
+		if deleteErr := clients.DeleteVM(ctx, resourceGroupName, VMName); deleteErr != nil {
+			return deleteErr
+		}
+
+		spi.OnARMAPISuccess(prometheusServiceVM, "VM Get was successful for %s", *vm.Name)
+	} else if !spi.NotFound(vmErr) {
+		// If some other error occurred, which is not 404 Not Found (the VM doesn't exist) then bubble up
+		return spi.OnARMAPIErrorFail(prometheusServiceVM, vmErr, "vm.Get")
+	}
+
+	// Fetch the NIC and deleted it
+	nicDeleter := func() error {
+		if vmHoldingNic, err := clients.FetchAttachedVMfromNIC(ctx, resourceGroupName, nicName); err != nil {
+			if spi.NotFound(err) {
+				// Resource doesn't exist, no need to delete
+				return nil
+			}
+			return err
+		} else if vmHoldingNic != "" {
+			return fmt.Errorf("Cannot delete NIC %s because it is attached to VM %s", nicName, vmHoldingNic)
+		}
+
+		return clients.DeleteNIC(ctx, resourceGroupName, nicName)
+	}
+
+	// Fetch the system disk and delete it
+	diskDeleter := clients.GetDeleterForDisk(ctx, resourceGroupName, diskName)
+
+	deleters := []func() error{nicDeleter, diskDeleter}
+
+	if dataDiskNames != nil {
+		for _, dataDiskName := range dataDiskNames {
+			dataDiskDeleter := clients.GetDeleterForDisk(ctx, resourceGroupName, dataDiskName)
+			deleters = append(deleters, dataDiskDeleter)
+		}
+	}
+
+	return spi.RunInParallel(deleters)
 }
 
 func fillUpMachineClass(azureMachineClass *v1alpha1.AzureMachineClass, machineClass *v1alpha1.MachineClass) error {
