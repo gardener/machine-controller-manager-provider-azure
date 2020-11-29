@@ -25,15 +25,15 @@ var _ = Describe("MachineController", func() {
 
 	azureProviderSecret := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientID":       []byte("dummy-client-id"),
+		"azureClientId":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte("dummy-tenant-id"),
 	}
 
-	azureProviderSecretWithoutazureClientID := map[string][]byte{
+	azureProviderSecretWithoutazureClientId := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientID":       []byte(""),
+		"azureClientId":       []byte(""),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte("dummy-tenant-id"),
@@ -41,7 +41,7 @@ var _ = Describe("MachineController", func() {
 
 	azureProviderSecretWithoutazureClientSecret := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientID":       []byte("dummy-client-id"),
+		"azureClientId":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte(""),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte("dummy-tenant-id"),
@@ -49,7 +49,7 @@ var _ = Describe("MachineController", func() {
 
 	azureProviderSecretWithoutazureTenantID := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientID":       []byte("dummy-client-id"),
+		"azureClientId":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte(""),
@@ -57,7 +57,7 @@ var _ = Describe("MachineController", func() {
 
 	azureProviderSecretWithoutazureSubscriptionID := map[string][]byte{
 		"userData":            []byte("dummy-data"),
-		"azureClientID":       []byte("dummy-client-id"),
+		"azureClientId":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte(""),
 		"azureTenantId":       []byte("dummy-tenant-id"),
@@ -65,7 +65,7 @@ var _ = Describe("MachineController", func() {
 
 	azureProviderSecretWithoutUserData := map[string][]byte{
 		"userData":            []byte(""),
-		"azureClientID":       []byte("dummy-client-id"),
+		"azureClientId":       []byte("dummy-client-id"),
 		"azureClientSecret":   []byte("dummy-client-secret"),
 		"azureSubscriptionId": []byte("dummy-subcription-id"),
 		"azureTenantId":       []byte("dummy-tenant-id"),
@@ -139,7 +139,7 @@ var _ = Describe("MachineController", func() {
 				},
 				expect: expect{
 					errToHaveOccurred: true,
-					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret UserData is required field]]]",
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [secret UserData is required field]]]",
 				},
 			}),
 			Entry("#3 CreateMachine fails: Absence of Location in providerspec", &data{
@@ -377,17 +377,17 @@ var _ = Describe("MachineController", func() {
 					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [providerSpec.kubernetes.io-role-: Required value: Tag required of the form kubernetes.io-role-****]]]",
 				},
 			}),
-			Entry("#22 CreateMachine fails: Absence of azureClientID in secret", &data{
+			Entry("#22 CreateMachine fails: Absence of azureClientId in secret", &data{
 				action: action{
 					machineRequest: &driver.CreateMachineRequest{
 						Machine:      newMachine("dummy-machine"),
 						MachineClass: newAzureMachineClass(fake.AzureProviderSpec),
-						Secret:       newSecret(azureProviderSecretWithoutazureClientID),
+						Secret:       newSecret(azureProviderSecretWithoutazureClientId),
 					},
 				},
 				expect: expect{
 					errToHaveOccurred: true,
-					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret azureClientID is required field]]]",
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [secret azureClientId or clientID is required field]]]",
 				},
 			}),
 			Entry("#23 CreateMachine fails: Absence of azureClientSecret in secret", &data{
@@ -400,7 +400,7 @@ var _ = Describe("MachineController", func() {
 				},
 				expect: expect{
 					errToHaveOccurred: true,
-					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret azureClientSecret is required field]]]",
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [secret azureClientSecret or clientSecret is required field]]]",
 				},
 			}),
 			Entry("#24 CreateMachine fails: Absence of azureTenantId in secret", &data{
@@ -413,7 +413,7 @@ var _ = Describe("MachineController", func() {
 				},
 				expect: expect{
 					errToHaveOccurred: true,
-					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret azureTenantId is required field]]]",
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [secret azureTenantId or tenantID is required field]]]",
 				},
 			}),
 			Entry("#25 CreateMachine fails: Absence of azureSubscriptionId in secret", &data{
@@ -426,7 +426,7 @@ var _ = Describe("MachineController", func() {
 				},
 				expect: expect{
 					errToHaveOccurred: true,
-					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [Secret azureSubscriptionId is required field]]]",
+					errMessage:        "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [secret azureSubscriptionId or subscriptionID is required field]]]",
 				},
 			}),
 		)
