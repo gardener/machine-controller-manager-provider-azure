@@ -183,20 +183,20 @@ func validateSpecTags(tags map[string]string) []error {
 func validateSecrets(secret *corev1.Secret) []error {
 	var allErrs []error
 
-	if "" == string(secret.Data["azureClientId"]) {
-		allErrs = append(allErrs, fmt.Errorf("Secret azureClientId is required field"))
+	if "" == string(secret.Data[api.AzureClientID]) && "" == string(secret.Data[api.AzureAlternativeClientID]) {
+		allErrs = append(allErrs, fmt.Errorf("secret %s or %s is required field", api.AzureClientID, api.AzureAlternativeClientID))
 	}
-	if "" == string(secret.Data["azureClientSecret"]) {
-		allErrs = append(allErrs, fmt.Errorf("Secret azureClientSecret is required field"))
+	if "" == string(secret.Data[api.AzureClientSecret]) && "" == string(secret.Data[api.AzureAlternativeClientSecret]) {
+		allErrs = append(allErrs, fmt.Errorf("secret %s or %s is required field", api.AzureClientSecret, api.AzureAlternativeClientSecret))
 	}
-	if "" == string(secret.Data["azureTenantId"]) {
-		allErrs = append(allErrs, fmt.Errorf("Secret azureTenantId is required field"))
+	if "" == string(secret.Data[api.AzureTenantID]) && "" == string(secret.Data[api.AzureAlternativeTenantID]) {
+		allErrs = append(allErrs, fmt.Errorf("secret %s or %s is required field", api.AzureTenantID, api.AzureAlternativeTenantID))
 	}
-	if "" == string(secret.Data["azureSubscriptionId"]) {
-		allErrs = append(allErrs, fmt.Errorf("Secret azureSubscriptionId is required field"))
+	if "" == string(secret.Data[api.AzureSubscriptionID]) && "" == string(secret.Data[api.AzureAlternativeSubscriptionID]) {
+		allErrs = append(allErrs, fmt.Errorf("secret %s or %s is required field", api.AzureSubscriptionID, api.AzureAlternativeSubscriptionID))
 	}
 	if "" == string(secret.Data["userData"]) {
-		allErrs = append(allErrs, fmt.Errorf("Secret UserData is required field"))
+		allErrs = append(allErrs, fmt.Errorf("secret UserData is required field"))
 	}
 	return allErrs
 }

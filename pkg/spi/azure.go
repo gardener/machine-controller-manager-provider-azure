@@ -16,8 +16,9 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+
+	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 )
 
 // MachinePlugin implements the driver.Driver
@@ -32,17 +33,14 @@ type PluginSPIImpl struct{}
 // Setup starts a new Azure session
 func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*azureDriverClients, error) {
 	var (
-		subscriptionID = strings.TrimSpace(string(secret.Data[v1alpha1.AzureSubscriptionID]))
-		tenantID       = strings.TrimSpace(string(secret.Data[v1alpha1.AzureTenantID]))
-		clientID       = strings.TrimSpace(string(secret.Data[v1alpha1.AzureClientID]))
-		clientSecret   = strings.TrimSpace(string(secret.Data[v1alpha1.AzureClientSecret]))
-		env            = azure.PublicCloud
+		subscriptionID = extractCredentialsFromData(secret.Data, api.AzureSubscriptionID, api.AzureAlternativeSubscriptionID)
+		tenantID       = extractCredentialsFromData(secret.Data, api.AzureTenantID, api.AzureAlternativeTenantID)
+		clientID       = extractCredentialsFromData(secret.Data, api.AzureClientID, api.AzureAlternativeClientID)
+		clientSecret   = extractCredentialsFromData(secret.Data, api.AzureClientSecret, api.AzureAlternativeClientSecret)
+
+		env = azure.PublicCloud
 	)
-	newAzureClients, err := newClients(subscriptionID, tenantID, clientID, clientSecret, env)
-	if err != nil {
-		return nil, err
-	}
-	return newAzureClients, nil
+	return newClients(subscriptionID, tenantID, clientID, clientSecret, env)
 }
 
 // newClients returns the authenticated Azure clients
@@ -84,4 +82,15 @@ func newClients(subscriptionID, tenantID, clientID, clientSecret string, env azu
 	marketplaceClient.Authorizer = authorizer
 
 	return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, deployments: deploymentsClient, group: groupClient, images: vmImagesClient, marketplace: marketplaceClient}, nil
+}
+
+// extractCredentialsFromData extracts and trims a value from the given data map. The first key that exists is being
+// returned, otherwise, the next key is tried, etc. If no key exists then an empty string is returned.
+func extractCredentialsFromData(data map[string][]byte, keys ...string) string {
+	for _, key := range keys {
+		if val, ok := data[key]; ok {
+			return strings.TrimSpace(string(val))
+		}
+	}
+	return ""
 }
