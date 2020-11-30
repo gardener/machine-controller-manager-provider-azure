@@ -9,14 +9,15 @@ require (
 	github.com/Azure/go-autorest/autorest/to v0.3.0
 	github.com/gardener/machine-controller-manager v0.30.0
 	github.com/gardener/machine-controller-manager-provider-gcp v0.1.0 // indirect
+	github.com/golang/mock v1.2.0
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/prometheus/client_golang v1.5.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.5.1 // indirect
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2 // indirect
-	google.golang.org/api v0.4.0
-	google.golang.org/grpc v1.23.0
+	google.golang.org/api v0.4.0 // indirect
+	google.golang.org/grpc v1.23.0 // indirect
 	k8s.io/api v0.16.8
 	k8s.io/apimachinery v0.16.8
 	k8s.io/component-base v0.16.8

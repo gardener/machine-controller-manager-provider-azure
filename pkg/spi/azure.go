@@ -16,7 +16,6 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/client"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -31,7 +30,7 @@ type MachinePlugin struct {
 type PluginSPIImpl struct{}
 
 // Setup starts a new Azure session
-func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*client.AzureDriverClients, error) {
+func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*azureDriverClients, error) {
 	var (
 		subscriptionID = strings.TrimSpace(string(secret.Data[v1alpha1.AzureSubscriptionID]))
 		tenantID       = strings.TrimSpace(string(secret.Data[v1alpha1.AzureTenantID]))
@@ -39,15 +38,15 @@ func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*client.AzureDriverClient
 		clientSecret   = strings.TrimSpace(string(secret.Data[v1alpha1.AzureClientSecret]))
 		env            = azure.PublicCloud
 	)
-	newClients, err := NewClients(subscriptionID, tenantID, clientID, clientSecret, env)
+	newAzureClients, err := newClients(subscriptionID, tenantID, clientID, clientSecret, env)
 	if err != nil {
 		return nil, err
 	}
-	return newClients, nil
+	return newAzureClients, nil
 }
 
-// NewClients returns the authenticated Azure clients
-func NewClients(subscriptionID, tenantID, clientID, clientSecret string, env azure.Environment) (*client.AzureDriverClients, error) {
+// newClients returns the authenticated Azure clients
+func newClients(subscriptionID, tenantID, clientID, clientSecret string, env azure.Environment) (*azureDriverClients, error) {
 	oauthConfig, err := adal.NewOAuthConfig(env.ActiveDirectoryEndpoint, tenantID)
 	if err != nil {
 		return nil, err
@@ -78,8 +77,11 @@ func NewClients(subscriptionID, tenantID, clientID, clientSecret string, env azu
 	deploymentsClient := resources.NewDeploymentsClient(subscriptionID)
 	deploymentsClient.Authorizer = authorizer
 
+	groupClient := resources.NewGroupsClient(subscriptionID)
+	groupClient.Authorizer = authorizer
+
 	marketplaceClient := marketplaceordering.NewMarketplaceAgreementsClient(subscriptionID)
 	marketplaceClient.Authorizer = authorizer
 
-	return &client.AzureDriverClients{Subnet: subnetClient, Nic: interfacesClient, VM: vmClient, Disk: diskClient, Deployments: deploymentsClient, Images: vmImagesClient, Marketplace: marketplaceClient}, nil
+	return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, deployments: deploymentsClient, group: groupClient, images: vmImagesClient, marketplace: marketplaceClient}, nil
 }

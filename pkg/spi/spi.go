@@ -7,12 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package spi
 
 import (
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/client"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // SessionProviderInterface provides an interface to deal with cloud provider session
 // Example interfaces are listed below.
 type SessionProviderInterface interface {
-	Setup(cloudConfig *corev1.Secret) (*client.AzureDriverClients, error)
+	Setup(cloudConfig *corev1.Secret) (*azureDriverClients, error)
 }

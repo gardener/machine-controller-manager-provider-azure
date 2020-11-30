@@ -14,7 +14,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
-	clientutils "github.com/gardener/machine-controller-manager-provider-azure/pkg/client"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -77,8 +76,8 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 	// Log messages to track request
 	klog.V(2).Infof("Machine creation request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine creation request has been processed for %q", req.Machine.Name)
-	d.Secret = req.Secret
 
+	d.Secret = req.Secret
 	virtualMachine, err := d.createVMNicDisk(req)
 	if err != nil {
 		return nil, status.Error(codes.Unknown, err.Error())
@@ -111,6 +110,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 	d.AzureProviderSpec = providerSpec
+	d.Secret = req.Secret
 
 	var (
 		vmName            = strings.ToLower(req.Machine.Name)
@@ -119,16 +119,25 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 		diskName          = dependencyNameFromVMName(vmName, diskSuffix)
 		dataDiskNames     []string
 	)
-	if providerSpec.Properties.StorageProfile.DataDisks != nil && len(providerSpec.Properties.StorageProfile.DataDisks) > 0 {
-		dataDiskNames = getAzureDataDiskNames(providerSpec.Properties.StorageProfile.DataDisks, vmName, dataDiskSuffix)
-	}
 
-	clients, err := d.SPI.Setup(req.Secret)
+	clients, err := d.SPI.Setup(d.Secret)
 	if err != nil {
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
-	err = clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+	// Check if the underlying resource group still exists. If not, skip the deletion, as all resources are gone.
+	if _, err := clients.GetGroup().Get(ctx, resourceGroupName); err != nil {
+		if spi.NotFound(err) {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
+
+	if providerSpec.Properties.StorageProfile.DataDisks != nil && len(providerSpec.Properties.StorageProfile.DataDisks) > 0 {
+		dataDiskNames = getAzureDataDiskNames(providerSpec.Properties.StorageProfile.DataDisks, vmName, dataDiskSuffix)
+	}
+
+	err = d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 	if err != nil {
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
@@ -209,12 +218,12 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 		return nil, status.Error(codes.Unknown, err.Error())
 	}
 
-	result, err = clients.VM.List(ctx, resourceGroupName)
+	result, err = clients.GetVM().List(ctx, resourceGroupName)
 	items = append(items, result.Values()...)
 	for result.NotDone() {
 		err = result.NextWithContext(ctx)
 		if err != nil {
-			return nil, clientutils.OnARMAPIErrorFail(prometheusServiceVM, err, "VM.List")
+			return nil, spi.OnARMAPIErrorFail(prometheusServiceVM, err, "VM.List")
 		}
 		items = append(items, result.Values()...)
 	}
@@ -223,7 +232,7 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 		listOfVMs[encodeMachineID(*item.Location, *item.Name)] = *item.Name
 	}
 
-	clientutils.OnARMAPISuccess(prometheusServiceVM, "VM.List")
+	spi.OnARMAPISuccess(prometheusServiceVM, "VM.List")
 	return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
 }
 
