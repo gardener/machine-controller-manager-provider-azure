@@ -13,5 +13,5 @@ import (
 // SessionProviderInterface provides an interface to deal with cloud provider session
 // Example interfaces are listed below.
 type SessionProviderInterface interface {
-	Setup(cloudConfig *corev1.Secret) (*azureDriverClients, error)
+	Setup(cloudConfig *corev1.Secret) (AzureDriverClientsInterface, error)
 }

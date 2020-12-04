@@ -21,17 +21,11 @@ import (
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 )
 
-// MachinePlugin implements the driver.Driver
-// It also implements the PluginSPI interface
-type MachinePlugin struct {
-	SPI SessionProviderInterface
-}
-
 // PluginSPIImpl is the real implementation of SPI interface that makes the calls to the Azure SDK.
 type PluginSPIImpl struct{}
 
 // Setup starts a new Azure session
-func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*azureDriverClients, error) {
+func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (AzureDriverClientsInterface, error) {
 	var (
 		subscriptionID = extractCredentialsFromData(secret.Data, api.AzureSubscriptionID, api.AzureAlternativeSubscriptionID)
 		tenantID       = extractCredentialsFromData(secret.Data, api.AzureTenantID, api.AzureAlternativeTenantID)
@@ -72,8 +66,8 @@ func newClients(subscriptionID, tenantID, clientID, clientSecret string, env azu
 	diskClient := compute.NewDisksClient(subscriptionID)
 	diskClient.Authorizer = authorizer
 
-	deploymentsClient := resources.NewDeploymentsClient(subscriptionID)
-	deploymentsClient.Authorizer = authorizer
+	// deploymentsClient := resources.NewDeploymentsClient(subscriptionID)
+	// deploymentsClient.Authorizer = authorizer
 
 	groupClient := resources.NewGroupsClient(subscriptionID)
 	groupClient.Authorizer = authorizer
@@ -81,7 +75,9 @@ func newClients(subscriptionID, tenantID, clientID, clientSecret string, env azu
 	marketplaceClient := marketplaceordering.NewMarketplaceAgreementsClient(subscriptionID)
 	marketplaceClient.Authorizer = authorizer
 
-	return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, deployments: deploymentsClient, group: groupClient, images: vmImagesClient, marketplace: marketplaceClient}, nil
+	return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, group: groupClient, images: vmImagesClient, marketplace: marketplaceClient}, nil
+
+	// return &azureDriverClients{subnet: subnetClient, nic: interfacesClient, vm: vmClient, disk: diskClient, deployments: deploymentsClient, group: groupClient, images: vmImagesClient, marketplace: marketplaceClient}, nil
 }
 
 // extractCredentialsFromData extracts and trims a value from the given data map. The first key that exists is being

@@ -6,10 +6,11 @@ package mock_computeapi
 
 import (
 	context "context"
+	reflect "reflect"
+
 	compute "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	autorest "github.com/Azure/go-autorest/autorest"
 	gomock "github.com/golang/mock/gomock"
-	reflect "reflect"
 )
 
 // MockOperationsClientAPI is a mock of OperationsClientAPI interface
