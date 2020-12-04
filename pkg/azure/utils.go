@@ -355,7 +355,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	spi.OnARMAPISuccess(prometheusServiceNIC, "NIC.CreateOrUpdate")
 
 	// Fetch NIC details
-	NIC, err := NICFuture.Result(clients.GetNic())
+	NIC, err := NICFuture.Result(clients.GetNic().(network.InterfacesClient))
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
 		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
@@ -457,7 +457,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	}
 
 	// Wait until VM is created
-	err = VMFuture.WaitForCompletionRef(ctx, clients.GetVM().Client)
+	err = VMFuture.WaitForCompletionRef(ctx, clients.GetClient())
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
 		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
@@ -470,7 +470,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	klog.Infof("VM Created in %d", time.Now().Sub(startTime))
 
 	// Fetch VM details
-	VM, err := VMFuture.Result(clients.GetVM())
+	VM, err := VMFuture.Result(clients.GetVM().(compute.VirtualMachinesClient))
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
 		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)

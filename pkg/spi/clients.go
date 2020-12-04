@@ -21,6 +21,7 @@ import (
 	marketplaceorderingapi "github.com/Azure/azure-sdk-for-go/services/marketplaceordering/mgmt/2015-06-01/marketplaceordering/marketplaceorderingapi"
 	networkapi "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-04-01/network/networkapi"
 	"github.com/Azure/go-autorest/autorest"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi/resourcesapi"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/klog"
@@ -53,13 +54,26 @@ type AzureDriverClientsInterface interface {
 	GetImages() computeapi.VirtualMachineImagesClientAPI
 
 	// GetDeployments() is the getter for the Azure Deployment Client
-	GetDeployments() resources.DeploymentsClient
+	// GetDeployments() resources.DeploymentsClient
+
+	// GetGroup is the getter for the Azure Groups Client
+	GetGroup() resourcesapi.GroupsClientAPI
 
 	// GetMarketplace() is the getter for the Azure Marketplace Agreement Client
 	GetMarketplace() marketplaceorderingapi.MarketplaceAgreementsClientAPI
 
 	// GetClient() is the getter of the Azure autorest client
 	GetClient() autorest.Client
+
+	DeleteVM(ctx context.Context, resourceGroupName string, vmName string) error
+
+	WaitForDataDiskDetachment(ctx context.Context, resourceGroupName string, vm compute.VirtualMachine) error
+
+	FetchAttachedVMfromNIC(ctx context.Context, resourceGroupName, nicName string) (string, error)
+
+	DeleteNIC(ctx context.Context, resourceGroupName string, nicName string) error
+
+	GetDeleterForDisk(ctx context.Context, resourceGroupName string, diskName string) func() error
 }
 
 // azureDriverClients . . .
@@ -68,55 +82,58 @@ type azureDriverClients struct {
 	nic         network.InterfacesClient
 	vm          compute.VirtualMachinesClient
 	disk        compute.DisksClient
-	deployments resources.DeploymentsClient
 	images      compute.VirtualMachineImagesClient
 	group       resources.GroupsClient
 	marketplace marketplaceordering.MarketplaceAgreementsClient
+
+	// commenting the below deployments attribute as I do not see an active usage of it in the core
+	// deployments resources.DeploymentsClient
+
 }
 
 // GetVM method is the getter for the Virtual Machines Client from the AzureDriverClients
-func (clients azureDriverClients) GetVM() compute.VirtualMachinesClient {
+func (clients *azureDriverClients) GetVM() computeapi.VirtualMachinesClientAPI {
 	return clients.vm
 }
 
 // GetDisk method is the getter for the Disks Client from the AzureDriverClients
-func (clients azureDriverClients) GetDisk() compute.DisksClient {
+func (clients *azureDriverClients) GetDisk() computeapi.DisksClientAPI {
 	return clients.disk
 }
 
 // GetImages is the getter for the Virtual Machines Images Client from the AzureDriverClients
-func (clients azureDriverClients) GetImages() compute.VirtualMachineImagesClient {
+func (clients *azureDriverClients) GetImages() computeapi.VirtualMachineImagesClientAPI {
 	return clients.images
 }
 
 // GetNic is the getter for the  Network Interfaces Client from the AzureDriverClients
-func (clients azureDriverClients) GetNic() network.InterfacesClient {
+func (clients *azureDriverClients) GetNic() networkapi.InterfacesClientAPI {
 	return clients.nic
 }
 
 // GetSubnet is the getter for the Network Subnets Client from the AzureDriverClients
-func (clients azureDriverClients) GetSubnet() network.SubnetsClient {
+func (clients *azureDriverClients) GetSubnet() networkapi.SubnetsClientAPI {
 	return clients.subnet
 }
 
 // GetDeployments is the getter for the resources deployment from the AzureDriverClients
-func (clients azureDriverClients) GetDeployments() resources.DeploymentsClient {
-	return clients.deployments
-}
+// func (clients *azureDriverClients) GetDeployments() resources.DeploymentsClient {
+// 	return clients.deployments
+// }
 
 // GetGroup is the getter for the resources Group Client from the AzureDriverClients
-func (clients azureDriverClients) GetGroup() resources.GroupsClient {
+func (clients *azureDriverClients) GetGroup() resourcesapi.GroupsClientAPI {
 	return clients.group
 }
 
 // GetMarketplace is the getter for the marketplace agreement client from the AzureDriverClients
-func (clients azureDriverClients) GetMarketplace() marketplaceordering.MarketplaceAgreementsClient {
+func (clients *azureDriverClients) GetMarketplace() marketplaceorderingapi.MarketplaceAgreementsClientAPI {
 	return clients.marketplace
 }
 
 // GetClient is the getter for the autorest Client from the AzureDriverClients
-func (clients azureDriverClients) GetClient() autorest.Client {
-	return clients.vm.BaseClient.Client
+func (clients *azureDriverClients) GetClient() autorest.Client {
+	return clients.GetVM().(compute.VirtualMachinesClient).BaseClient.Client
 }
 
 func (clients *azureDriverClients) DeleteVM(ctx context.Context, resourceGroupName string, vmName string) error {
@@ -127,7 +144,7 @@ func (clients *azureDriverClients) DeleteVM(ctx context.Context, resourceGroupNa
 	if err != nil {
 		return OnARMAPIErrorFail(prometheusServiceVM, err, "vm.Delete")
 	}
-	err = future.WaitForCompletionRef(ctx, clients.GetVM().Client)
+	err = future.WaitForCompletionRef(ctx, clients.GetClient())
 	if err != nil {
 		return OnARMAPIErrorFail(prometheusServiceVM, err, "vm.Delete")
 	}
@@ -147,7 +164,7 @@ func (clients *azureDriverClients) WaitForDataDiskDetachment(ctx context.Context
 		if err != nil {
 			return OnARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
 		}
-		err = future.WaitForCompletionRef(ctx, clients.GetVM().Client)
+		err = future.WaitForCompletionRef(ctx, clients.GetClient())
 		if err != nil {
 			return OnARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
 		}
@@ -176,7 +193,7 @@ func (clients *azureDriverClients) DeleteNIC(ctx context.Context, resourceGroupN
 	if err != nil {
 		return OnARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
 	}
-	if err := future.WaitForCompletionRef(ctx, clients.GetNic().Client); err != nil {
+	if err := future.WaitForCompletionRef(ctx, clients.GetClient()); err != nil {
 		return OnARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
 	}
 	OnARMAPISuccess(prometheusServiceNIC, "NIC deletion was successful for %s", nicName)
@@ -202,7 +219,7 @@ func (clients *azureDriverClients) deleteDisk(ctx context.Context, resourceGroup
 	if err != nil {
 		return OnARMAPIErrorFail(prometheusServiceDisk, err, "disk.Delete")
 	}
-	if err = future.WaitForCompletionRef(ctx, clients.GetDisk().Client); err != nil {
+	if err = future.WaitForCompletionRef(ctx, clients.GetClient()); err != nil {
 		return OnARMAPIErrorFail(prometheusServiceDisk, err, "disk.Delete")
 	}
 	OnARMAPISuccess(prometheusServiceDisk, "Disk deletion was successful for %s", diskName)

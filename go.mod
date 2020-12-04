@@ -9,7 +9,7 @@ require (
 	github.com/Azure/go-autorest/autorest/to v0.3.0
 	github.com/gardener/machine-controller-manager v0.30.0
 	github.com/gardener/machine-controller-manager-provider-gcp v0.1.0 // indirect
-	github.com/golang/mock v1.2.0
+	github.com/golang/mock v1.4.4
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/prometheus/client_golang v1.5.1
@@ -20,6 +20,7 @@ require (
 	google.golang.org/grpc v1.23.0 // indirect
 	k8s.io/api v0.16.8
 	k8s.io/apimachinery v0.16.8
+	k8s.io/client-go v0.16.8
 	k8s.io/component-base v0.16.8
 	k8s.io/klog v1.0.0
 )

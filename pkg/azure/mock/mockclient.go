@@ -18,113 +18,103 @@
 package mock
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/resources"
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute/computeapi"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 
-	"github.com/Azure/azure-sdk-for-go/services/marketplaceordering/mgmt/2015-06-01/marketplaceordering/marketplaceorderingapi"
-	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-04-01/network/networkapi"
+	computeapi "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute/computeapi"
+	marketplaceorderingapi "github.com/Azure/azure-sdk-for-go/services/marketplaceordering/mgmt/2015-06-01/marketplaceordering/marketplaceorderingapi"
+	networkapi "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-04-01/network/networkapi"
 	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis/validation"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock/mock_computeapi"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock/mock_marketplaceorderingapi"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock/mock_networkapi"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock/mock_resourcesapi"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi/resourcesapi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	gomock "github.com/golang/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 )
 
-// VMClient . . .
-type VMClient struct {
-	VM computeapi.VirtualMachinesClientAPI
+// AzureDriverClients . . .
+type AzureDriverClients struct {
+	Subnet      *mock_networkapi.MockSubnetsClientAPI
+	NIC         *mock_networkapi.MockInterfacesClientAPI
+	VM          *mock_computeapi.MockVirtualMachinesClientAPI
+	Disk        *mock_computeapi.MockDisksClientAPI
+	Group       *mock_resourcesapi.MockGroupsClientAPI
+	Images      *mock_computeapi.MockVirtualMachineImagesClientAPI
+	Marketplace *mock_marketplaceorderingapi.MockMarketplaceAgreementsClientAPI
+
+	// deployments resources.DeploymentsClient
 }
 
-// SubnetsClient ...
-type SubnetsClient struct {
-	Subnet networkapi.SubnetsClientAPI
+// GetVM method is the getter for the Virtual Machines Client from the AzureDriverClients
+func (clients *AzureDriverClients) GetVM() computeapi.VirtualMachinesClientAPI {
+	return clients.VM
 }
 
-// InterfacesClient ...
-type InterfacesClient struct {
-	Nic networkapi.InterfacesClientAPI
-	ID  string
+// GetDisk method is the getter for the Disks Client from the AzureDriverClients
+func (clients *AzureDriverClients) GetDisk() computeapi.DisksClientAPI {
+	return clients.Disk
 }
 
-// DisksClient ...
-type DisksClient struct {
-	Disk computeapi.DisksClientAPI
+// GetImages is the getter for the Virtual Machines Images Client from the AzureDriverClients
+func (clients *AzureDriverClients) GetImages() computeapi.VirtualMachineImagesClientAPI {
+	return clients.Images
 }
 
-// VirtualMachineImagesClient ...
-type VirtualMachineImagesClient struct {
-	Images computeapi.VirtualMachineImagesClientAPI
+// GetNic is the getter for the  Network Interfaces Client from the AzureDriverClients
+func (clients *AzureDriverClients) GetNic() networkapi.InterfacesClientAPI {
+	return clients.NIC
 }
 
-// MarketplaceAgreementsClient ...
-type MarketplaceAgreementsClient struct {
-	Marketplace marketplaceorderingapi.MarketplaceAgreementsClientAPI
+// GetSubnet is the getter for the Network Subnets Client from the AzureDriverClients
+func (clients *AzureDriverClients) GetSubnet() networkapi.SubnetsClientAPI {
+	return clients.Subnet
 }
 
-// FakeAzureDriverClients . . .
-type FakeAzureDriverClients struct {
-	Subnet      SubnetsClient
-	Nic         InterfacesClient
-	VM          VMClient
-	Disk        DisksClient
-	Deployments resources.DeploymentsClient
-	Images      VirtualMachineImagesClient
-	Marketplace MarketplaceAgreementsClient
+// GetGroup is the getter for the resources Group Client from the AzureDriverClients
+func (clients *AzureDriverClients) GetGroup() resourcesapi.GroupsClientAPI {
+	return clients.Group
 }
 
-// SessionProviderInterface ...
-type SessionProviderInterface interface {
-	Setup(cloudConfig *corev1.Secret) (*FakeAzureDriverClients, error)
+// GetMarketplace is the getter for the marketplace agreement client from the AzureDriverClients
+func (clients *AzureDriverClients) GetMarketplace() marketplaceorderingapi.MarketplaceAgreementsClientAPI {
+	return clients.Marketplace
 }
+
+// GetClient is the getter for the autorest Client from the AzureDriverClients
+func (clients *AzureDriverClients) GetClient() autorest.Client {
+	return autorest.Client{}
+}
+
+// GetDeployments is the getter for the resources deployment from the AzureDriverClients
+// func (clients *azureDriverClients) GetDeployments() resources.DeploymentsClient {
+// 	return clients.deployments
+// }
 
 //PluginSPIImpl is the mock implementation of PluginSPIImpl
 type PluginSPIImpl struct {
-	SPI               SessionProviderInterface
-	AzureProviderSpec *api.AzureProviderSpec
-	Secret            *corev1.Secret
+	AzureProviderSpec  *api.AzureProviderSpec
+	Secret             *corev1.Secret
+	Controller         *gomock.Controller
+	azureDriverClients *AzureDriverClients
 }
 
-// NewFakeAzureDriver returns an empty AzureDriver object
-func NewFakeAzureDriver(spi SessionProviderInterface) *PluginSPIImpl {
-	return &PluginSPIImpl{
-		SPI: spi,
-	}
-}
-
-// CreateOrUpdate ...
-func (client VMClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, VMName string, parameters compute.VirtualMachine) (*compute.VirtualMachine, error) {
-	var result = &compute.VirtualMachine{}
-	result.Name = &VMName
-	result.Location = parameters.Location
-	return result, nil
-}
-
-// List ...
-func (client VMClient) List(ctx context.Context, resourceGroupName string) ([]compute.VirtualMachine, error) {
-	var machines []compute.VirtualMachine
-
-	var location, name string
-
-	// the values are defaulted for testing purposes
-	location = "westeurope"
-	name = "dummy"
-	machines = append(machines, compute.VirtualMachine{Location: &location, Name: &name})
-	return machines, nil
+// NewMockPluginSPIImpl ...
+func NewMockPluginSPIImpl(controller *gomock.Controller) spi.SessionProviderInterface {
+	return &PluginSPIImpl{Controller: controller}
 }
 
 //Setup creates a compute service instance using the mock
-func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*FakeAzureDriverClients, error) {
+func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (spi.AzureDriverClientsInterface, error) {
+
+	if ms.azureDriverClients != nil {
+		return ms.azureDriverClients, nil
+	}
 
 	var (
 		subscriptionID = strings.TrimSpace(string(secret.Data[v1alpha1.AzureSubscriptionID]))
@@ -134,90 +124,27 @@ func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (*FakeAzureDriverClients, 
 		env            = azure.PublicCloud
 	)
 
-	newClients, err := NewClients(subscriptionID, tenantID, clientID, clientSecret, env)
+	newAzureClients, err := ms.newClients(subscriptionID, tenantID, clientID, clientSecret, env)
 	if err != nil {
 		return nil, err
 	}
 
-	return newClients, nil
+	ms.azureDriverClients = newAzureClients
+	return newAzureClients, nil
 }
 
 // NewClients returns the authenticated Azure clients
-func NewClients(subscriptionID, tenantID, clientID, clientSecret string, env azure.Environment) (*FakeAzureDriverClients, error) {
-	oauthConfig, err := adal.NewOAuthConfig(env.ActiveDirectoryEndpoint, tenantID)
-	if err != nil {
-		return nil, err
-	}
+func (ms *PluginSPIImpl) newClients(subscriptionID, tenantID, clientID, clientSecret string, env azure.Environment) (*AzureDriverClients, error) {
 
-	spToken, err := adal.NewServicePrincipalToken(*oauthConfig, clientID, clientSecret, env.ResourceManagerEndpoint)
-	if err != nil {
-		return nil, err
-	}
+	subnetClient := mock_networkapi.NewMockSubnetsClientAPI(ms.Controller)
+	interfacesClient := mock_networkapi.NewMockInterfacesClientAPI(ms.Controller)
+	vmClient := mock_computeapi.NewMockVirtualMachinesClientAPI(ms.Controller)
+	vmImagesClient := mock_computeapi.NewMockVirtualMachineImagesClientAPI(ms.Controller)
+	diskClient := mock_computeapi.NewMockDisksClientAPI(ms.Controller)
+	groupsClients := mock_resourcesapi.NewMockGroupsClientAPI(ms.Controller)
+	marketplaceClient := mock_marketplaceorderingapi.NewMockMarketplaceAgreementsClientAPI(ms.Controller)
 
-	authorizer := autorest.NewBearerAuthorizer(spToken)
-	subnetClient := SubnetsClient{}
-	interfacesClient := InterfacesClient{}
-	vmClient := VMClient{}
-	vmImagesClient := VirtualMachineImagesClient{}
-	diskClient := DisksClient{}
-	deploymentsClient := resources.NewDeploymentsClient(subscriptionID)
-	deploymentsClient.Authorizer = authorizer
-	marketplaceClient := MarketplaceAgreementsClient{}
+	// deploymentsClient := resources.NewDeploymentsClient(subscriptionID) // check this subscriptionid
 
-	return &FakeAzureDriverClients{Subnet: subnetClient, Nic: interfacesClient, VM: vmClient, Disk: diskClient, Deployments: deploymentsClient, Images: vmImagesClient, Marketplace: marketplaceClient}, nil
-}
-
-// decodeProviderSpecAndSecret unmarshals the raw providerspec into api.AzureProviderSpec structure
-func decodeProviderSpecAndSecret(machineClass *v1alpha1.MachineClass, secret *corev1.Secret) (*api.AzureProviderSpec, error) {
-	var providerSpec *api.AzureProviderSpec
-
-	// Extract providerSpec
-	err := json.Unmarshal(machineClass.ProviderSpec.Raw, &providerSpec)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	//Validate the Spec and Secrets
-	ValidationErr := validation.ValidateAzureSpecNSecret(providerSpec, secret)
-	if ValidationErr != nil {
-		err = fmt.Errorf("Error while validating ProviderSpec %v", ValidationErr)
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	return providerSpec, nil
-}
-
-// DeleteMachine ...
-func (ms *PluginSPIImpl) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {
-
-	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
-	ms.AzureProviderSpec = providerSpec
-
-	var (
-		vmName            = strings.ToLower(req.Machine.Name)
-		resourceGroupName = providerSpec.ResourceGroup
-		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
-		diskName          = dependencyNameFromVMName(vmName, diskSuffix)
-		dataDiskNames     []string
-	)
-	if providerSpec.Properties.StorageProfile.DataDisks != nil && len(providerSpec.Properties.StorageProfile.DataDisks) > 0 {
-		dataDiskNames = getAzureDataDiskNames(providerSpec.Properties.StorageProfile.DataDisks, vmName, dataDiskSuffix)
-	}
-
-	clients, err := ms.SPI.Setup(req.Secret)
-	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
-	}
-
-	err = clients.DeleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
-	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
-	}
-
-	return &driver.DeleteMachineResponse{}, nil
-}
-
-// DeleteVMNicDisks deletes the VM and associated Disks and NIC
-func (clients *FakeAzureDriverClients) DeleteVMNicDisks(ctx context.Context, resourceGroupName string, VMName string, nicName string, diskName string, dataDiskNames []string) error {
-	return nil
+	return &AzureDriverClients{Subnet: subnetClient, NIC: interfacesClient, VM: vmClient, Disk: diskClient, Group: groupsClients, Images: vmImagesClient, Marketplace: marketplaceClient}, nil
 }
