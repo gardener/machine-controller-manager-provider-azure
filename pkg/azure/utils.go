@@ -332,7 +332,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	NICFuture, err := clients.GetNic().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters)
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -341,11 +341,10 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	}
 
 	// Wait until NIC is created
-	//err = NICFuture.WaitForCompletionRef(ctx, clients.Nic.Client)
 	err = NICFuture.WaitForCompletionRef(ctx, clients.GetClient())
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -358,7 +357,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	NIC, err := NICFuture.Result(clients.GetNic().(network.InterfacesClient))
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -385,7 +384,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 		if err != nil {
 			//Since machine creation failed, delete any infra resources created
-			deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+			deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 			if deleteErr != nil {
 				klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 			}
@@ -405,7 +404,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 			if err != nil {
 				//Since machine creation failed, delete any infra resources created
-				deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+				deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 				if deleteErr != nil {
 					klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 				}
@@ -428,7 +427,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 				if err != nil {
 					//Since machine creation failed, delete any infra resources created
-					deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+					deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 					if deleteErr != nil {
 						klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 					}
@@ -448,7 +447,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	VMFuture, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
 	if err != nil {
 		//Since machine creation failed, delete any infra resources created
-		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -460,7 +459,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	err = VMFuture.WaitForCompletionRef(ctx, clients.GetClient())
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -473,7 +472,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	VM, err := VMFuture.Result(clients.GetVM().(compute.VirtualMachinesClient))
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
-		deleteErr := d.deleteVMNicDisks(ctx, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
 		}
@@ -486,17 +485,13 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 }
 
 // deleteVMNicDisks deletes the VM and associated Disks and NIC
-func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, resourceGroupName string, VMName string, nicName string, diskName string, dataDiskNames []string) error {
+func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, VMName string, nicName string, diskName string, dataDiskNames []string) error {
 
-	clients, err := d.SPI.Setup(d.Secret)
-	if err != nil {
-		return err
-	}
 	// We try to fetch the VM, detach its data disks and finally delete it
 	if vm, vmErr := clients.GetVM().Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
 
-		clients.WaitForDataDiskDetachment(ctx, resourceGroupName, vm)
-		if deleteErr := clients.DeleteVM(ctx, resourceGroupName, VMName); deleteErr != nil {
+		spi.WaitForDataDiskDetachment(ctx, clients, resourceGroupName, vm)
+		if deleteErr := spi.DeleteVM(ctx, clients, resourceGroupName, VMName); deleteErr != nil {
 			return deleteErr
 		}
 
@@ -508,7 +503,7 @@ func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, resourceGroupName 
 
 	// Fetch the NIC and deleted it
 	nicDeleter := func() error {
-		if vmHoldingNic, err := clients.FetchAttachedVMfromNIC(ctx, resourceGroupName, nicName); err != nil {
+		if vmHoldingNic, err := spi.FetchAttachedVMfromNIC(ctx, clients, resourceGroupName, nicName); err != nil {
 			if spi.NotFound(err) {
 				// Resource doesn't exist, no need to delete
 				return nil
@@ -518,17 +513,17 @@ func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, resourceGroupName 
 			return fmt.Errorf("Cannot delete NIC %s because it is attached to VM %s", nicName, vmHoldingNic)
 		}
 
-		return clients.DeleteNIC(ctx, resourceGroupName, nicName)
+		return spi.DeleteNIC(ctx, clients, resourceGroupName, nicName)
 	}
 
 	// Fetch the system disk and delete it
-	diskDeleter := clients.GetDeleterForDisk(ctx, resourceGroupName, diskName)
+	diskDeleter := spi.GetDeleterForDisk(ctx, clients, resourceGroupName, diskName)
 
 	deleters := []func() error{nicDeleter, diskDeleter}
 
 	if dataDiskNames != nil {
 		for _, dataDiskName := range dataDiskNames {
-			dataDiskDeleter := clients.GetDeleterForDisk(ctx, resourceGroupName, dataDiskName)
+			dataDiskDeleter := spi.GetDeleterForDisk(ctx, clients, resourceGroupName, dataDiskName)
 			deleters = append(deleters, dataDiskDeleter)
 		}
 	}

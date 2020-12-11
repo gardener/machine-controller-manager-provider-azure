@@ -64,16 +64,6 @@ type AzureDriverClientsInterface interface {
 
 	// GetClient() is the getter of the Azure autorest client
 	GetClient() autorest.Client
-
-	DeleteVM(ctx context.Context, resourceGroupName string, vmName string) error
-
-	WaitForDataDiskDetachment(ctx context.Context, resourceGroupName string, vm compute.VirtualMachine) error
-
-	FetchAttachedVMfromNIC(ctx context.Context, resourceGroupName, nicName string) (string, error)
-
-	DeleteNIC(ctx context.Context, resourceGroupName string, nicName string) error
-
-	GetDeleterForDisk(ctx context.Context, resourceGroupName string, diskName string) func() error
 }
 
 // azureDriverClients . . .
@@ -136,7 +126,8 @@ func (clients *azureDriverClients) GetClient() autorest.Client {
 	return clients.GetVM().(compute.VirtualMachinesClient).BaseClient.Client
 }
 
-func (clients *azureDriverClients) DeleteVM(ctx context.Context, resourceGroupName string, vmName string) error {
+// DeleteVM is the helper function to acknowledge the VM deletion
+func DeleteVM(ctx context.Context, clients AzureDriverClientsInterface, resourceGroupName string, vmName string) error {
 	klog.V(2).Infof("VM deletion has began for %q", vmName)
 	defer klog.V(2).Infof("VM deleted for %q", vmName)
 
@@ -152,7 +143,8 @@ func (clients *azureDriverClients) DeleteVM(ctx context.Context, resourceGroupNa
 	return nil
 }
 
-func (clients *azureDriverClients) WaitForDataDiskDetachment(ctx context.Context, resourceGroupName string, vm compute.VirtualMachine) error {
+// WaitForDataDiskDetachment is functin that ensures all the data disks are detached from the VM
+func WaitForDataDiskDetachment(ctx context.Context, clients AzureDriverClientsInterface, resourceGroupName string, vm compute.VirtualMachine) error {
 	klog.V(2).Infof("Data disk detachment began for %q", *vm.Name)
 	defer klog.V(2).Infof("Data disk detached for %q", *vm.Name)
 
@@ -174,7 +166,8 @@ func (clients *azureDriverClients) WaitForDataDiskDetachment(ctx context.Context
 	return nil
 }
 
-func (clients *azureDriverClients) FetchAttachedVMfromNIC(ctx context.Context, resourceGroupName, nicName string) (string, error) {
+// FetchAttachedVMfromNIC is a helper function to fetch the attached VM for a particular NIC
+func FetchAttachedVMfromNIC(ctx context.Context, clients AzureDriverClientsInterface, resourceGroupName, nicName string) (string, error) {
 	nic, err := clients.GetNic().Get(ctx, resourceGroupName, nicName, "")
 	if err != nil {
 		return "", err
@@ -185,7 +178,8 @@ func (clients *azureDriverClients) FetchAttachedVMfromNIC(ctx context.Context, r
 	return *nic.VirtualMachine.ID, nil
 }
 
-func (clients *azureDriverClients) DeleteNIC(ctx context.Context, resourceGroupName string, nicName string) error {
+// DeleteNIC function deletes the attached Network Interface Card
+func DeleteNIC(ctx context.Context, clients AzureDriverClientsInterface, resourceGroupName string, nicName string) error {
 	klog.V(2).Infof("NIC delete started for %q", nicName)
 	defer klog.V(2).Infof("NIC deleted for %q", nicName)
 
@@ -200,7 +194,7 @@ func (clients *azureDriverClients) DeleteNIC(ctx context.Context, resourceGroupN
 	return nil
 }
 
-func (clients *azureDriverClients) fetchAttachedVMfromDisk(ctx context.Context, resourceGroupName, diskName string) (string, error) {
+func fetchAttachedVMfromDisk(ctx context.Context, clients AzureDriverClientsInterface, resourceGroupName, diskName string) (string, error) {
 	disk, err := clients.GetDisk().Get(ctx, resourceGroupName, diskName)
 	if err != nil {
 		return "", err
@@ -211,7 +205,7 @@ func (clients *azureDriverClients) fetchAttachedVMfromDisk(ctx context.Context, 
 	return *disk.ManagedBy, nil
 }
 
-func (clients *azureDriverClients) deleteDisk(ctx context.Context, resourceGroupName string, diskName string) error {
+func deleteDisk(ctx context.Context, clients AzureDriverClientsInterface, resourceGroupName string, diskName string) error {
 	klog.V(2).Infof("Disk delete started for %q", diskName)
 	defer klog.V(2).Infof("Disk deleted for %q", diskName)
 
@@ -226,9 +220,10 @@ func (clients *azureDriverClients) deleteDisk(ctx context.Context, resourceGroup
 	return nil
 }
 
-func (clients *azureDriverClients) GetDeleterForDisk(ctx context.Context, resourceGroupName string, diskName string) func() error {
+// GetDeleterForDisk executes the deletion of the attached disk
+func GetDeleterForDisk(ctx context.Context, clients AzureDriverClientsInterface, resourceGroupName string, diskName string) func() error {
 	return func() error {
-		if vmHoldingDisk, err := clients.fetchAttachedVMfromDisk(ctx, resourceGroupName, diskName); err != nil {
+		if vmHoldingDisk, err := fetchAttachedVMfromDisk(ctx, clients, resourceGroupName, diskName); err != nil {
 			if NotFound(err) {
 				// Resource doesn't exist, no need to delete
 				return nil
@@ -238,7 +233,7 @@ func (clients *azureDriverClients) GetDeleterForDisk(ctx context.Context, resour
 			return fmt.Errorf("Cannot delete disk %s because it is attached to VM %s", diskName, vmHoldingDisk)
 		}
 
-		return clients.deleteDisk(ctx, resourceGroupName, diskName)
+		return deleteDisk(ctx, clients, resourceGroupName, diskName)
 	}
 }
 
