@@ -7,26 +7,24 @@ require (
 	github.com/Azure/go-autorest/autorest v0.10.1
 	github.com/Azure/go-autorest/autorest/adal v0.8.2
 	github.com/Azure/go-autorest/autorest/to v0.3.0
-	github.com/gardener/machine-controller-manager v0.30.0
-	github.com/gardener/machine-controller-manager-provider-gcp v0.1.0 // indirect
+	github.com/gardener/machine-controller-manager v0.36.0
 	github.com/golang/mock v1.4.4
+	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/onsi/ginkgo v1.12.0
 	github.com/onsi/gomega v1.9.0
 	github.com/prometheus/client_golang v1.5.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.5.1 // indirect
 	golang.org/x/net v0.0.0-20200202094626-16171245cfb2 // indirect
-	google.golang.org/api v0.4.0 // indirect
-	google.golang.org/grpc v1.23.0 // indirect
 	k8s.io/api v0.16.8
 	k8s.io/apimachinery v0.16.8
-	k8s.io/client-go v0.16.8
 	k8s.io/component-base v0.16.8
 	k8s.io/klog v1.0.0
+	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
 replace (
-	github.com/gardener/machine-controller-manager => github.com/gardener/machine-controller-manager v0.33.1-0.20200828071210-90f8b67cc5e6
+	// github.com/gardener/machine-controller-manager => github.com/gardener/machine-controller-manager v0.33.1-0.20200828071210-90f8b67cc5e6
 	github.com/onsi/gomega => github.com/onsi/gomega v1.5.0
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.9.2
 	k8s.io/api => k8s.io/api v0.0.0-20190918155943-95b840bb6a1f // kubernetes-1.16.0

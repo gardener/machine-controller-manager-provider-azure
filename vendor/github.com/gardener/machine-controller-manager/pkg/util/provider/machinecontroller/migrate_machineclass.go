@@ -5,17 +5,17 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog"
+
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils"
 )
 
 const (
@@ -78,6 +78,15 @@ func (c *controller) getProviderSpecificMachineClass(classSpec *v1alpha1.ClassSp
 	}
 
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			_, innerErr := c.machineClassLister.MachineClasses(c.namespace).Get(classSpec.Name)
+			if innerErr == nil {
+				// MachineClass object with same name was found.
+				// Most likely an external controller has already performed the migration.
+				// And also {Provider}MachineClass isn't found, hence we can continue with the migration.
+				return nil, fmt.Errorf("ProviderMachineClass not found. Found a MachineClass with matching name")
+			}
+		}
 		return nil, err
 	}
 
@@ -85,7 +94,7 @@ func (c *controller) getProviderSpecificMachineClass(classSpec *v1alpha1.ClassSp
 }
 
 // createMachineClass creates the generic machineClass corresponding to the providerMachineClass
-func (c *controller) createMachineClass(providerSpecificMachineClass interface{}, classSpec *v1alpha1.ClassSpec) (machineutils.Retry, error) {
+func (c *controller) createMachineClass(providerSpecificMachineClass interface{}, classSpec *v1alpha1.ClassSpec) (machineutils.RetryPeriod, error) {
 
 	machineClass, err := c.machineClassLister.MachineClasses(c.namespace).Get(classSpec.Name)
 	if err != nil && apierrors.IsNotFound(err) {
@@ -97,12 +106,12 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 		}
 		machineClass, err = c.controlMachineClient.MachineClasses(c.namespace).Create(machineClass)
 		if err != nil {
-			return machineutils.RetryOp, err
+			return machineutils.ShortRetry, err
 		}
 
 	} else if err != nil {
-		// Anyother kind of error while fetching the machineClass object
-		return machineutils.RetryOp, err
+		// Another kind of error while fetching the machineClass object
+		return machineutils.ShortRetry, err
 	}
 
 	cloneMachineClass := machineClass.DeepCopy()
@@ -117,7 +126,7 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 		},
 	)
 	if err != nil {
-		retry := machineutils.DoNotRetryOp
+		retry := machineutils.LongRetry
 
 		if machineErr, ok := status.FromError(err); !ok {
 			// Do nothing
@@ -125,9 +134,9 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 			// Decoding machineErr error code
 			switch machineErr.Code() {
 			case codes.Unimplemented:
-				retry = machineutils.DoNotRetryOp
+				retry = machineutils.LongRetry
 			default:
-				retry = machineutils.RetryOp
+				retry = machineutils.ShortRetry
 			}
 			err = machineErr
 		}
@@ -140,12 +149,12 @@ func (c *controller) createMachineClass(providerSpecificMachineClass interface{}
 	// MachineClass exists, and needs to be updated
 	_, err = c.controlMachineClient.MachineClasses(c.namespace).Update(cloneMachineClass)
 	if err != nil {
-		return machineutils.RetryOp, err
+		return machineutils.ShortRetry, err
 	}
 
 	klog.V(2).Infof("Create/Apply successful for MachineClass %s", machineClass.Name)
 
-	return machineutils.RetryOp, err
+	return machineutils.ShortRetry, err
 }
 
 // updateClassReferences updates all machine objects to refer to the new MachineClass.
@@ -378,33 +387,43 @@ func (c *controller) addMigratedAnnotationForProviderMachineClass(classSpec *v1a
 }
 
 // TryMachineClassMigration tries to migrate the provider-specific machine class to the generic machine-class.
-func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, *v1.Secret, machineutils.Retry, error) {
+func (c *controller) TryMachineClassMigration(classSpec *v1alpha1.ClassSpec) (*v1alpha1.MachineClass, map[string][]byte, machineutils.RetryPeriod, error) {
 	var (
 		err                          error
 		providerSpecificMachineClass interface{}
+		updateMachineClassObjects    = true
 	)
 
 	// Get the provider specific (e.g. AWSMachineClass) from the classSpec
 	if providerSpecificMachineClass, err = c.getProviderSpecificMachineClass(classSpec); err != nil {
-		return nil, nil, machineutils.RetryOp, err
+		if err.Error() == "ProviderMachineClass not found. Found a MachineClass with matching name" {
+			klog.Info(err.Error() + ". However, will continue with this migration with class reference updates.")
+			updateMachineClassObjects = false
+		} else {
+			return nil, nil, machineutils.ShortRetry, err
+		}
 	}
 
-	// Create/Apply the new MachineClass CR by copying/migrating over all the fields.
-	if retry, err := c.createMachineClass(providerSpecificMachineClass, classSpec); err != nil {
-		return nil, nil, retry, err
+	if updateMachineClassObjects {
+		// Create/Apply the new MachineClass CR by copying/migrating over all the fields.
+		if retry, err := c.createMachineClass(providerSpecificMachineClass, classSpec); err != nil {
+			return nil, nil, retry, err
+		}
 	}
 
 	// Update any references to the old {Provider}MachineClass CR.
 	if err = c.updateClassReferences(classSpec); err != nil {
-		return nil, nil, machineutils.RetryOp, err
+		return nil, nil, machineutils.ShortRetry, err
 	}
 
-	// Annotate the old {Provider}MachineClass CR with an migrated annotation.
-	if err = c.addMigratedAnnotationForProviderMachineClass(classSpec); err != nil {
-		return nil, nil, machineutils.RetryOp, err
+	if updateMachineClassObjects {
+		// Annotate the old {Provider}MachineClass CR with an migrated annotation.
+		if err = c.addMigratedAnnotationForProviderMachineClass(classSpec); err != nil {
+			return nil, nil, machineutils.ShortRetry, err
+		}
 	}
 
 	klog.V(1).Infof("Migration successful for class %s/%s", classSpec.Kind, classSpec.Name)
 
-	return nil, nil, machineutils.RetryOp, nil
+	return nil, nil, machineutils.ShortRetry, nil
 }

@@ -27,7 +27,6 @@ import (
 
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/tracing"
-	"k8s.io/klog"
 )
 
 const (
@@ -171,7 +170,6 @@ func (f *Future) WaitForCompletionRef(ctx context.Context, client autorest.Clien
 
 	done, err := f.DoneWithContext(ctx, client)
 	for attempts := 0; !done; done, err = f.DoneWithContext(ctx, client) {
-		klog.Infof("Retrying the WaitForCompletion Attempt %d", attempts)
 		if attempts >= client.RetryAttempts {
 			return autorest.NewErrorWithError(err, "Future", "WaitForCompletion", f.pt.latestResponse(), "the number of retries has been exceeded")
 		}

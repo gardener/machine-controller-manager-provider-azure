@@ -563,6 +563,7 @@ func fillUpMachineClass(azureMachineClass *v1alpha1.AzureMachineClass, machineCl
 	}
 
 	machineClass.SecretRef = azureMachineClass.Spec.SecretRef
+	machineClass.CredentialsSecretRef = azureMachineClass.Spec.CredentialsSecretRef
 	machineClass.Name = azureMachineClass.Name
 	machineClass.Labels = azureMachineClass.Labels
 	machineClass.Annotations = azureMachineClass.Annotations

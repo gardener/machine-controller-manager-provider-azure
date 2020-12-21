@@ -34,7 +34,7 @@ github.com/davecgh/go-spew/spew
 github.com/dgrijalva/jwt-go
 # github.com/evanphx/json-patch v4.2.0+incompatible
 github.com/evanphx/json-patch
-# github.com/gardener/machine-controller-manager v0.30.0 => github.com/gardener/machine-controller-manager v0.33.1-0.20200828071210-90f8b67cc5e6
+# github.com/gardener/machine-controller-manager v0.36.0
 github.com/gardener/machine-controller-manager/pkg/apis/machine
 github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1
 github.com/gardener/machine-controller-manager/pkg/apis/machine/validation
@@ -57,6 +57,7 @@ github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheu
 github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core
 github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine
 github.com/gardener/machine-controller-manager/pkg/util/configz
+github.com/gardener/machine-controller-manager/pkg/util/nodeops
 github.com/gardener/machine-controller-manager/pkg/util/provider/app
 github.com/gardener/machine-controller-manager/pkg/util/provider/app/options
 github.com/gardener/machine-controller-manager/pkg/util/provider/drain
@@ -68,6 +69,9 @@ github.com/gardener/machine-controller-manager/pkg/util/provider/machineutils
 github.com/gardener/machine-controller-manager/pkg/util/provider/metrics
 github.com/gardener/machine-controller-manager/pkg/util/provider/options
 github.com/gardener/machine-controller-manager/pkg/util/reflector/prometheus
+github.com/gardener/machine-controller-manager/pkg/util/strings
+github.com/gardener/machine-controller-manager/pkg/util/taints
+github.com/gardener/machine-controller-manager/pkg/util/time
 github.com/gardener/machine-controller-manager/pkg/util/workqueue/prometheus
 # github.com/gogo/protobuf v1.2.2-0.20190723190241-65acae22fc9d
 github.com/gogo/protobuf/proto
