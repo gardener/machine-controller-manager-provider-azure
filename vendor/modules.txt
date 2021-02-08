@@ -36,7 +36,7 @@ github.com/davecgh/go-spew/spew
 github.com/evanphx/json-patch
 # github.com/form3tech-oss/jwt-go v3.2.2+incompatible
 github.com/form3tech-oss/jwt-go
-# github.com/gardener/machine-controller-manager v0.36.0
+# github.com/gardener/machine-controller-manager v0.37.0
 github.com/gardener/machine-controller-manager/pkg/apis/machine
 github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1
 github.com/gardener/machine-controller-manager/pkg/apis/machine/validation
@@ -53,6 +53,7 @@ github.com/gardener/machine-controller-manager/pkg/client/listers/machine/v1alph
 github.com/gardener/machine-controller-manager/pkg/fakeclient
 github.com/gardener/machine-controller-manager/pkg/features
 github.com/gardener/machine-controller-manager/pkg/handlers
+github.com/gardener/machine-controller-manager/pkg/metrics
 github.com/gardener/machine-controller-manager/pkg/options
 github.com/gardener/machine-controller-manager/pkg/util/client/leaderelectionconfig
 github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheus
