@@ -9,11 +9,13 @@ package mock
 import (
 	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
+	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 
-	computeapi "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute/computeapi"
+	computeapi "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2020-06-30/compute/computeapi"
 	marketplaceorderingapi "github.com/Azure/azure-sdk-for-go/services/marketplaceordering/mgmt/2015-06-01/marketplaceordering/marketplaceorderingapi"
-	networkapi "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-04-01/network/networkapi"
+	networkapi "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-07-01/network/networkapi"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
@@ -45,6 +47,11 @@ func (clients *AzureDriverClients) GetVM() computeapi.VirtualMachinesClientAPI {
 	return clients.VM
 }
 
+// GetVMImpl returns the actual struct implementing the networkapi.InterfacesClientAPI
+func (clients *AzureDriverClients) GetVMImpl() compute.VirtualMachinesClient {
+	return compute.VirtualMachinesClient{}
+}
+
 // GetDisk method is the getter for the Disks Client from the AzureDriverClients
 func (clients *AzureDriverClients) GetDisk() computeapi.DisksClientAPI {
 	return clients.Disk
@@ -58,6 +65,11 @@ func (clients *AzureDriverClients) GetImages() computeapi.VirtualMachineImagesCl
 // GetNic is the getter for the  Network Interfaces Client from the AzureDriverClients
 func (clients *AzureDriverClients) GetNic() networkapi.InterfacesClientAPI {
 	return clients.NIC
+}
+
+// GetNicImpl is the getter for the  Network Interfaces Client from the AzureDriverClients
+func (clients *AzureDriverClients) GetNicImpl() network.InterfacesClient {
+	return network.InterfacesClient{}
 }
 
 // GetSubnet is the getter for the Network Subnets Client from the AzureDriverClients

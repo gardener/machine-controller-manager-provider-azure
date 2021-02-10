@@ -127,7 +127,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 
 	// Check if the underlying resource group still exists. If not, skip the deletion, as all resources are gone.
 	if _, err := clients.GetGroup().Get(ctx, resourceGroupName); err != nil {
-		if spi.NotFound(err) {
+		if NotFound(err) {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
 		return nil, status.Error(codes.Unknown, err.Error())
@@ -223,7 +223,7 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 	for result.NotDone() {
 		err = result.NextWithContext(ctx)
 		if err != nil {
-			return nil, spi.OnARMAPIErrorFail(prometheusServiceVM, err, "VM.List")
+			return nil, OnARMAPIErrorFail(prometheusServiceVM, err, "VM.List")
 		}
 		items = append(items, result.Values()...)
 	}
@@ -232,7 +232,7 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 		listOfVMs[encodeMachineID(*item.Location, *item.Name)] = *item.Name
 	}
 
-	spi.OnARMAPISuccess(prometheusServiceVM, "VM.List")
+	OnARMAPISuccess(prometheusServiceVM, "VM.List")
 	return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
 }
 
