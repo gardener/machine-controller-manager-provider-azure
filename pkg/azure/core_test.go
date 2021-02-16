@@ -59,37 +59,37 @@ var _ = Describe("MachineController", func() {
 		"azureTenantId":       []byte("dummy-tenant-id"),
 	}
 
-	// azureProviderSecretWithoutazureClientSecret := map[string][]byte{
-	// 	"userData":            []byte("dummy-data"),
-	// 	"azureClientId":       []byte("dummy-client-id"),
-	// 	"azureClientSecret":   []byte(""),
-	// 	"azureSubscriptionId": []byte("dummy-subcription-id"),
-	// 	"azureTenantId":       []byte("dummy-tenant-id"),
-	// }
+	azureProviderSecretWithoutazureClientSecret := map[string][]byte{
+		"userData":            []byte("dummy-data"),
+		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientSecret":   []byte(""),
+		"azureSubscriptionId": []byte("dummy-subcription-id"),
+		"azureTenantId":       []byte("dummy-tenant-id"),
+	}
 
-	// azureProviderSecretWithoutazureTenantID := map[string][]byte{
-	// 	"userData":            []byte("dummy-data"),
-	// 	"azureClientId":       []byte("dummy-client-id"),
-	// 	"azureClientSecret":   []byte("dummy-client-secret"),
-	// 	"azureSubscriptionId": []byte("dummy-subcription-id"),
-	// 	"azureTenantId":       []byte(""),
-	// }
+	azureProviderSecretWithoutazureTenantID := map[string][]byte{
+		"userData":            []byte("dummy-data"),
+		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientSecret":   []byte("dummy-client-secret"),
+		"azureSubscriptionId": []byte("dummy-subcription-id"),
+		"azureTenantId":       []byte(""),
+	}
 
-	// azureProviderSecretWithoutazureSubscriptionID := map[string][]byte{
-	// 	"userData":            []byte("dummy-data"),
-	// 	"azureClientId":       []byte("dummy-client-id"),
-	// 	"azureClientSecret":   []byte("dummy-client-secret"),
-	// 	"azureSubscriptionId": []byte(""),
-	// 	"azureTenantId":       []byte("dummy-tenant-id"),
-	// }
+	azureProviderSecretWithoutazureSubscriptionID := map[string][]byte{
+		"userData":            []byte("dummy-data"),
+		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientSecret":   []byte("dummy-client-secret"),
+		"azureSubscriptionId": []byte(""),
+		"azureTenantId":       []byte("dummy-tenant-id"),
+	}
 
-	// azureProviderSecretWithoutUserData := map[string][]byte{
-	// 	"userData":            []byte(""),
-	// 	"azureClientId":       []byte("dummy-client-id"),
-	// 	"azureClientSecret":   []byte("dummy-client-secret"),
-	// 	"azureSubscriptionId": []byte("dummy-subcription-id"),
-	// 	"azureTenantId":       []byte("dummy-tenant-id"),
-	// }
+	azureProviderSecretWithoutUserData := map[string][]byte{
+		"userData":            []byte(""),
+		"azureClientId":       []byte("dummy-client-id"),
+		"azureClientSecret":   []byte("dummy-client-secret"),
+		"azureSubscriptionId": []byte("dummy-subcription-id"),
+		"azureTenantId":       []byte("dummy-tenant-id"),
+	}
 
 	Describe("#Create Machine", func() {
 
@@ -250,6 +250,66 @@ var _ = Describe("MachineController", func() {
 				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
 					" ProviderSpec [secret azureClientId or clientID is required field]]]",
 			),
+			Entry("#3 Create machine with absence of client secret in secret",
+				&mock.AzureProviderSpec,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecretWithoutazureClientSecret),
+				},
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
+					" ProviderSpec [secret azureClientSecret or clientSecret is required field]]]",
+			),
+			Entry("#4 Create machine with absence of Tenant ID in secret",
+				&mock.AzureProviderSpec,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecretWithoutazureTenantID),
+				},
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
+					" ProviderSpec [secret azureTenantId or tenantID is required field]]]",
+			),
+			Entry("#5 Create machine with absence of Subscription ID in secret",
+				&mock.AzureProviderSpec,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecretWithoutazureSubscriptionID),
+				},
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
+					" ProviderSpec [secret azureSubscriptionId or subscriptionID is required field]]]",
+			),
+			Entry("#6 Create machine with absence of UserData in secret",
+				&mock.AzureProviderSpec,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecretWithoutUserData),
+				},
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
+					" ProviderSpec [secret UserData is required field]]]",
+			),
+			Entry("#7 Create machine with absence of location in providerSpec",
+				&mock.AzureProviderSpecWithoutLocation,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutLocation),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
+					" ProviderSpec [Region is required field]]]",
+			),
 		)
 	})
 
@@ -337,6 +397,207 @@ var _ = Describe("MachineController", func() {
 				},
 				&driver.DeleteMachineResponse{
 					LastKnownState: "",
+				},
+				false,
+				"",
+			),
+		)
+	})
+
+	Describe("#List Machines", func() {
+
+		DescribeTable("##Table",
+			func(
+				providerSpec *apis.AzureProviderSpec,
+				machineRequest *driver.ListMachinesRequest,
+				machineResponse *driver.ListMachinesResponse,
+				errToHaveOccurred bool,
+				errMessage string,
+			) {
+				// Create the mock controlelr and mock clients
+				controller := gomock.NewController(GinkgoT())
+				mockPluginSPIImpl := mock.NewMockPluginSPIImpl(controller)
+				mockDriver := NewAzureDriver(mockPluginSPIImpl)
+				mockDriver.Secret = machineRequest.Secret
+
+				// call setup before the create machine
+				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
+
+				// Define all the client expectations here and then proceed with the function call
+				fakeClients := mockDriverClients.(*mock.AzureDriverClients)
+
+				var (
+					ctx               = context.Background()
+					resourceGroupName = providerSpec.ResourceGroup
+				)
+
+				vmlr := compute.NewVirtualMachineListResultPage(
+					compute.VirtualMachineListResult{
+						Value: &[]compute.VirtualMachine{
+							{
+								Name:     getStringPointer("dummy-machine"),
+								Location: getStringPointer("westeurope"),
+							},
+						},
+						NextLink: getStringPointer(""),
+					},
+					func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
+						return compute.VirtualMachineListResult{}, nil
+					},
+				)
+
+				fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
+					vmlr, nil,
+				)
+
+				response, err := mockDriver.ListMachines(ctx, machineRequest)
+
+				if errToHaveOccurred {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(errMessage))
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response.MachineList["azure:///westeurope/dummy-machine"]).To(Equal("dummy-machine"))
+				}
+			},
+
+			Entry("#1 List machines",
+				&mock.AzureProviderSpec,
+				&driver.ListMachinesRequest{
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.ListMachinesResponse{
+					MachineList: map[string]string{
+						"azure:///westeurope/dummy-machine": "dummy-machine",
+					},
+				},
+				false,
+				"",
+			),
+		)
+	})
+
+	Describe("#GetMachinesStatus", func() {
+
+		DescribeTable("##Table",
+			func(
+				providerSpec *apis.AzureProviderSpec,
+				machineRequest *driver.GetMachineStatusRequest,
+				machineResponse *driver.GetMachineStatusResponse,
+				errToHaveOccurred bool,
+				errMessage string,
+			) {
+				// Create the mock controlelr and mock clients
+				controller := gomock.NewController(GinkgoT())
+				mockPluginSPIImpl := mock.NewMockPluginSPIImpl(controller)
+				mockDriver := NewAzureDriver(mockPluginSPIImpl)
+				mockDriver.Secret = machineRequest.Secret
+
+				// call setup before the create machine
+				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
+
+				// Define all the client expectations here and then proceed with the function call
+				fakeClients := mockDriverClients.(*mock.AzureDriverClients)
+
+				var (
+					ctx               = context.Background()
+					resourceGroupName = providerSpec.ResourceGroup
+				)
+
+				vmlr := compute.NewVirtualMachineListResultPage(
+					compute.VirtualMachineListResult{
+						Value: &[]compute.VirtualMachine{
+							{
+								Name:     getStringPointer("dummy-machine"),
+								Location: getStringPointer("westeurope"),
+							},
+						},
+						NextLink: getStringPointer(""),
+					},
+					func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
+						return compute.VirtualMachineListResult{}, nil
+					},
+				)
+
+				fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
+					vmlr, nil,
+				)
+
+				response, err := mockDriver.GetMachineStatus(ctx, machineRequest)
+
+				if errToHaveOccurred {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(errMessage))
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response.ProviderID).To(Equal("azure:///westeurope/dummy-machine"))
+				}
+			},
+
+			Entry("#1 GetMachineStatus",
+				&mock.AzureProviderSpec,
+				&driver.GetMachineStatusRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.GetMachineStatusResponse{
+					NodeName:   "dummy-machine",
+					ProviderID: "azure:///westeurope/dummy-machine",
+				},
+				false,
+				"",
+			),
+		)
+	})
+
+	Describe("#GetVolumeIDs", func() {
+
+		DescribeTable("##Table",
+			func(
+				machineRequest *driver.GetVolumeIDsRequest,
+				machineResponse *driver.GetVolumeIDsResponse,
+				errToHaveOccurred bool,
+				errMessage string,
+			) {
+				// Create the mock controlelr and mock clients
+				controller := gomock.NewController(GinkgoT())
+				mockPluginSPIImpl := mock.NewMockPluginSPIImpl(controller)
+				mockDriver := NewAzureDriver(mockPluginSPIImpl)
+
+				var (
+					ctx = context.Background()
+				)
+
+				response, err := mockDriver.GetVolumeIDs(ctx, machineRequest)
+
+				if errToHaveOccurred {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(errMessage))
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response.VolumeIDs).To(Equal(machineResponse.VolumeIDs))
+				}
+			},
+
+			Entry("#1 GetMachineStatus",
+				&driver.GetVolumeIDsRequest{
+					PVSpecs: []*corev1.PersistentVolumeSpec{
+						{
+							StorageClassName: "example",
+							PersistentVolumeSource: corev1.PersistentVolumeSource{
+								AzureDisk: &corev1.AzureDiskVolumeSource{
+									DiskName: "example-disk",
+								},
+							},
+						},
+					},
+				},
+				&driver.GetVolumeIDsResponse{
+					VolumeIDs: []string{
+						"example-disk",
+					},
 				},
 				false,
 				"",
