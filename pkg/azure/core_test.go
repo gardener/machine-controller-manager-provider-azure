@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package azure
 
 import (
+	"fmt"
 	"net/http"
 
 	. "github.com/onsi/ginkgo"
@@ -40,6 +41,17 @@ func getStringPointer(s string) *string {
 func getBoolPointer(b bool) *bool {
 	return &b
 }
+
+var (
+	providerSpecError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
+		" ProviderSpec [secret %s or %s is required field]]]"
+
+	providerSpecUserDataError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
+		" ProviderSpec [secret UserData is required field]]]"
+
+	providerSpecRegionError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
+		" ProviderSpec [Region is required field]]]"
+)
 
 var _ = Describe("MachineController", func() {
 
@@ -247,8 +259,7 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
-					" ProviderSpec [secret azureClientId or clientID is required field]]]",
+				fmt.Errorf(providerSpecError, "azureClientId", "clientID").Error(),
 			),
 			Entry("#3 Create machine with absence of client secret in secret",
 				&mock.AzureProviderSpec,
@@ -259,8 +270,7 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
-					" ProviderSpec [secret azureClientSecret or clientSecret is required field]]]",
+				fmt.Errorf(providerSpecError, "azureClientSecret", "clientSecret").Error(),
 			),
 			Entry("#4 Create machine with absence of Tenant ID in secret",
 				&mock.AzureProviderSpec,
@@ -271,8 +281,7 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
-					" ProviderSpec [secret azureTenantId or tenantID is required field]]]",
+				fmt.Errorf(providerSpecError, "azureTenantId", "tenantID").Error(),
 			),
 			Entry("#5 Create machine with absence of Subscription ID in secret",
 				&mock.AzureProviderSpec,
@@ -283,8 +292,7 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
-					" ProviderSpec [secret azureSubscriptionId or subscriptionID is required field]]]",
+				fmt.Errorf(providerSpecError, "azureSubscriptionId", "subscriptionID").Error(),
 			),
 			Entry("#6 Create machine with absence of UserData in secret",
 				&mock.AzureProviderSpec,
@@ -295,8 +303,7 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
-					" ProviderSpec [secret UserData is required field]]]",
+				providerSpecUserDataError,
 			),
 			Entry("#7 Create machine with absence of location in providerSpec",
 				&mock.AzureProviderSpecWithoutLocation,
@@ -307,8 +314,7 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating"+
-					" ProviderSpec [Region is required field]]]",
+				providerSpecRegionError,
 			),
 		)
 	})

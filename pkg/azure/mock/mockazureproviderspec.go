@@ -15,6 +15,16 @@ func getZone(zone int) *int {
 	return &zone
 }
 
+var tags = map[string]string{
+	"Name": "shoot--i538135--seed-az",
+	"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
+	"kubernetes.io-role-mcm":                        "1",
+	"node.kubernetes.io_role":                       "node",
+	"worker.garden.sapcloud.io_group":               "worker-m0exd",
+	"worker.gardener.cloud_pool":                    "worker-m0exd",
+	"worker.gardener.cloud_system-components":       "true",
+}
+
 var (
 
 	// AzureProviderSpec is the value of ProviderSpec key of Kind Machine Class for Azure
@@ -57,15 +67,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithoutLocation is the providerSpec without location value
@@ -108,15 +110,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 	// AzureProviderSpecWithoutResourceGroup is providerSpec without resource group value
 	AzureProviderSpecWithoutResourceGroup = api.AzureProviderSpec{
@@ -158,15 +152,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 	// AzureProviderSpecWithoutVnetName is providerSpec without vNetName
 	AzureProviderSpecWithoutVnetName = api.AzureProviderSpec{
@@ -208,15 +194,7 @@ var (
 			VnetName:   "",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithoutSubnetName Kind Machine Class for Azure
@@ -259,15 +237,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithoutVMSize without VMSize
@@ -310,15 +280,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithoutImageURN without ImageURN
@@ -361,15 +323,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithImproperImageURN with Improper ImageURN
@@ -412,15 +366,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithEmptyFieldImageURN with EmptyField Image URN
@@ -461,15 +407,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithNegativeOSDiskSize with Negative Disk size
@@ -512,15 +450,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithoutOSDiskCreateOption without OS Disk Creation Option
@@ -563,15 +493,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithoutAdminUserName without Admin Username
@@ -614,15 +536,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithoutZMA with Zone, MachineSet and Availability
@@ -665,15 +579,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithZMA with Zone, MachineSet and AvailabilitySet
@@ -723,15 +629,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithMAOnly with MachineSet and AvailabilitySet only and no Zone
@@ -781,15 +679,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithInvalidMachineSet with Invlaid MachineSet Kind
@@ -839,15 +729,7 @@ var (
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
-		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
-		},
+		Tags: tags,
 	}
 
 	// AzureProviderSpecWithEmptyClusterNameTag with Empty Cluster Name Tag
