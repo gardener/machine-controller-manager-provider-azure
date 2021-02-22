@@ -31,7 +31,7 @@ func ValidateAzureSpecNSecret(spec *api.AzureProviderSpec, secrets *corev1.Secre
 		allErrs = append(allErrs, fmt.Errorf("Region is required field"))
 	}
 	if "" == spec.ResourceGroup {
-		allErrs = append(allErrs, fmt.Errorf("Resource Group Name is required field"))
+		allErrs = append(allErrs, fmt.Errorf("ResourceGroup is required field"))
 	}
 
 	allErrs = append(allErrs, validateSpecSubnetInfo(spec.SubnetInfo)...)
@@ -46,10 +46,10 @@ func validateSpecSubnetInfo(subnetInfo api.AzureSubnetInfo) []error {
 	var allErrs []error
 
 	if "" == subnetInfo.VnetName {
-		allErrs = append(allErrs, fmt.Errorf("VnetName is required for the subnet info"))
+		allErrs = append(allErrs, fmt.Errorf("VnetName is a required subnet info"))
 	}
 	if "" == subnetInfo.SubnetName {
-		allErrs = append(allErrs, fmt.Errorf("Subnet name is required for subnet info"))
+		allErrs = append(allErrs, fmt.Errorf("SubnetName is a required subnet info"))
 	}
 
 	return allErrs
@@ -63,7 +63,7 @@ func validateSpecProperties(properties api.AzureVirtualMachineProperties) []erro
 	fldPath = field.NewPath("properties")
 
 	if properties.HardwareProfile.VMSize == "" {
-		allErrs = append(allErrs, fmt.Errorf("VMSize is required"))
+		allErrs = append(allErrs, fmt.Errorf("VMSize is required field"))
 	}
 
 	imageRef := properties.StorageProfile.ImageReference

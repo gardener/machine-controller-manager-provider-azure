@@ -26,12 +26,14 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	apis "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	mock "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock"
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	gomock "github.com/golang/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func getStringPointer(s string) *string {
@@ -42,15 +44,25 @@ func getBoolPointer(b bool) *bool {
 	return &b
 }
 
+func getInt32Pointer(i int32) *int32 {
+	return &i
+}
+
+func getIntPointer(i int) *int {
+	return &i
+}
+
 var (
-	providerSpecError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
+	errorPrefix = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [%s]]]"
+
+	secretError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
 		" ProviderSpec [secret %s or %s is required field]]]"
 
-	providerSpecUserDataError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
-		" ProviderSpec [secret UserData is required field]]]"
+	providerSpecError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
+		" ProviderSpec [%s is required field]]]"
 
-	providerSpecRegionError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
-		" ProviderSpec [Region is required field]]]"
+	providerSpecSubnetInfoError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
+		" ProviderSpec [%s is a required subnet info]]]"
 )
 
 var _ = Describe("MachineController", func() {
@@ -195,7 +207,7 @@ var _ = Describe("MachineController", func() {
 
 				fakeClients.Subnet.EXPECT().Get(ctx, resourceGroupName, vnetName, subnetName, "").Return(subnet, nil)
 
-				mockDriver.AzureProviderSpec = &mock.AzureProviderSpec
+				mockDriver.AzureProviderSpec = providerSpec
 
 				NICParameters := mockDriver.getNICParameters(vmName, &subnet)
 				fakeClients.NIC.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters).Return(NICFuture, nil)
@@ -250,7 +262,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				"",
 			),
-			Entry("#2 Create machine with absence of client id in secret",
+			Entry("#2 Create machine without client id in secret",
 				&mock.AzureProviderSpec,
 				&driver.CreateMachineRequest{
 					Machine:      newMachine("dummy-machine"),
@@ -259,9 +271,9 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				fmt.Errorf(providerSpecError, "azureClientId", "clientID").Error(),
+				fmt.Errorf(secretError, "azureClientId", "clientID").Error(),
 			),
-			Entry("#3 Create machine with absence of client secret in secret",
+			Entry("#3 Create machine without client secret in secret",
 				&mock.AzureProviderSpec,
 				&driver.CreateMachineRequest{
 					Machine:      newMachine("dummy-machine"),
@@ -270,9 +282,9 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				fmt.Errorf(providerSpecError, "azureClientSecret", "clientSecret").Error(),
+				fmt.Errorf(secretError, "azureClientSecret", "clientSecret").Error(),
 			),
-			Entry("#4 Create machine with absence of Tenant ID in secret",
+			Entry("#4 Create machine without Tenant ID in secret",
 				&mock.AzureProviderSpec,
 				&driver.CreateMachineRequest{
 					Machine:      newMachine("dummy-machine"),
@@ -281,9 +293,9 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				fmt.Errorf(providerSpecError, "azureTenantId", "tenantID").Error(),
+				fmt.Errorf(secretError, "azureTenantId", "tenantID").Error(),
 			),
-			Entry("#5 Create machine with absence of Subscription ID in secret",
+			Entry("#5 Create machine without Subscription ID in secret",
 				&mock.AzureProviderSpec,
 				&driver.CreateMachineRequest{
 					Machine:      newMachine("dummy-machine"),
@@ -292,9 +304,9 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				fmt.Errorf(providerSpecError, "azureSubscriptionId", "subscriptionID").Error(),
+				fmt.Errorf(secretError, "azureSubscriptionId", "subscriptionID").Error(),
 			),
-			Entry("#6 Create machine with absence of UserData in secret",
+			Entry("#6 Create machine without UserData in secret",
 				&mock.AzureProviderSpec,
 				&driver.CreateMachineRequest{
 					Machine:      newMachine("dummy-machine"),
@@ -303,9 +315,9 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				providerSpecUserDataError,
+				fmt.Errorf(providerSpecError, "secret UserData").Error(),
 			),
-			Entry("#7 Create machine with absence of location in providerSpec",
+			Entry("#7 Create machine without location in providerSpec",
 				&mock.AzureProviderSpecWithoutLocation,
 				&driver.CreateMachineRequest{
 					Machine:      newMachine("dummy-machine"),
@@ -314,7 +326,216 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				providerSpecRegionError,
+				fmt.Errorf(providerSpecError, "Region").Error(),
+			),
+			Entry("#8 Create machine without resource group in providerSpec",
+				&mock.AzureProviderSpecWithoutResourceGroup,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutResourceGroup),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(providerSpecError, "ResourceGroup").Error(),
+			),
+			Entry("#9 Create machine without Vnet Name in providerSpec",
+				&mock.AzureProviderSpecWithoutVnetName,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutVnetName),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(providerSpecSubnetInfoError, "VnetName").Error(),
+			),
+			Entry("#10 Create machine without Subnet Name in providerSpec",
+				&mock.AzureProviderSpecWithoutSubnetName,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutSubnetName),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(providerSpecSubnetInfoError, "SubnetName").Error(),
+			),
+			Entry("#11 Create machine without VMSize in providerSpec",
+				&mock.AzureProviderSpecWithoutVMSize,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutVMSize),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(providerSpecError, "VMSize").Error(),
+			),
+			Entry("#12 Create machine with improper ImageURN in providerSpec",
+				&mock.AzureProviderSpecWithImproperImageURN,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithImproperImageURN),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.storageProfile.imageReference.urn: Required value: Invalid urn format, empty field").Error(),
+			),
+			Entry("#13 Create machine with negtive OS Disk Size in providerSpec",
+				&mock.AzureProviderSpecWithNegativeOSDiskSize,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithNegativeOSDiskSize),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.storageProfile.osDisk.diskSizeGB: Required value: OSDisk size must be positive").Error(),
+			),
+			Entry("#14 Create machine without OS Disk Creation Option in providerSpec",
+				&mock.AzureProviderSpecWithoutOSDiskCreateOption,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutOSDiskCreateOption),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.storageProfile.osDisk.createOption: Required value: OSDisk create option is required").Error(),
+			),
+			Entry("#15 Create machine without Admin Username in providerSpec",
+				&mock.AzureProviderSpecWithoutAdminUserName,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutAdminUserName),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.osProfile.adminUsername: Required value: AdminUsername is required").Error(),
+			),
+			Entry("#16 Create machine with negative data disk size in providerSpec",
+				&mock.AzureProviderSpecWithNegativeDataDiskSize,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithNegativeDataDiskSize),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].diskSizeGB: Required value: DataDisk size must be positive").Error(),
+			),
+			Entry("#17 Create machine without LUN in providerSpec",
+				&mock.AzureProviderSpecWithoutLUN,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutLUN),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].lun: Required value: DataDisk Lun is required").Error(),
+			),
+			Entry("#18 Create machine with improper LUN in providerSpec",
+				&mock.AzureProviderSpecWithImproperLUN,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithImproperLUN),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, fmt.Errorf("properties.storageProfile.dataDisks[0].lun: Invalid value: %d: must be between 0 and 63, inclusive", *mock.AzureProviderSpecWithImproperLUN.Properties.StorageProfile.DataDisks[0].Lun).Error()).Error(),
+			),
+			Entry("#19 Create machine without Storage Account Type in providerSpec",
+				&mock.AzureProviderSpecWithoutDiskStorageAccountType,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutDiskStorageAccountType),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].storageAccountType: Required value: DataDisk storage account type is required").Error(),
+			),
+			Entry("#20 Create machine with duplicated LUN in providerSpec",
+				&mock.AzureProviderSpecWithDuplicatedLUN,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithDuplicatedLUN),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, fmt.Errorf("properties.storageProfile.dataDisks: Invalid value: 1: Data Disk Lun '%d' duplicated 2 times, Lun must be unique", *mock.AzureProviderSpecWithDuplicatedLUN.Properties.StorageProfile.DataDisks[0].Lun).Error()).Error(),
+			),
+			Entry("#21 Create machine without Machineset, Zone & availability set in providerSpec",
+				&mock.AzureProviderSpecWithoutZMA,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutZMA),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.zone|.machineSet|.availabilitySet: Forbidden: Machine need to be assigned to a zone, a MachineSet or an AvailabilitySet").Error(),
+			),
+			Entry("#22 Create machine with Machineset, Zone & availability set in providerSpec",
+				&mock.AzureProviderSpecWithZMA,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithZMA),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.zone|.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned to a zone, a MachineSet and an AvailabilitySet in parallel").Error(),
+			),
+			Entry("#23 Create machine with only Machineset & availability set in providerSpec",
+				&mock.AzureProviderSpecWithMAOnly,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithMAOnly),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned a MachineSet and an AvailabilitySet in parallel").Error(),
+			),
+			Entry("#24 Create machine with invalid machine set in providerSpec",
+				&mock.AzureProviderSpecWithInvalidMachineSet,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithInvalidMachineSet),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, fmt.Errorf("properties.machineSet: Invalid value: \"%s\": Invalid MachineSet kind. Use either '%s' or '%s'", mock.AzureProviderSpecWithInvalidMachineSet.Properties.MachineSet.Kind, api.MachineSetKindVMO, api.MachineSetKindAvailabilitySet).Error()).Error(),
+			),
+			Entry("#25 Create machine with empty cluster name in providerSpec",
+				&mock.AzureProviderSpecWithEmptyClusterNameTag,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithEmptyClusterNameTag),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "providerSpec.kubernetes.io-cluster-: Required value: Tag required of the form kubernetes.io-cluster-****").Error(),
+			),
+			Entry("#26 Create machine with empty node role tag in providerSpec",
+				&mock.AzureProviderSpecWithEmptyNodeRoleTag,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithEmptyNodeRoleTag),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "providerSpec.kubernetes.io-role-: Required value: Tag required of the form kubernetes.io-role-****").Error(),
 			),
 		)
 	})
@@ -610,6 +831,139 @@ var _ = Describe("MachineController", func() {
 			),
 		)
 	})
+
+	Describe("#GenerateMachineClassForMigration", func() {
+
+		DescribeTable("##Table",
+			func(
+				machineRequest *driver.GenerateMachineClassForMigrationRequest,
+				machineResponse *driver.GenerateMachineClassForMigrationResponse,
+				errToHaveOccurred bool,
+				errMessage string,
+			) {
+				// Create the mock controlelr and mock clients
+				controller := gomock.NewController(GinkgoT())
+				mockPluginSPIImpl := mock.NewMockPluginSPIImpl(controller)
+				mockDriver := NewAzureDriver(mockPluginSPIImpl)
+
+				var (
+					ctx = context.Background()
+				)
+
+				_, err := mockDriver.GenerateMachineClassForMigration(ctx, machineRequest)
+
+				response := getMigratedMachineClass(machineRequest.ProviderSpecificMachineClass)
+
+				if errToHaveOccurred {
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(Equal(errMessage))
+				} else {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(machineRequest.MachineClass).To(Equal(response))
+				}
+			},
+
+			Entry("#1 Generate machine class for migration",
+				&driver.GenerateMachineClassForMigrationRequest{
+					ProviderSpecificMachineClass: &v1alpha1.AzureMachineClass{
+						ObjectMeta: v1.ObjectMeta{
+							Name:      "test-azure",
+							Namespace: "default",
+							Labels: map[string]string{
+								"key1": "value1",
+								"key2": "value2",
+							},
+							Annotations: map[string]string{
+								"key1": "value1",
+								"key2": "value2",
+							},
+							Finalizers: []string{
+								"mcm/finalizer",
+							},
+						},
+						TypeMeta: v1.TypeMeta{},
+						Spec: v1alpha1.AzureMachineClassSpec{
+							Location:      "westeurope",
+							ResourceGroup: "sample-resource-group",
+							SubnetInfo: v1alpha1.AzureSubnetInfo{
+								VnetName:   "sample-vnet",
+								SubnetName: "sample-subnet",
+							},
+							SecretRef: &corev1.SecretReference{
+								Name:      "test-secret",
+								Namespace: "default",
+							},
+							Tags: map[string]string{
+								"key1": "value1",
+								"key2": "value2",
+							},
+							Properties: v1alpha1.AzureVirtualMachineProperties{
+								HardwareProfile: v1alpha1.AzureHardwareProfile{
+									VMSize: "sample-vmsize",
+								},
+								NetworkProfile: v1alpha1.AzureNetworkProfile{
+									AcceleratedNetworking: getBoolPointer(false),
+								},
+								StorageProfile: v1alpha1.AzureStorageProfile{
+									ImageReference: v1alpha1.AzureImageReference{
+										URN: getStringPointer("sample-urn"),
+									},
+									OsDisk: v1alpha1.AzureOSDisk{
+										Caching:      "None",
+										DiskSizeGB:   50,
+										CreateOption: "FromImage",
+									},
+									DataDisks: []v1alpha1.AzureDataDisk{
+										{
+											Name:               "sdb",
+											Lun:                getInt32Pointer(0),
+											Caching:            "None",
+											StorageAccountType: "Standard_LRS",
+										},
+										{
+											Name:               "sdb",
+											Lun:                getInt32Pointer(1),
+											Caching:            "None",
+											StorageAccountType: "Standard_LRS",
+										},
+									},
+								},
+								OsProfile: v1alpha1.AzureOSProfile{
+									AdminUsername: "admin-name",
+									LinuxConfiguration: v1alpha1.AzureLinuxConfiguration{
+										DisablePasswordAuthentication: true,
+										SSH: v1alpha1.AzureSSHConfiguration{
+											PublicKeys: v1alpha1.AzureSSHPublicKey{
+												Path:    "/path/to/public-key/in/machine",
+												KeyData: "public-key-data",
+											},
+										},
+									},
+								},
+								IdentityID: getStringPointer("/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name"),
+								Zone:       getIntPointer(1),
+								MachineSet: &v1alpha1.AzureMachineSetConfig{
+									ID:   "/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.Compute/azureMachineSetResourceType/machine-set-name",
+									Kind: "availabilityset",
+								},
+								AvailabilitySet: &v1alpha1.AzureSubResource{
+									ID: "/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.Compute/availabilitySets/availablity-set-name",
+								},
+							},
+						},
+					},
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					ClassSpec: &v1alpha1.ClassSpec{
+						Kind: AzureMachineClassKind,
+						Name: "test-azure",
+					},
+				},
+				&driver.GenerateMachineClassForMigrationResponse{},
+				false,
+				"",
+			),
+		)
+	})
 })
 
 func UnmarshalNICFuture(bytesNICFuture []byte) network.InterfacesCreateOrUpdateFuture {
@@ -705,6 +1059,9 @@ func newMachine(name string) *v1alpha1.Machine {
 func newAzureMachineClass(azureProviderSpec apis.AzureProviderSpec) *v1alpha1.MachineClass {
 	byteData, _ := json.Marshal(azureProviderSpec)
 	return &v1alpha1.MachineClass{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: "default",
+		},
 		ProviderSpec: runtime.RawExtension{
 			Raw: byteData,
 		},
@@ -715,4 +1072,46 @@ func newSecret(azureProviderSecretRaw map[string][]byte) *corev1.Secret {
 	return &corev1.Secret{
 		Data: azureProviderSecretRaw,
 	}
+}
+
+func getMigratedMachineClass(providerSpecificMachineClass interface{}) *v1alpha1.MachineClass {
+
+	var (
+		properties api.AzureVirtualMachineProperties
+		subnetInfo api.AzureSubnetInfo
+	)
+
+	data, _ := json.Marshal(providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.Properties)
+	_ = json.Unmarshal(data, &properties)
+
+	data, _ = json.Marshal(providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.SubnetInfo)
+	_ = json.Unmarshal(data, &subnetInfo)
+
+	providerSpec := &api.AzureProviderSpec{
+		Location:      providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.Location,
+		Tags:          providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.Tags,
+		Properties:    properties,
+		ResourceGroup: providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.ResourceGroup,
+		SubnetInfo:    subnetInfo,
+	}
+
+	// Marshal providerSpec into Raw Bytes
+	providerSpecMarshal, _ := json.Marshal(providerSpec)
+
+	machineClass := &v1alpha1.MachineClass{
+		TypeMeta: v1.TypeMeta{},
+		ObjectMeta: v1.ObjectMeta{
+			Name:        providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Name,
+			Namespace:   providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Namespace,
+			Labels:      providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Labels,
+			Annotations: providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Annotations,
+			Finalizers:  providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Finalizers,
+		},
+		ProviderSpec: runtime.RawExtension{
+			Raw: providerSpecMarshal,
+		},
+		SecretRef: providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.SecretRef,
+	}
+
+	return machineClass
 }

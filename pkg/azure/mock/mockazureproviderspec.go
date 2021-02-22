@@ -15,6 +15,10 @@ func getZone(zone int) *int {
 	return &zone
 }
 
+func getInt32Pointer(i int32) *int32 {
+	return &i
+}
+
 var tags = map[string]string{
 	"Name": "shoot--i538135--seed-az",
 	"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
@@ -496,6 +500,256 @@ var (
 		Tags: tags,
 	}
 
+	// AzureProviderSpecWithNegativeDataDiskSize with Negative Disk size
+	AzureProviderSpecWithNegativeDataDiskSize = api.AzureProviderSpec{
+		Location: "westeurope",
+		Properties: api.AzureVirtualMachineProperties{
+			HardwareProfile: api.AzureHardwareProfile{
+				VMSize: "Standard_DS2_v2",
+			},
+			StorageProfile: api.AzureStorageProfile{
+				ImageReference: api.AzureImageReference{
+					URN: getUrn("sap:gardenlinux:greatest:27.1.0"),
+				},
+				OsDisk: api.AzureOSDisk{
+					Caching: "None",
+					ManagedDisk: api.AzureManagedDiskParameters{
+						StorageAccountType: "Standard_LRS",
+					},
+					DiskSizeGB:   50,
+					CreateOption: "FromImage",
+				},
+				DataDisks: []api.AzureDataDisk{
+					{
+						Lun:                getInt32Pointer(0),
+						DiskSizeGB:         -50,
+						StorageAccountType: "Standard_LRS",
+					},
+				},
+			},
+			OsProfile: api.AzureOSProfile{
+				AdminUsername: "core",
+				LinuxConfiguration: api.AzureLinuxConfiguration{
+					DisablePasswordAuthentication: true,
+					SSH: api.AzureSSHConfiguration{
+						PublicKeys: api.AzureSSHPublicKey{
+							Path:    "/home/core/.ssh/authorized_keys",
+							KeyData: "dummy keyData",
+						},
+					},
+				},
+			},
+			Zone: getZone(2),
+		},
+		ResourceGroup: "shoot--i538135--seed-az",
+		SubnetInfo: api.AzureSubnetInfo{
+			VnetName:   "shoot--i538135--seed-az",
+			SubnetName: "shoot--i538135--seed-az-nodes",
+		},
+		Tags: tags,
+	}
+
+	// AzureProviderSpecWithoutLUN with Negative Disk size
+	AzureProviderSpecWithoutLUN = api.AzureProviderSpec{
+		Location: "westeurope",
+		Properties: api.AzureVirtualMachineProperties{
+			HardwareProfile: api.AzureHardwareProfile{
+				VMSize: "Standard_DS2_v2",
+			},
+			StorageProfile: api.AzureStorageProfile{
+				ImageReference: api.AzureImageReference{
+					URN: getUrn("sap:gardenlinux:greatest:27.1.0"),
+				},
+				OsDisk: api.AzureOSDisk{
+					Caching: "None",
+					ManagedDisk: api.AzureManagedDiskParameters{
+						StorageAccountType: "Standard_LRS",
+					},
+					DiskSizeGB:   50,
+					CreateOption: "FromImage",
+				},
+				DataDisks: []api.AzureDataDisk{
+					{
+						Lun:                nil,
+						DiskSizeGB:         50,
+						StorageAccountType: "Standard_LRS",
+					},
+				},
+			},
+			OsProfile: api.AzureOSProfile{
+				AdminUsername: "core",
+				LinuxConfiguration: api.AzureLinuxConfiguration{
+					DisablePasswordAuthentication: true,
+					SSH: api.AzureSSHConfiguration{
+						PublicKeys: api.AzureSSHPublicKey{
+							Path:    "/home/core/.ssh/authorized_keys",
+							KeyData: "dummy keyData",
+						},
+					},
+				},
+			},
+			Zone: getZone(2),
+		},
+		ResourceGroup: "shoot--i538135--seed-az",
+		SubnetInfo: api.AzureSubnetInfo{
+			VnetName:   "shoot--i538135--seed-az",
+			SubnetName: "shoot--i538135--seed-az-nodes",
+		},
+		Tags: tags,
+	}
+
+	// AzureProviderSpecWithImproperLUN with Negative Disk size
+	AzureProviderSpecWithImproperLUN = api.AzureProviderSpec{
+		Location: "westeurope",
+		Properties: api.AzureVirtualMachineProperties{
+			HardwareProfile: api.AzureHardwareProfile{
+				VMSize: "Standard_DS2_v2",
+			},
+			StorageProfile: api.AzureStorageProfile{
+				ImageReference: api.AzureImageReference{
+					URN: getUrn("sap:gardenlinux:greatest:27.1.0"),
+				},
+				OsDisk: api.AzureOSDisk{
+					Caching: "None",
+					ManagedDisk: api.AzureManagedDiskParameters{
+						StorageAccountType: "Standard_LRS",
+					},
+					DiskSizeGB:   50,
+					CreateOption: "FromImage",
+				},
+				DataDisks: []api.AzureDataDisk{
+					{
+						Lun:                getInt32Pointer(-1),
+						DiskSizeGB:         50,
+						StorageAccountType: "Standard_LRS",
+					},
+				},
+			},
+			OsProfile: api.AzureOSProfile{
+				AdminUsername: "core",
+				LinuxConfiguration: api.AzureLinuxConfiguration{
+					DisablePasswordAuthentication: true,
+					SSH: api.AzureSSHConfiguration{
+						PublicKeys: api.AzureSSHPublicKey{
+							Path:    "/home/core/.ssh/authorized_keys",
+							KeyData: "dummy keyData",
+						},
+					},
+				},
+			},
+			Zone: getZone(2),
+		},
+		ResourceGroup: "shoot--i538135--seed-az",
+		SubnetInfo: api.AzureSubnetInfo{
+			VnetName:   "shoot--i538135--seed-az",
+			SubnetName: "shoot--i538135--seed-az-nodes",
+		},
+		Tags: tags,
+	}
+
+	// AzureProviderSpecWithoutDiskStorageAccountType with Negative Disk size
+	AzureProviderSpecWithoutDiskStorageAccountType = api.AzureProviderSpec{
+		Location: "westeurope",
+		Properties: api.AzureVirtualMachineProperties{
+			HardwareProfile: api.AzureHardwareProfile{
+				VMSize: "Standard_DS2_v2",
+			},
+			StorageProfile: api.AzureStorageProfile{
+				ImageReference: api.AzureImageReference{
+					URN: getUrn("sap:gardenlinux:greatest:27.1.0"),
+				},
+				OsDisk: api.AzureOSDisk{
+					Caching: "None",
+					ManagedDisk: api.AzureManagedDiskParameters{
+						StorageAccountType: "Standard_LRS",
+					},
+					DiskSizeGB:   50,
+					CreateOption: "FromImage",
+				},
+				DataDisks: []api.AzureDataDisk{
+					{
+						Lun:                getInt32Pointer(1),
+						DiskSizeGB:         50,
+						StorageAccountType: "",
+					},
+				},
+			},
+			OsProfile: api.AzureOSProfile{
+				AdminUsername: "core",
+				LinuxConfiguration: api.AzureLinuxConfiguration{
+					DisablePasswordAuthentication: true,
+					SSH: api.AzureSSHConfiguration{
+						PublicKeys: api.AzureSSHPublicKey{
+							Path:    "/home/core/.ssh/authorized_keys",
+							KeyData: "dummy keyData",
+						},
+					},
+				},
+			},
+			Zone: getZone(2),
+		},
+		ResourceGroup: "shoot--i538135--seed-az",
+		SubnetInfo: api.AzureSubnetInfo{
+			VnetName:   "shoot--i538135--seed-az",
+			SubnetName: "shoot--i538135--seed-az-nodes",
+		},
+		Tags: tags,
+	}
+
+	// AzureProviderSpecWithDuplicatedLUN with Negative Disk size
+	AzureProviderSpecWithDuplicatedLUN = api.AzureProviderSpec{
+		Location: "westeurope",
+		Properties: api.AzureVirtualMachineProperties{
+			HardwareProfile: api.AzureHardwareProfile{
+				VMSize: "Standard_DS2_v2",
+			},
+			StorageProfile: api.AzureStorageProfile{
+				ImageReference: api.AzureImageReference{
+					URN: getUrn("sap:gardenlinux:greatest:27.1.0"),
+				},
+				OsDisk: api.AzureOSDisk{
+					Caching: "None",
+					ManagedDisk: api.AzureManagedDiskParameters{
+						StorageAccountType: "Standard_LRS",
+					},
+					DiskSizeGB:   50,
+					CreateOption: "FromImage",
+				},
+				DataDisks: []api.AzureDataDisk{
+					{
+						Lun:                getInt32Pointer(1),
+						DiskSizeGB:         50,
+						StorageAccountType: "Standard_LRS",
+					},
+					{
+						Lun:                getInt32Pointer(1),
+						DiskSizeGB:         50,
+						StorageAccountType: "Standard_LRS",
+					},
+				},
+			},
+			OsProfile: api.AzureOSProfile{
+				AdminUsername: "core",
+				LinuxConfiguration: api.AzureLinuxConfiguration{
+					DisablePasswordAuthentication: true,
+					SSH: api.AzureSSHConfiguration{
+						PublicKeys: api.AzureSSHPublicKey{
+							Path:    "/home/core/.ssh/authorized_keys",
+							KeyData: "dummy keyData",
+						},
+					},
+				},
+			},
+			Zone: getZone(2),
+		},
+		ResourceGroup: "shoot--i538135--seed-az",
+		SubnetInfo: api.AzureSubnetInfo{
+			VnetName:   "shoot--i538135--seed-az",
+			SubnetName: "shoot--i538135--seed-az-nodes",
+		},
+		Tags: tags,
+	}
+
 	// AzureProviderSpecWithoutAdminUserName without Admin Username
 	AzureProviderSpecWithoutAdminUserName = api.AzureProviderSpec{
 		Location: "westeurope",
@@ -707,9 +961,7 @@ var (
 				ID:   "example-id",
 				Kind: "machineSet",
 			},
-			AvailabilitySet: &api.AzureSubResource{
-				ID: "example-id",
-			},
+			AvailabilitySet: nil,
 			OsProfile: api.AzureOSProfile{
 				AdminUsername: "core",
 				LinuxConfiguration: api.AzureLinuxConfiguration{
@@ -724,7 +976,7 @@ var (
 			},
 			Zone: nil,
 		},
-		ResourceGroup: "",
+		ResourceGroup: "shoot--i538135--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
 			VnetName:   "shoot--i538135--seed-az",
 			SubnetName: "shoot--i538135--seed-az-nodes",
@@ -773,13 +1025,12 @@ var (
 			SubnetName: "shoot--i538135--seed-az-nodes",
 		},
 		Tags: map[string]string{
-			"Name": "",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
-			"node.kubernetes.io_role":                       "node",
-			"worker.garden.sapcloud.io_group":               "worker-m0exd",
-			"worker.gardener.cloud_pool":                    "worker-m0exd",
-			"worker.gardener.cloud_system-components":       "true",
+			"Name":                                    "",
+			"kubernetes.io-role-mcm":                  "1",
+			"node.kubernetes.io_role":                 "node",
+			"worker.garden.sapcloud.io_group":         "worker-m0exd",
+			"worker.gardener.cloud_pool":              "worker-m0exd",
+			"worker.gardener.cloud_system-components": "true",
 		},
 	}
 
@@ -827,7 +1078,6 @@ var (
 		Tags: map[string]string{
 			"Name": "shoot--i538135--seed-az",
 			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
-			"kubernetes.io-role-mcm":                        "1",
 			"node.kubernetes.io_role":                       "",
 			"worker.garden.sapcloud.io_group":               "worker-m0exd",
 			"worker.gardener.cloud_pool":                    "worker-m0exd",
