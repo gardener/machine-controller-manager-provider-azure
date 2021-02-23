@@ -712,6 +712,7 @@ var _ = Describe("MachineController", func() {
 				providerSpec *apis.AzureProviderSpec,
 				machineRequest *driver.GetMachineStatusRequest,
 				machineResponse *driver.GetMachineStatusResponse,
+				vmlr compute.VirtualMachineListResult,
 				errToHaveOccurred bool,
 				errMessage string,
 			) {
@@ -732,23 +733,14 @@ var _ = Describe("MachineController", func() {
 					resourceGroupName = providerSpec.ResourceGroup
 				)
 
-				vmlr := compute.NewVirtualMachineListResultPage(
-					compute.VirtualMachineListResult{
-						Value: &[]compute.VirtualMachine{
-							{
-								Name:     getStringPointer("dummy-machine"),
-								Location: getStringPointer("westeurope"),
-							},
-						},
-						NextLink: getStringPointer(""),
-					},
+				vmlrp := compute.NewVirtualMachineListResultPage(
+					vmlr,
 					func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
 						return compute.VirtualMachineListResult{}, nil
 					},
 				)
-
 				fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
-					vmlr, nil,
+					vmlrp, nil,
 				)
 
 				response, err := mockDriver.GetMachineStatus(ctx, machineRequest)
@@ -762,7 +754,7 @@ var _ = Describe("MachineController", func() {
 				}
 			},
 
-			Entry("#1 GetMachineStatus",
+			Entry("#1 GetMachineStatus of valid machine",
 				&mock.AzureProviderSpec,
 				&driver.GetMachineStatusRequest{
 					Machine:      newMachine("dummy-machine"),
@@ -773,8 +765,37 @@ var _ = Describe("MachineController", func() {
 					NodeName:   "dummy-machine",
 					ProviderID: "azure:///westeurope/dummy-machine",
 				},
+				compute.VirtualMachineListResult{
+					Value: &[]compute.VirtualMachine{
+						{
+							Name:     getStringPointer("dummy-machine"),
+							Location: getStringPointer("westeurope"),
+						},
+					},
+					NextLink: getStringPointer(""),
+				},
 				false,
 				"",
+			),
+			Entry("#2 GetMachineStatus of non existing machine",
+				&mock.AzureProviderSpec,
+				&driver.GetMachineStatusRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				compute.VirtualMachineListResult{
+					Value: &[]compute.VirtualMachine{
+						{
+							Name:     getStringPointer("dummy-machine-1"),
+							Location: getStringPointer("westeurope"),
+						},
+					},
+					NextLink: getStringPointer(""),
+				},
+				true,
+				"machine codes error: code = [NotFound] message = [Machine 'dummy-machine' not found]",
 			),
 		)
 	})
@@ -808,7 +829,7 @@ var _ = Describe("MachineController", func() {
 				}
 			},
 
-			Entry("#1 GetMachineStatus",
+			Entry("#1 Get Volume IDs of AzureDisks",
 				&driver.GetVolumeIDsRequest{
 					PVSpecs: []*corev1.PersistentVolumeSpec{
 						{
@@ -825,6 +846,23 @@ var _ = Describe("MachineController", func() {
 					VolumeIDs: []string{
 						"example-disk",
 					},
+				},
+				false,
+				"",
+			),
+			Entry("# Get Volume IDs without any AzureDisks",
+				&driver.GetVolumeIDsRequest{
+					PVSpecs: []*corev1.PersistentVolumeSpec{
+						{
+							StorageClassName: "example",
+							PersistentVolumeSource: corev1.PersistentVolumeSource{
+								AzureDisk: nil,
+							},
+						},
+					},
+				},
+				&driver.GetVolumeIDsResponse{
+					VolumeIDs: []string{},
 				},
 				false,
 				"",
@@ -961,6 +999,105 @@ var _ = Describe("MachineController", func() {
 				&driver.GenerateMachineClassForMigrationResponse{},
 				false,
 				"",
+			),
+			Entry("#2 Generate machine class for migration for invalid machine class kind",
+				&driver.GenerateMachineClassForMigrationRequest{
+					ProviderSpecificMachineClass: &v1alpha1.AzureMachineClass{
+						ObjectMeta: v1.ObjectMeta{
+							Name:      "test-azure",
+							Namespace: "default",
+							Labels: map[string]string{
+								"key1": "value1",
+								"key2": "value2",
+							},
+							Annotations: map[string]string{
+								"key1": "value1",
+								"key2": "value2",
+							},
+							Finalizers: []string{
+								"mcm/finalizer",
+							},
+						},
+						TypeMeta: v1.TypeMeta{},
+						Spec: v1alpha1.AzureMachineClassSpec{
+							Location:      "westeurope",
+							ResourceGroup: "sample-resource-group",
+							SubnetInfo: v1alpha1.AzureSubnetInfo{
+								VnetName:   "sample-vnet",
+								SubnetName: "sample-subnet",
+							},
+							SecretRef: &corev1.SecretReference{
+								Name:      "test-secret",
+								Namespace: "default",
+							},
+							Tags: map[string]string{
+								"key1": "value1",
+								"key2": "value2",
+							},
+							Properties: v1alpha1.AzureVirtualMachineProperties{
+								HardwareProfile: v1alpha1.AzureHardwareProfile{
+									VMSize: "sample-vmsize",
+								},
+								NetworkProfile: v1alpha1.AzureNetworkProfile{
+									AcceleratedNetworking: getBoolPointer(false),
+								},
+								StorageProfile: v1alpha1.AzureStorageProfile{
+									ImageReference: v1alpha1.AzureImageReference{
+										URN: getStringPointer("sample-urn"),
+									},
+									OsDisk: v1alpha1.AzureOSDisk{
+										Caching:      "None",
+										DiskSizeGB:   50,
+										CreateOption: "FromImage",
+									},
+									DataDisks: []v1alpha1.AzureDataDisk{
+										{
+											Name:               "sdb",
+											Lun:                getInt32Pointer(0),
+											Caching:            "None",
+											StorageAccountType: "Standard_LRS",
+										},
+										{
+											Name:               "sdb",
+											Lun:                getInt32Pointer(1),
+											Caching:            "None",
+											StorageAccountType: "Standard_LRS",
+										},
+									},
+								},
+								OsProfile: v1alpha1.AzureOSProfile{
+									AdminUsername: "admin-name",
+									LinuxConfiguration: v1alpha1.AzureLinuxConfiguration{
+										DisablePasswordAuthentication: true,
+										SSH: v1alpha1.AzureSSHConfiguration{
+											PublicKeys: v1alpha1.AzureSSHPublicKey{
+												Path:    "/path/to/public-key/in/machine",
+												KeyData: "public-key-data",
+											},
+										},
+									},
+								},
+								IdentityID: getStringPointer("/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name"),
+								Zone:       getIntPointer(1),
+								MachineSet: &v1alpha1.AzureMachineSetConfig{
+									ID:   "/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.Compute/azureMachineSetResourceType/machine-set-name",
+									Kind: "availabilityset",
+								},
+								AvailabilitySet: &v1alpha1.AzureSubResource{
+									ID: "/subscriptions/subscription-id/resourceGroups/resource-group-name/providers/Microsoft.Compute/availabilitySets/availablity-set-name",
+								},
+							},
+						},
+					},
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					ClassSpec: &v1alpha1.ClassSpec{
+						Kind: "DummyMachineClassKind",
+						Name: "test-azure",
+					},
+				},
+				&driver.GenerateMachineClassForMigrationResponse{},
+				true,
+				"machine codes error: code = [Internal] message = [Migration cannot be done for this machineClass kind]",
 			),
 		)
 	})

@@ -545,11 +545,17 @@ func fillUpMachineClass(azureMachineClass *v1alpha1.AzureMachineClass, machineCl
 	// to fill it up in the MachineClass
 	data, _ := json.Marshal(azureMachineClass.Spec.Properties)
 	err = json.Unmarshal(data, &properties)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
 
 	// Extract the Subnet Info object form the AzureMachineClass
 	// to fill it up in the MachineClass
 	data, _ = json.Marshal(azureMachineClass.Spec.SubnetInfo)
 	err = json.Unmarshal(data, &subnetInfo)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
 
 	providerSpec := &api.AzureProviderSpec{
 		Location:      azureMachineClass.Spec.Location,

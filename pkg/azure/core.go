@@ -219,6 +219,10 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 	}
 
 	result, err = clients.GetVM().List(ctx, resourceGroupName)
+	if err != nil {
+		return nil, status.Error(codes.Unknown, err.Error())
+	}
+
 	items = append(items, result.Values()...)
 	for result.NotDone() {
 		err = result.NextWithContext(ctx)
@@ -246,8 +250,8 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 //
 func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
 	// Log messages to track start and end of request
-	klog.V(2).Infof("GetVolumeIDs request has been recieved for %q", req.PVSpecs)
-	defer klog.V(2).Infof("GetVolumeIDs request has been processed successfully for %q", req.PVSpecs)
+	klog.V(2).Infof("GetVolumeIDs request recieved for %q", req.PVSpecs)
+	defer klog.V(2).Infof("GetVolumeIDs request processed successfully for %q", req.PVSpecs)
 
 	names := []string{}
 	specs := req.PVSpecs

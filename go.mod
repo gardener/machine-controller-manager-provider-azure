@@ -7,6 +7,7 @@ require (
 	github.com/Azure/go-autorest/autorest v0.11.17
 	github.com/Azure/go-autorest/autorest/adal v0.9.5
 	github.com/Azure/go-autorest/autorest/to v0.3.0
+	github.com/coreos/etcd v3.3.15+incompatible
 	github.com/gardener/machine-controller-manager v0.37.0
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.3.2 // indirect
