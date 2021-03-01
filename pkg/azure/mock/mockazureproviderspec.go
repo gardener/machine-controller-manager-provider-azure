@@ -50,7 +50,13 @@ var (
 					DiskSizeGB:   50,
 					CreateOption: "FromImage",
 				},
-				DataDisks: []api.AzureDataDisk{},
+				DataDisks: []api.AzureDataDisk{
+					{
+						StorageAccountType: "Standard_LRS",
+						Lun:                getInt32Pointer(1),
+						DiskSizeGB:         50,
+					},
+				},
 			},
 			OsProfile: api.AzureOSProfile{
 				AdminUsername: "core",
@@ -521,7 +527,7 @@ var (
 				},
 				DataDisks: []api.AzureDataDisk{
 					{
-						Lun:                getInt32Pointer(0),
+						Lun:                getInt32Pointer(1),
 						DiskSizeGB:         -50,
 						StorageAccountType: "Standard_LRS",
 					},
@@ -769,7 +775,14 @@ var (
 					DiskSizeGB:   50,
 					CreateOption: "FromImage",
 				},
-				DataDisks: []api.AzureDataDisk{},
+				DataDisks: []api.AzureDataDisk{
+					{
+						Name:               "data-disk",
+						Lun:                getInt32Pointer(1),
+						StorageAccountType: "Standard_LRS",
+						DiskSizeGB:         50,
+					},
+				},
 			},
 			OsProfile: api.AzureOSProfile{
 				AdminUsername: "",
@@ -1083,5 +1096,104 @@ var (
 			"worker.gardener.cloud_pool":                    "worker-m0exd",
 			"worker.gardener.cloud_system-components":       "true",
 		},
+	}
+
+	// AzureProviderSpecWithDataDisks with providerSpec that has data disk attached
+	AzureProviderSpecWithDataDisks = api.AzureProviderSpec{
+		Location: "westeurope",
+		Properties: api.AzureVirtualMachineProperties{
+			HardwareProfile: api.AzureHardwareProfile{
+				VMSize: "Standard_DS2_v2",
+			},
+			StorageProfile: api.AzureStorageProfile{
+				ImageReference: api.AzureImageReference{
+					URN: getUrn("sap:gardenlinux:greatest:27.1.0"),
+				},
+				OsDisk: api.AzureOSDisk{
+					Caching: "None",
+					ManagedDisk: api.AzureManagedDiskParameters{
+						StorageAccountType: "Standard_LRS",
+					},
+					DiskSizeGB:   50,
+					CreateOption: "FromImage",
+				},
+				DataDisks: []api.AzureDataDisk{
+					{
+						StorageAccountType: "Standard_LRS",
+						Lun:                getInt32Pointer(1),
+						DiskSizeGB:         50,
+					},
+				},
+			},
+			OsProfile: api.AzureOSProfile{
+				AdminUsername: "core",
+				LinuxConfiguration: api.AzureLinuxConfiguration{
+					DisablePasswordAuthentication: true,
+					SSH: api.AzureSSHConfiguration{
+						PublicKeys: api.AzureSSHPublicKey{
+							Path:    "/home/core/.ssh/authorized_keys",
+							KeyData: "dummy keyData",
+						},
+					},
+				},
+			},
+			Zone: getZone(2),
+		},
+		ResourceGroup: "shoot--i538135--seed-az",
+		SubnetInfo: api.AzureSubnetInfo{
+			VnetName:   "shoot--i538135--seed-az",
+			SubnetName: "shoot--i538135--seed-az-nodes",
+		},
+		Tags: tags,
+	}
+
+	// AzureProviderSpecWithDataDisksWithName with providerSpec that has data disk attached
+	AzureProviderSpecWithDataDisksWithName = api.AzureProviderSpec{
+		Location: "westeurope",
+		Properties: api.AzureVirtualMachineProperties{
+			HardwareProfile: api.AzureHardwareProfile{
+				VMSize: "Standard_DS2_v2",
+			},
+			StorageProfile: api.AzureStorageProfile{
+				ImageReference: api.AzureImageReference{
+					URN: getUrn("sap:gardenlinux:greatest:27.1.0"),
+				},
+				OsDisk: api.AzureOSDisk{
+					Caching: "None",
+					ManagedDisk: api.AzureManagedDiskParameters{
+						StorageAccountType: "Standard_LRS",
+					},
+					DiskSizeGB:   50,
+					CreateOption: "FromImage",
+				},
+				DataDisks: []api.AzureDataDisk{
+					{
+						StorageAccountType: "Standard_LRS",
+						Lun:                getInt32Pointer(1),
+						DiskSizeGB:         50,
+						Name:               "data-disk",
+					},
+				},
+			},
+			OsProfile: api.AzureOSProfile{
+				AdminUsername: "core",
+				LinuxConfiguration: api.AzureLinuxConfiguration{
+					DisablePasswordAuthentication: true,
+					SSH: api.AzureSSHConfiguration{
+						PublicKeys: api.AzureSSHPublicKey{
+							Path:    "/home/core/.ssh/authorized_keys",
+							KeyData: "dummy keyData",
+						},
+					},
+				},
+			},
+			Zone: getZone(2),
+		},
+		ResourceGroup: "shoot--i538135--seed-az",
+		SubnetInfo: api.AzureSubnetInfo{
+			VnetName:   "shoot--i538135--seed-az",
+			SubnetName: "shoot--i538135--seed-az-nodes",
+		},
+		Tags: tags,
 	}
 )

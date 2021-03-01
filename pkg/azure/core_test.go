@@ -53,16 +53,17 @@ func getIntPointer(i int) *int {
 }
 
 var (
-	errorPrefix = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating ProviderSpec [%s]]]"
+	errorPrefix = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validat" +
+		"ing ProviderSpec [%s]]]"
 
-	secretError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
-		" ProviderSpec [secret %s or %s is required field]]]"
+	secretError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validat" +
+		"ing ProviderSpec [secret %s or %s is required field]]]"
 
-	providerSpecError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
-		" ProviderSpec [%s is required field]]]"
+	providerSpecError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while v" +
+		"alidating ProviderSpec [%s is required field]]]"
 
-	providerSpecSubnetInfoError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validating" +
-		" ProviderSpec [%s is a required subnet info]]]"
+	providerSpecSubnetInfoError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Err" +
+		"or while validating ProviderSpec [%s is a required subnet info]]]"
 )
 
 var _ = Describe("MachineController", func() {
@@ -122,9 +123,20 @@ var _ = Describe("MachineController", func() {
 				providerSpec *apis.AzureProviderSpec,
 				machineRequest *driver.CreateMachineRequest,
 				machineResponse *driver.CreateMachineResponse,
+				getSubnetError *autorest.DetailedError,
+				nicCreateOrUpdateError *autorest.DetailedError,
+				vmCreateOrUpdateError *autorest.DetailedError,
 				errToHaveOccurred bool,
 				errMessage string,
 			) {
+				var (
+					ctx               = context.Background()
+					vmName            = strings.ToLower(machineRequest.Machine.Name)
+					resourceGroupName = providerSpec.ResourceGroup
+					vnetName          = providerSpec.SubnetInfo.VnetName
+					subnetName        = providerSpec.SubnetInfo.SubnetName
+					vmImageRef        *compute.VirtualMachineImage
+				)
 
 				// Create the mock controller and the mock clients
 				controller := gomock.NewController(GinkgoT())
@@ -138,48 +150,35 @@ var _ = Describe("MachineController", func() {
 				// Define all the client expectations here and then proceed with the function call
 				fakeClients := mockDriverClients.(*mock.AzureDriverClients)
 
-				var (
-					ctx               = context.Background()
-					vmName            = strings.ToLower(machineRequest.Machine.Name)
-					resourceGroupName = providerSpec.ResourceGroup
-					vnetName          = providerSpec.SubnetInfo.VnetName
-					subnetName        = providerSpec.SubnetInfo.SubnetName
-					vmImageRef        *compute.VirtualMachineImage
-				)
-
 				subnet := network.Subnet{
-					ID: getStringPointer("/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/shoot--i538135--seed-az/" +
-						"providers/Microsoft.Network/virtualNetworks/shoot--i538135--seed-az/subnets/shoot--i538135--seed-az-nodes"),
-					Name: getStringPointer("shoot--i538135--seed-az-nodes"),
+					ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/provide" +
+						"rs/Microsoft.Network/virtualNetworks/dummy-resource-group/subnets/dummy-resource-group-nodes"),
+					Name: getStringPointer("dummy-resource-group-nodes"),
 					SubnetPropertiesFormat: &network.SubnetPropertiesFormat{
 						AddressPrefix: getStringPointer("10.250.0.0/16"),
 						NetworkSecurityGroup: &network.SecurityGroup{
-							ID: getStringPointer("/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/" +
-								"shoot--i538135--seed-az/providers/Microsoft.Network/networkSecurityGroups/" +
-								"shoot--i538135--seed-az-workers"),
+							ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group" +
+								"/providers/Microsoft.Network/networkSecurityGroups/dummy-resource-group-workers"),
 						},
 						RouteTable: &network.RouteTable{
-							ID: getStringPointer("/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/" +
-								"shoot--i538135--seed-az/providers/Microsoft.Network/routeTables/worker_route_table"),
+							ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group" +
+								"/providers/Microsoft.Network/routeTables/worker_route_table"),
 						},
 						IPConfigurations: &[]network.IPConfiguration{
 							{
-								ID: getStringPointer("/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/" +
-									"shoot--i538135--seed-az/providers/Microsoft.Network/networkInterfaces/" +
-									"shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-7jgvm-nic/ipConfigurations/" +
-									"shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-7jgvm-nic"),
+								ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-g" +
+									"roup/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-7jgvm-" +
+									"nic/ipConfigurations/dummy-resource-group-worker-m0exd-z2-b5bdd-7jgvm-nic"),
 							},
 							{
-								ID: getStringPointer("/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/" +
-									"shoot--i538135--seed-az/providers/Microsoft.Network/networkInterfaces/" +
-									"shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-rgqc2-nic/ipConfigurations/" +
-									"shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-rgqc2-nic"),
+								ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-g" +
+									"roup/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-rgqc2-" +
+									"nic/ipConfigurations/dummy-resource-group-worker-m0exd-z2-b5bdd-rgqc2-nic"),
 							},
 							{
-								ID: getStringPointer("/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/" +
-									"shoot--i538135--seed-az/providers/Microsoft.Network/networkInterfaces/" +
-									"shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-pfkg4-nic/ipConfigurations/" +
-									"shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-pfkg4-nic"),
+								ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-g" +
+									"roup/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-pfkg4-" +
+									"nic/ipConfigurations/dummy-resource-group-worker-m0exd-z2-b5bdd-pfkg4-nic"),
 							},
 						},
 						ProvisioningState:                 "Succeeded",
@@ -188,10 +187,19 @@ var _ = Describe("MachineController", func() {
 					},
 				}
 
-				NICFuture := UnmarshalNICFuture([]byte("{\"method\":\"PUT\",\"pollingMethod\":\"AsyncOperation\"," +
-					"\"pollingURI\":\"https://management.azure.com/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/providers/Microsoft.Network/locations/westeurope/operations/e4469621-a170-4744-9aed-132d2992b230?api-version=2020-07-01\",\"lroState\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/shoot--i538135--seed-az/providers/Microsoft.Network/networkInterfaces/shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-qtjm8-nic?api-version=2020-07-01\"}"))
+				NICFuture := UnmarshalNICFuture([]byte("{\"method\":\"PUT\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"https:/" +
+					"/management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Network/locations/weste" +
+					"urope/operations/e4469621-a170-4744-9aed-132d2992b230?api-version=2020-07-01\",\"lroState\":\"Succeeded\",\"resultUR" +
+					"I\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-" +
+					"group/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-qtjm8-nic?api-version" +
+					"=2020-07-01\"}"))
 
-				VMFutureAPI := UnmarshalVMCreateFuture([]byte("{\"method\":\"PUT\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"https://management.azure.com/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/providers/Microsoft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/shoot--i538135--seed-az/providers/Microsoft.Compute/virtualMachines/shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-nnjnn?api-version=2020-06-01\"}"))
+				VMFutureAPI := UnmarshalVMCreateFuture([]byte("{\"method\":\"PUT\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"" +
+					"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute/location" +
+					"s/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\",\"r" +
+					"esultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-re" +
+					"source-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?api-versio" +
+					"n=2020-06-01\"}"))
 
 				splits := strings.Split(*providerSpec.Properties.StorageProfile.ImageReference.URN, ":")
 				publisher := splits[0]
@@ -205,15 +213,86 @@ var _ = Describe("MachineController", func() {
 					Version:   &version,
 				}
 
-				fakeClients.Subnet.EXPECT().Get(ctx, resourceGroupName, vnetName, subnetName, "").Return(subnet, nil)
+				if getSubnetError != nil {
+					fakeClients.Subnet.EXPECT().Get(ctx, resourceGroupName, vnetName, subnetName, "").Return(subnet, *getSubnetError)
+				} else {
+					fakeClients.Subnet.EXPECT().Get(ctx, resourceGroupName, vnetName, subnetName, "").Return(subnet, nil)
+				}
 
 				mockDriver.AzureProviderSpec = providerSpec
 
 				NICParameters := mockDriver.getNICParameters(vmName, &subnet)
-				fakeClients.NIC.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters).Return(NICFuture, nil)
 
-				NICId := "/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/shoot--i538135--seed-az/providers/" +
-					"Microsoft.Network/networkInterfaces/shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-vs2lt-nic"
+				if nicCreateOrUpdateError != nil {
+					fakeClients.NIC.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name,
+						NICParameters).Return(network.InterfacesCreateOrUpdateFuture{}, *nicCreateOrUpdateError)
+
+				} else {
+					fakeClients.NIC.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name,
+						NICParameters).Return(NICFuture, nil)
+				}
+
+				// mocked methods for driver.deleteVMNICDisk
+				fakeClients.VM.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{
+					Name: getStringPointer(machineRequest.Machine.Name),
+					VirtualMachineProperties: &compute.VirtualMachineProperties{
+						StorageProfile: &compute.StorageProfile{
+							DataDisks: &[]compute.DataDisk{},
+						},
+					},
+				}, nil)
+
+				VMDeleteFutureAPI := UnmarshalVMDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\"" +
+					":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute/locat" +
+					"ions/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\"," +
+					"\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy" +
+					"-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?api-ver" +
+					"sion=2020-06-01\"}"))
+
+				fakeClients.VM.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name, getBoolPointer(false)).Return(VMDeleteFutureAPI, nil)
+
+				fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(compute.Disk{
+					ManagedBy: nil,
+				}, nil)
+
+				fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"data-disk-1-data-disk").Return(compute.Disk{
+					ManagedBy: nil,
+				}, nil)
+
+				fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(compute.Disk{
+					ManagedBy: nil,
+				}, nil)
+
+				DisksFutureAPI := UnmarshalDisksDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollin" +
+					"gURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute" +
+					"/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succee" +
+					"ded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups" +
+					"/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?a" +
+					"pi-version=2020-06-01\"}"))
+
+				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(DisksFutureAPI, nil)
+
+				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"data-disk-1-data-disk").Return(DisksFutureAPI, nil)
+
+				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(DisksFutureAPI, nil)
+
+				fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{
+					InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
+						VirtualMachine: nil,
+					},
+				}, nil)
+
+				InterfacesFutureAPI := UnmarshalInterfacesDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation" +
+					"\",\"pollingURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Micros" +
+					"oft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState" +
+					"\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/res" +
+					"ourceGroups/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5" +
+					"bdd-nnjnn?api-version=2020-06-01\"}"))
+
+				fakeClients.NIC.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic").Return(InterfacesFutureAPI, nil)
+
+				NICId := "/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/providers/Microsoft.Net" +
+					"work/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-vs2lt-nic"
 
 				vmImageRef = &compute.VirtualMachineImage{
 					Name: mockDriver.AzureProviderSpec.Properties.StorageProfile.ImageReference.URN,
@@ -231,8 +310,13 @@ var _ = Describe("MachineController", func() {
 					*imageRef.Version,
 				).Return(*vmImageRef, nil)
 
-				VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
-				fakeClients.VM.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters).Return(VMFutureAPI, nil)
+				if vmCreateOrUpdateError != nil {
+					VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
+					fakeClients.VM.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters).Return(compute.VirtualMachinesCreateOrUpdateFuture{}, *vmCreateOrUpdateError)
+				} else {
+					VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
+					fakeClients.VM.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters).Return(VMFutureAPI, nil)
+				}
 
 				// if there is no variation in the machine class (various scenarios) call the
 				// machineRequest.MachineClass = newAzureMachineClass(providerSpec)
@@ -259,6 +343,9 @@ var _ = Describe("MachineController", func() {
 					ProviderID: "azure:///westeurope/dummy-machine",
 					NodeName:   "dummy-machine",
 				},
+				nil,
+				nil,
+				nil,
 				false,
 				"",
 			),
@@ -269,6 +356,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
 					Secret:       newSecret(azureProviderSecretWithoutazureClientID),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(secretError, "azureClientId", "clientID").Error(),
@@ -281,6 +371,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecretWithoutazureClientSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(secretError, "azureClientSecret", "clientSecret").Error(),
 			),
@@ -291,6 +384,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
 					Secret:       newSecret(azureProviderSecretWithoutazureTenantID),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(secretError, "azureTenantId", "tenantID").Error(),
@@ -303,6 +399,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecretWithoutazureSubscriptionID),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(secretError, "azureSubscriptionId", "subscriptionID").Error(),
 			),
@@ -313,6 +412,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
 					Secret:       newSecret(azureProviderSecretWithoutUserData),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(providerSpecError, "secret UserData").Error(),
@@ -325,6 +427,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(providerSpecError, "Region").Error(),
 			),
@@ -335,6 +440,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutResourceGroup),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(providerSpecError, "ResourceGroup").Error(),
@@ -347,6 +455,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(providerSpecSubnetInfoError, "VnetName").Error(),
 			),
@@ -357,6 +468,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutSubnetName),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(providerSpecSubnetInfoError, "SubnetName").Error(),
@@ -369,6 +483,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(providerSpecError, "VMSize").Error(),
 			),
@@ -379,6 +496,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithImproperImageURN),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.storageProfile.imageReference.urn: Required value: Invalid urn format, empty field").Error(),
@@ -391,6 +511,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.storageProfile.osDisk.diskSizeGB: Required value: OSDisk size must be positive").Error(),
 			),
@@ -401,6 +524,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutOSDiskCreateOption),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.storageProfile.osDisk.createOption: Required value: OSDisk create option is required").Error(),
@@ -413,6 +539,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.osProfile.adminUsername: Required value: AdminUsername is required").Error(),
 			),
@@ -423,6 +552,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithNegativeDataDiskSize),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].diskSizeGB: Required value: DataDisk size must be positive").Error(),
@@ -435,6 +567,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].lun: Required value: DataDisk Lun is required").Error(),
 			),
@@ -446,8 +581,12 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
-				fmt.Errorf(errorPrefix, fmt.Errorf("properties.storageProfile.dataDisks[0].lun: Invalid value: %d: must be between 0 and 63, inclusive", *mock.AzureProviderSpecWithImproperLUN.Properties.StorageProfile.DataDisks[0].Lun).Error()).Error(),
+				fmt.Errorf(errorPrefix, fmt.Errorf("properties.storageProfile.dataDisks[0].lun: Invalid value: %d: must be between 0 and "+
+					"63, inclusive", *mock.AzureProviderSpecWithImproperLUN.Properties.StorageProfile.DataDisks[0].Lun).Error()).Error(),
 			),
 			Entry("#19 Create machine without Storage Account Type in providerSpec",
 				&mock.AzureProviderSpecWithoutDiskStorageAccountType,
@@ -456,6 +595,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutDiskStorageAccountType),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].storageAccountType: Required value: DataDisk storage account type is required").Error(),
@@ -468,6 +610,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, fmt.Errorf("properties.storageProfile.dataDisks: Invalid value: 1: Data Disk Lun '%d' duplicated 2 times, Lun must be unique", *mock.AzureProviderSpecWithDuplicatedLUN.Properties.StorageProfile.DataDisks[0].Lun).Error()).Error(),
 			),
@@ -478,6 +623,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutZMA),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.zone|.machineSet|.availabilitySet: Forbidden: Machine need to be assigned to a zone, a MachineSet or an AvailabilitySet").Error(),
@@ -490,6 +638,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.zone|.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned to a zone, a MachineSet and an AvailabilitySet in parallel").Error(),
 			),
@@ -500,6 +651,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithMAOnly),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned a MachineSet and an AvailabilitySet in parallel").Error(),
@@ -512,6 +666,9 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, fmt.Errorf("properties.machineSet: Invalid value: \"%s\": Invalid MachineSet kind. Use either '%s' or '%s'", mock.AzureProviderSpecWithInvalidMachineSet.Properties.MachineSet.Kind, api.MachineSetKindVMO, api.MachineSetKindAvailabilitySet).Error()).Error(),
 			),
@@ -522,6 +679,9 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithEmptyClusterNameTag),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
+				nil,
+				nil,
 				nil,
 				true,
 				fmt.Errorf(errorPrefix, "providerSpec.kubernetes.io-cluster-: Required value: Tag required of the form kubernetes.io-cluster-****").Error(),
@@ -534,8 +694,88 @@ var _ = Describe("MachineController", func() {
 					Secret:       newSecret(azureProviderSecret),
 				},
 				nil,
+				nil,
+				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "providerSpec.kubernetes.io-role-: Required value: Tag required of the form kubernetes.io-role-****").Error(),
+			),
+			Entry("#27 Create a simple machine with getSubnet Error",
+				&mock.AzureProviderSpec,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				&autorest.DetailedError{
+					StatusCode: 500,
+					Message:    "Unknown error while fetching the Subnet data",
+					Response: &http.Response{
+						Status:     "Unknown",
+						StatusCode: 500,
+					},
+				},
+				nil,
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [#: Unknown error while fetching the Subnet data: StatusCode=500]",
+			),
+			Entry("#28 Create a simple machine with nicCreateOrUpdate Error",
+				&mock.AzureProviderSpec,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				nil,
+				&autorest.DetailedError{
+					StatusCode: 500,
+					Message:    "Unknown error while Creating/Updating NIC",
+					Response: &http.Response{
+						Status:     "Unknown",
+						StatusCode: 500,
+					},
+				},
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [#: Unknown error while Creating/Updating NIC: StatusCode=500]",
+			),
+			Entry("#29 Create a simple machine with unmarshalling error on providerSpec",
+				&mock.AzureProviderSpec,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClassWithError(),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				nil,
+				nil,
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [invalid character '\"' after object key]]",
+			),
+			Entry("#30 Create a simple machine with vmCreateOrUpdate Error",
+				&mock.AzureProviderSpec,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				nil,
+				nil,
+				&autorest.DetailedError{
+					StatusCode: 500,
+					Message:    "Unknown error while Creating/Updating VM",
+					Response: &http.Response{
+						Status:     "Unknown",
+						StatusCode: 500,
+					},
+				},
+				true,
+				"machine codes error: code = [Unknown] message = [#: Unknown error while Creating/Updating VM: StatusCode=500]",
 			),
 		)
 	})
@@ -547,6 +787,11 @@ var _ = Describe("MachineController", func() {
 				providerSpec *apis.AzureProviderSpec,
 				machineRequest *driver.DeleteMachineRequest,
 				machineResponse *driver.DeleteMachineResponse,
+				getVMError *autorest.DetailedError,
+				attachedNIC bool,
+				attachedOSDisk bool,
+				attachedDataDisk bool,
+				getGroupError *autorest.DetailedError,
 				errToHaveOccurred bool,
 				errMessage string,
 			) {
@@ -569,36 +814,102 @@ var _ = Describe("MachineController", func() {
 				)
 
 				mockDriver.AzureProviderSpec = providerSpec
-				fakeClients.Group.EXPECT().Get(ctx, resourceGroupName).Return(resources.Group{}, nil)
 
-				fakeClients.VM.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{
-					Name: getStringPointer(machineRequest.Machine.Name),
-					VirtualMachineProperties: &compute.VirtualMachineProperties{
-						StorageProfile: &compute.StorageProfile{
-							DataDisks: &[]compute.DataDisk{},
+				if getGroupError != nil {
+					fakeClients.Group.EXPECT().Get(ctx, resourceGroupName).Return(resources.Group{}, *getGroupError)
+				} else {
+					fakeClients.Group.EXPECT().Get(ctx, resourceGroupName).Return(resources.Group{}, nil)
+				}
+
+				if getVMError != nil {
+					fakeClients.VM.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{}, *getVMError)
+				} else {
+					fakeClients.VM.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{
+						Name: getStringPointer(machineRequest.Machine.Name),
+						VirtualMachineProperties: &compute.VirtualMachineProperties{
+							StorageProfile: &compute.StorageProfile{
+								DataDisks: &[]compute.DataDisk{},
+							},
 						},
-					},
-				}, nil)
+					}, nil)
+				}
 
-				VMFutureAPI := UnmarshalVMDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"https://management.azure.com/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/providers/Microsoft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/shoot--i538135--seed-az/providers/Microsoft.Compute/virtualMachines/shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-nnjnn?api-version=2020-06-01\"}"))
+				VMFutureAPI := UnmarshalVMDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\"" +
+					":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute/locat" +
+					"ions/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\"," +
+					"\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy" +
+					"-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?api-ver" +
+					"sion=2020-06-01\"}"))
 
 				fakeClients.VM.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name, getBoolPointer(false)).Return(VMFutureAPI, nil)
 
-				fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(compute.Disk{
-					ManagedBy: getStringPointer(""),
-				}, nil)
+				if !attachedOSDisk {
+					fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(compute.Disk{
+						ManagedBy: nil,
+					}, nil)
+				} else {
+					fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(compute.Disk{
+						ManagedBy: getStringPointer("dummy-machine-id"),
+					}, nil)
+				}
 
-				DisksFutureAPI := UnmarshalDisksDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"https://management.azure.com/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/providers/Microsoft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/shoot--i538135--seed-az/providers/Microsoft.Compute/virtualMachines/shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-nnjnn?api-version=2020-06-01\"}"))
+				if !attachedDataDisk {
+					var diskName string
+					if providerSpec.Properties.StorageProfile.DataDisks[0].Name != "" {
+						diskName = fmt.Sprintf("%s-%d", providerSpec.Properties.StorageProfile.DataDisks[0].Name, *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
+					} else {
+						diskName = fmt.Sprintf("%d", *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
+					}
+					fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-"+diskName+"-data-disk").Return(compute.Disk{
+						ManagedBy: nil,
+					}, nil)
+				} else {
+
+					var diskName string
+					if providerSpec.Properties.StorageProfile.DataDisks[0].Name != "" {
+						diskName = fmt.Sprintf("%s-%d", providerSpec.Properties.StorageProfile.DataDisks[0].Name, *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
+					} else {
+						diskName = fmt.Sprintf("%d", *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
+					}
+					fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-"+diskName+"-data-disk").Return(compute.Disk{
+						ManagedBy: getStringPointer("dummy-machine-id"),
+					}, nil)
+				}
+
+				DisksFutureAPI := UnmarshalDisksDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollin" +
+					"gURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute" +
+					"/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succee" +
+					"ded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups" +
+					"/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?a" +
+					"pi-version=2020-06-01\"}"))
 
 				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(DisksFutureAPI, nil)
+				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(DisksFutureAPI, nil)
 
-				fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{
-					InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
-						VirtualMachine: nil,
-					},
-				}, nil)
+				if !attachedNIC {
 
-				InterfacesFutureAPI := UnmarshalInterfacesDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"https://management.azure.com/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/providers/Microsoft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/shoot--i538135--seed-az/providers/Microsoft.Compute/virtualMachines/shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-nnjnn?api-version=2020-06-01\"}"))
+					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{
+						InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
+							VirtualMachine: nil,
+						},
+					}, nil)
+				} else {
+
+					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{
+						InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
+							VirtualMachine: &network.SubResource{
+								ID: getStringPointer("dummy-machine-id"),
+							},
+						},
+					}, nil)
+				}
+
+				InterfacesFutureAPI := UnmarshalInterfacesDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation" +
+					"\",\"pollingURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Micros" +
+					"oft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState" +
+					"\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/res" +
+					"ourceGroups/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5" +
+					"bdd-nnjnn?api-version=2020-06-01\"}"))
 
 				fakeClients.NIC.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic").Return(InterfacesFutureAPI, nil)
 
@@ -625,8 +936,182 @@ var _ = Describe("MachineController", func() {
 				&driver.DeleteMachineResponse{
 					LastKnownState: "",
 				},
+				nil,
 				false,
-				"",
+				false,
+				false,
+				nil,
+				false,
+				nil,
+			),
+
+			Entry("#2 Delete a machine while a NIC is still attached",
+				&mock.AzureProviderSpec,
+				&driver.DeleteMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.DeleteMachineResponse{
+					LastKnownState: "",
+				},
+				nil,
+				true,
+				false,
+				false,
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [Cannot delete NIC dummy-machine-nic because it is attached to VM dummy-"+
+					"machine-id]",
+			),
+
+			Entry("#3 Delete a machine while an OS disk is still attached",
+				&mock.AzureProviderSpec,
+				&driver.DeleteMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.DeleteMachineResponse{
+					LastKnownState: "",
+				},
+				nil,
+				false,
+				true,
+				false,
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [Cannot delete disk dummy-machine-os-disk because it is attached to VM d"+
+					"ummy-machine-id]",
+			),
+
+			Entry("#4 Delete a machine while a Data disk is still attached",
+				&mock.AzureProviderSpecWithDataDisks,
+				&driver.DeleteMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithDataDisks),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.DeleteMachineResponse{
+					LastKnownState: "",
+				},
+				nil,
+				false,
+				false,
+				true,
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [Cannot delete disk dummy-machine-"+
+					fmt.Sprintf("%d", *mock.AzureProviderSpecWithDataDisks.Properties.StorageProfile.DataDisks[0].Lun)+"-data-disk because"+
+					" it is attached to VM dummy-machine-id]",
+			),
+
+			Entry("#5 Delete a machine while a Data disk with Name is still attached",
+				&mock.AzureProviderSpecWithDataDisksWithName,
+				&driver.DeleteMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithDataDisksWithName),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.DeleteMachineResponse{
+					LastKnownState: "",
+				},
+				nil,
+				false,
+				false,
+				true,
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [Cannot delete disk dummy-machine-"+
+					fmt.Sprintf("%s-%d", mock.AzureProviderSpecWithDataDisksWithName.Properties.StorageProfile.DataDisks[0].Name,
+						*mock.AzureProviderSpecWithDataDisksWithName.Properties.StorageProfile.DataDisks[0].Lun)+
+					"-data-disk because it is attached to VM dummy-machine-id]",
+			),
+
+			Entry("#6 Delete a machine without admin username in the providerSpec",
+				&mock.AzureProviderSpecWithoutAdminUserName,
+				&driver.DeleteMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutAdminUserName),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				nil,
+				false,
+				false,
+				false,
+				nil,
+				true,
+				fmt.Errorf(errorPrefix, "properties.osProfile.adminUsername: Required value: AdminUsername is required").Error(),
+			),
+			Entry("#7 Delete a machine where group does not exist",
+				&mock.AzureProviderSpec,
+				&driver.DeleteMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				nil,
+				false,
+				false,
+				false,
+				&autorest.DetailedError{
+					StatusCode: 404,
+					Message:    "Resource Group not found",
+					Response: &http.Response{
+						Status:     "NotFound",
+						StatusCode: 404,
+					},
+				},
+				true,
+				"machine codes error: code = [NotFound] message = [#: Resource Group not found: StatusCode=404]",
+			),
+			Entry("#8 Delete a machine where group returns an unknown error",
+				&mock.AzureProviderSpec,
+				&driver.DeleteMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				nil,
+				false,
+				false,
+				false,
+				&autorest.DetailedError{
+					StatusCode: 500,
+					Message:    "Unknown error with Resource group",
+					Response: &http.Response{
+						Status:     "Unknown",
+						StatusCode: 500,
+					},
+				},
+				true,
+				"machine codes error: code = [Unknown] message = [#: Unknown error with Resource group: StatusCode=500]",
+			),
+			Entry("#9 Delete a machine where getVM has internal error",
+				&mock.AzureProviderSpec,
+				&driver.DeleteMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				&autorest.DetailedError{
+					StatusCode: 500,
+					Message:    "Internal error VM resource",
+					Response: &http.Response{
+						Status:     "Internal",
+						StatusCode: 500,
+					},
+				},
+				false,
+				false,
+				false,
+				nil,
+				true,
+				"machine codes error: code = [Unknown] message = [#: Internal error VM resource: StatusCode=500]",
 			),
 		)
 	})
@@ -638,6 +1123,8 @@ var _ = Describe("MachineController", func() {
 				providerSpec *apis.AzureProviderSpec,
 				machineRequest *driver.ListMachinesRequest,
 				machineResponse *driver.ListMachinesResponse,
+				nextWithContextError bool,
+				vmListError *autorest.DetailedError,
 				errToHaveOccurred bool,
 				errMessage string,
 			) {
@@ -656,26 +1143,50 @@ var _ = Describe("MachineController", func() {
 				var (
 					ctx               = context.Background()
 					resourceGroupName = providerSpec.ResourceGroup
+					vmlr              compute.VirtualMachineListResultPage
 				)
 
-				vmlr := compute.NewVirtualMachineListResultPage(
-					compute.VirtualMachineListResult{
-						Value: &[]compute.VirtualMachine{
-							{
-								Name:     getStringPointer("dummy-machine"),
-								Location: getStringPointer("westeurope"),
+				if !nextWithContextError {
+					vmlr = compute.NewVirtualMachineListResultPage(
+						compute.VirtualMachineListResult{
+							Value: &[]compute.VirtualMachine{
+								{
+									Name:     getStringPointer("dummy-machine"),
+									Location: getStringPointer("westeurope"),
+								},
 							},
+							NextLink: getStringPointer(""),
 						},
-						NextLink: getStringPointer(""),
-					},
-					func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
-						return compute.VirtualMachineListResult{}, nil
-					},
-				)
+						func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
+							return compute.VirtualMachineListResult{}, nil
+						},
+					)
+				} else {
+					vmlr = compute.NewVirtualMachineListResultPage(
+						compute.VirtualMachineListResult{
+							Value: &[]compute.VirtualMachine{
+								{
+									Name:     getStringPointer("dummy-machine"),
+									Location: getStringPointer("westeurope"),
+								},
+							},
+							NextLink: getStringPointer(""),
+						},
+						func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
+							return compute.VirtualMachineListResult{}, fmt.Errorf("Error fetching the next Virtual Machine in the page")
+						},
+					)
+				}
 
-				fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
-					vmlr, nil,
-				)
+				if vmListError != nil {
+					fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
+						compute.VirtualMachineListResultPage{}, *vmListError,
+					)
+				} else {
+					fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
+						vmlr, nil,
+					)
+				}
 
 				response, err := mockDriver.ListMachines(ctx, machineRequest)
 
@@ -700,7 +1211,40 @@ var _ = Describe("MachineController", func() {
 					},
 				},
 				false,
+				nil,
+				false,
 				"",
+			),
+			Entry("#2 List machines with VM List error scenario",
+				&mock.AzureProviderSpec,
+				&driver.ListMachinesRequest{
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				false,
+				&autorest.DetailedError{
+					StatusCode: 500,
+					Message:    "Unknown resource group",
+					Response: &http.Response{
+						Status:     "Unknown",
+						StatusCode: 500,
+					},
+				},
+				true,
+				"machine codes error: code = [Unknown] message = [#: Unknown resource group: StatusCode=500]",
+			),
+			Entry("#3 List machines with VM List error scenario",
+				&mock.AzureProviderSpec,
+				&driver.ListMachinesRequest{
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				true,
+				nil,
+				true,
+				"Error fetching the next Virtual Machine in the page",
 			),
 		)
 	})
@@ -713,6 +1257,7 @@ var _ = Describe("MachineController", func() {
 				machineRequest *driver.GetMachineStatusRequest,
 				machineResponse *driver.GetMachineStatusResponse,
 				vmlr compute.VirtualMachineListResult,
+				vmListError *autorest.DetailedError,
 				errToHaveOccurred bool,
 				errMessage string,
 			) {
@@ -739,9 +1284,19 @@ var _ = Describe("MachineController", func() {
 						return compute.VirtualMachineListResult{}, nil
 					},
 				)
-				fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
-					vmlrp, nil,
-				)
+				// fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
+				// 	vmlrp, nil,
+				// )
+
+				if vmListError != nil {
+					fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
+						compute.VirtualMachineListResultPage{}, vmListError,
+					)
+				} else {
+					fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
+						vmlrp, nil,
+					)
+				}
 
 				response, err := mockDriver.GetMachineStatus(ctx, machineRequest)
 
@@ -774,6 +1329,7 @@ var _ = Describe("MachineController", func() {
 					},
 					NextLink: getStringPointer(""),
 				},
+				nil,
 				false,
 				"",
 			),
@@ -794,8 +1350,40 @@ var _ = Describe("MachineController", func() {
 					},
 					NextLink: getStringPointer(""),
 				},
+				nil,
 				true,
 				"machine codes error: code = [NotFound] message = [Machine 'dummy-machine' not found]",
+			),
+			Entry("#3 GetMachineStatus of machine with error while listing the machines",
+				&mock.AzureProviderSpec,
+				&driver.GetMachineStatusRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.GetMachineStatusResponse{
+					NodeName:   "dummy-machine",
+					ProviderID: "azure:///westeurope/dummy-machine",
+				},
+				compute.VirtualMachineListResult{
+					Value: &[]compute.VirtualMachine{
+						{
+							Name:     getStringPointer("dummy-machine"),
+							Location: getStringPointer("westeurope"),
+						},
+					},
+					NextLink: getStringPointer(""),
+				},
+				&autorest.DetailedError{
+					StatusCode: 500,
+					Message:    "Unknown error while listing machines",
+					Response: &http.Response{
+						Status:     "Unknown",
+						StatusCode: 500,
+					},
+				},
+				true,
+				"machine codes error: code = [Unknown] message = [#: Unknown error while listing machines: StatusCode=500]",
 			),
 		)
 	})
@@ -1112,8 +1700,8 @@ func UnmarshalNICFuture(bytesNICFuture []byte) network.InterfacesCreateOrUpdateF
 
 	nicFuture.Result = func(nic network.InterfacesClient) (network.Interface, error) {
 		return network.Interface{
-			ID: getStringPointer("/subscriptions/00d2caa5-cd29-46f7-845a-2f8ee0360ef5/resourceGroups/shoot--i538135--seed-az/" +
-				"providers/Microsoft.Network/networkInterfaces/shoot--i538135--seed-az-worker-m0exd-z2-b5bdd-vs2lt-nic"),
+			ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/" +
+				"providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-vs2lt-nic"),
 			Location: getStringPointer("westeurope"),
 		}, nil
 	}
@@ -1195,6 +1783,19 @@ func newMachine(name string) *v1alpha1.Machine {
 
 func newAzureMachineClass(azureProviderSpec apis.AzureProviderSpec) *v1alpha1.MachineClass {
 	byteData, _ := json.Marshal(azureProviderSpec)
+	return &v1alpha1.MachineClass{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: "default",
+		},
+		ProviderSpec: runtime.RawExtension{
+			Raw: byteData,
+		},
+	}
+}
+
+func newAzureMachineClassWithError() *v1alpha1.MachineClass {
+	byteData := []byte("{\"location\":\"westeurope\",\"properties\":{\"hardwareProfile\":{\"vmSize\":\"Standard_DS2_v2\"},\"osProfile\":{\"adminUsername\":\"core\",\"linuxConfiguration\":{\"disablePasswordAuthentication\":true,\"ssh\":{\"publicKeys\":{\"keyData\":\"dummy keyData\",\"path\":\"/home/core/.ssh/authorized_keys\"}}}},\"storageProfile\":{\"imageReference\":{\"urn\":\"sap:gardenlinux:greatest:27.1.0\"},\"osDisk\":{\"caching\":\"None\",\"createOption\":\"FromImage\",\"diskSizeGB\":50,\"managedDisk\":{\"storageAccountType\":\"Standard_LRS\"}}},\"zone\":2},\"resourceGroup\":\"shoot--i538135--seed-az\",\"subnetInfo\":{\"subnetName\":\"shoot--i538135--seed-az-nodes\",\"vnetName\":\"shoot--i538135--seed-az\"},\"tags\":{\"Name\":\"shoot--i538135--seed-az\",\"kubernetes.io-cluster-shoot--i538135--seed-az\":\"1\",\"kubernetes.io-role-mcm\":\"1\",\"node.kubernetes.io_role\"\"node\",\"worker.garden.sapcloud.io_group\":\"worker-m0exd\",\"worker.gardener.cloud_pool\":\"worker-m0exd\",\"worker.gardener.cloud_system-components\":\"true\"}}")
+
 	return &v1alpha1.MachineClass{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: "default",

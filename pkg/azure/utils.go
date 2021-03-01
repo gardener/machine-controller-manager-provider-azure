@@ -65,12 +65,7 @@ func getAzureDataDiskNames(azureDataDisks []api.AzureDataDisk, vmname, suffix st
 	azureDataDiskNames := make([]string, len(azureDataDisks))
 	for i, disk := range azureDataDisks {
 		var diskLun *int32
-		if disk.Lun != nil {
-			diskLun = disk.Lun
-		} else {
-			lun := int32(i)
-			diskLun = &lun
-		}
+		diskLun = disk.Lun
 		azureDataDiskNames[i] = dependencyNameFromVMNameAndDependency(getAzureDataDiskPrefix(disk.Name, diskLun), vmname, suffix)
 	}
 	return azureDataDiskNames
