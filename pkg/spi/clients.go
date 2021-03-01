@@ -4,7 +4,7 @@ SPDX-FileCopyrightText: 2020 SAP SE or an SAP affiliate company and Gardener con
 SPDX-License-Identifier: Apache-2.0
 */
 
-// Package spi implements the helper or auxilliary methods for AzureDriverClient
+// Package spi implements the auxilliary methods for AzureDriverClient
 package spi
 
 import (
