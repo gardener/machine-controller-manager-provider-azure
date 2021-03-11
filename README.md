@@ -5,23 +5,24 @@
 Out of tree (controller based) implementation for `Azure` as a new provider.
 
 ## About
-- The Azure Out Of Tree provider implements the interface defined at [MCM OOT driver](https://github.com/gardener/machine-controller-manager/blob/master/pkg/util/provider/driver/driver.go).
+The Azure Out Of Tree provider implements the interface defined at [MCM OOT driver](https://github.com/gardener/machine-controller-manager/blob/master/pkg/util/provider/driver/driver.go).
 
 ## Fundamental Design Principles:
-Following are the basic principles kept in mind while developing the external plugin.
+Following are the basic development principles for this external plugin:
 * Communication between this Machine Controller (MC) and Machine Controller Manager (MCM) is achieved using the Kubernetes native declarative approach.
 * Machine Controller (MC) behaves as the controller used to interact with the cloud provider Microsoft Azure and manage the VMs corresponding to the machine objects.
-* Machine Controller Manager (MCM) deals with higher level objects such as machine-set and machine-deployment objects.
+* Machine Controller Manager (MCM) deals with higher level objects such as `MachineSet` and `MachineDeployment` objects.
 
-## Support for a new provider
-- Steps to be followed while implementing/testing a new provider are mentioned [here](https://github.com/gardener/machine-controller-manager/blob/master/docs/development/cp_support_new.md)
-
-## Testing the Azure OOT
+## Usage of the Azure OOT
 
 1. Open terminal pointing to `$GOPATH/src/github.com/gardener`. Clone this repository. 
 
 2. Navigate to `$GOPATH/src/github.com/gardener/machine-controller-manager-provider-azure`. 
-    - In the `MAKEFILE` make sure `$TARGET_KUBECONFIG` points to the cluster where you wish to manage machines. `$CONTROL_NAMESPACE` represents the namespaces where MCM is looking for machine CR objects, and `$CONTROL_KUBECONFIG` points to the cluster which holds these machine CRs. 
+    - In the `MAKEFILE` make sure that 
+      - `$TARGET_KUBECONFIG` points to the kubeconfig file of the cluster where you wish to manage machines. This points to the shoot cluster in the context of Gardener.
+      - `$CONTROL_KUBECONFIG` points to the kubeconfig file of the cluster which holds these machine CRs. This points to the seed cluster in the context of Gardener.
+      - `$CONTROL_NAMESPACE` represents the namespaces where MCM is looking for machine CR objects. 
+
     - Run the machine controller (driver) using the command below.
         ```bash
         make start
@@ -44,27 +45,33 @@ Following are the basic principles kept in mind while developing the external pl
         make start
         ```
 4. On the third terminal pointing to `$GOPATH/src/github.com/gardener/machine-controller-manager-provider-azure`
-    - Fill in the object files given below and deploy them as described below.
-    - Deploy the `machine-class`
-        ```bash
-        kubectl apply -f kubernetes/machine-class.yaml
-        ```
-    - Deploy the `kubernetes secret` if required.
+
+    Fill in the object files given below and deploy them as described below:
+
+    - Deploy `kubernetes secret` for Azure.
         ```bash
         kubectl apply -f kubernetes/secret.yaml
         ```
-    - Deploy the `machine` object and make sure it joins the cluster successfully.
+    - Deploy `MachineClass`
+        ```bash
+        kubectl apply -f kubernetes/machine-class.yaml
+        ```
+    
+    - Deploy `Machine` object and make sure it joins the cluster successfully.
         ```bash
         kubectl apply -f kubernetes/machine.yaml
         ```
     - Once machine joins, you can test by deploying a machine-deployment.
-    - Deploy the `machine-deployment` object and make sure it joins the cluster successfully.
+
+    - Deploy the `MachineDeployment` object and make sure it joins the cluster successfully.
         ```bash
         kubectl apply -f kubernetes/machine-deployment.yaml
         ```
-    - Make sure to delete both the `machine` and `machine-deployment` object after use.
+    - Make sure to delete both the `Machine` and `MachineDeployment` object after use.
         ```bash
         kubectl delete -f kubernetes/machine.yaml
         kubectl delete -f kubernetes/machine-deployment.yaml
+        ```
 
-# THIS IS WORK IN PROGRESS 
+## Support for a new provider
+- Steps to be followed while implementing/testing a new provider are mentioned [here](https://github.com/gardener/machine-controller-manager/blob/master/docs/development/cp_support_new.md)

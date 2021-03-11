@@ -5,10 +5,10 @@
 apiVersion: machine.sapcloud.io/v1alpha1
 kind: Machine
 metadata:
-  name: test-machine
-  namespace: default
+  name: <machine-name>
+  namespace: <namespace-for-machine>
 spec:
   class:
     kind: MachineClass
-    name: test-mc
-    namespace: default
+    name: <machineclass-name>
+    namespace: <machineclass-namespace>

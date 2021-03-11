@@ -3,12 +3,50 @@
 # SPDX-License-Identifier: Apache-2.0
 
 apiVersion: machine.sapcloud.io/v1alpha1
+credentialsSecretRef: # cloud provider secret used by Gardener which MCM can use as an alternative
+  name: <secret-name>
+  namespace: <namespace-of-secret>
 kind: MachineClass
 metadata:
-  name: test-mc
-  namespace: default # Namespace where the controller would watch
+  name: <machineclass-name>
+  namespace: <machineclass namespace>
 providerSpec:
-  dummy-field: "provider-api based fields goes here"
-secretRef: # If required
-  name: test-secret
-  namespace: default # Namespace where the controller would watch
+  location: westeurope
+  properties:
+    hardwareProfile:
+      vmSize: Standard_DS2_v2
+    networkProfile:
+      networkInterfaces: {}
+    osProfile:
+      adminUsername: core
+      linuxConfiguration:
+        disablePasswordAuthentication: true
+        ssh:
+          publicKeys:
+            keyData: <SSH-RSA KEY>
+            path: <path to the rsa-ssh key>
+    storageProfile:
+      imageReference:
+        urn: sap:gardenlinux:greatest:184.0.0
+      osDisk:
+        caching: None
+        createOption: FromImage
+        diskSizeGB: 50
+        managedDisk:
+          storageAccountType: <eg:Standard_LRS>
+    zone: 2
+  resourceGroup: <resource-group-name>
+  subnetInfo:
+    subnetName: <subnet-name>
+    vnetName: <vnet-name>
+  tags:
+    Name: <name>
+    kubernetes.io-cluster-<name>: "1"
+    kubernetes.io-role-node: "1"
+    node.kubernetes.io_role: node
+    worker.garden.sapcloud.io_group: <worker-group-name>
+    worker.gardener.cloud_pool: <worker-group-name>
+    worker.gardener.cloud_system-components: "true"
+secretRef:
+  name: <secret-name>
+  namespace: <namespace-of-secret>
