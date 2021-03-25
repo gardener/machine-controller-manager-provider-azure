@@ -8,6 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 package mock
 
 import (
+	"context"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
@@ -100,10 +101,12 @@ func (clients *AzureDriverClients) GetClient() autorest.Client {
 
 //PluginSPIImpl is the mock implementation of PluginSPIImpl
 type PluginSPIImpl struct {
-	AzureProviderSpec  *api.AzureProviderSpec
-	Secret             *corev1.Secret
-	Controller         *gomock.Controller
-	azureDriverClients *AzureDriverClients
+	AzureProviderSpec          *api.AzureProviderSpec
+	Secret                     *corev1.Secret
+	Controller                 *gomock.Controller
+	azureDriverClients         *AzureDriverClients
+	subresourceRetryContext    context.Context
+	subresourceRetryCancelFunc context.CancelFunc
 }
 
 // NewMockPluginSPIImpl ...

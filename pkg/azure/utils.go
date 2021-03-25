@@ -22,8 +22,9 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
+	spi "github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	backoff "github.com/gardener/machine-controller-manager/pkg/util/backoff"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
@@ -33,17 +34,27 @@ import (
 	"k8s.io/klog"
 )
 
+// constant suffixes
 const (
 	nicSuffix      = "-nic"
 	diskSuffix     = "-os-disk"
 	dataDiskSuffix = "-data-disk"
 )
 
+// constant services
 const (
 	prometheusServiceSubnet = "subnet"
 	prometheusServiceVM     = "virtual_machine"
 	prometheusServiceNIC    = "network_interfaces"
 	prometheusServiceDisk   = "disks"
+)
+
+// constant intervals for backoff/retry mechanism
+const (
+	intialInterval     = 10 * time.Second
+	maxInterval        = 2 * time.Minute
+	maxElapsedTime     = 10 * time.Minute
+	nicDeletionTimeout = 10 * time.Minute
 )
 
 func dependencyNameFromVMName(vmName, suffix string) string {
@@ -307,6 +318,9 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	/*
 		Subnet fetching
 	*/
+
+	klog.V(3).Infof("Fetching subnet details for VM %q", vmName)
+
 	// Getting the subnet object for subnetName
 	subnet, err := clients.GetSubnet().Get(
 		ctx,
@@ -320,48 +334,71 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	}
 	OnARMAPISuccess(prometheusServiceSubnet, "subnet.Get")
 
-	/*
-		NIC creation
-	*/
-
-	// Creating NICParameters for new NIC creation request
-	NICParameters := d.getNICParameters(vmName, &subnet)
-
-	// NIC creation request
-	NICFuture, err := clients.GetNic().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters)
+	NIC, err := clients.GetNic().Get(ctx, resourceGroupName, nicName, "")
 	if err != nil {
-		// Since machine creation failed, delete any infra resources created
-		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
-		if deleteErr != nil {
-			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+
+		if isResourceNotFoundError(err) {
+
+			/*
+				NIC creation
+			*/
+
+			// Creating NICParameters for new NIC creation request
+			NICParameters := d.getNICParameters(vmName, &subnet)
+
+			// NIC creation request
+			klog.V(3).Infof("NIC creation started for %q", nicName)
+
+			NICFuture, err := clients.GetNic().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name, NICParameters)
+			if err != nil {
+				// Since machine creation failed, delete any infra resources created
+				deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+				if deleteErr != nil {
+					klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+				}
+
+				return nil, OnARMAPIErrorFail(prometheusServiceNIC, err, "NIC.CreateOrUpdate failed for %s", *NICParameters.Name)
+			}
+
+			// Wait until NIC is created
+			err = NICFuture.WaitForCompletionRef(ctx, clients.GetClient())
+			if err != nil {
+				// Since machine creation failed, delete any infra resources created
+				deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+				if deleteErr != nil {
+					klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+				}
+
+				return nil, OnARMAPIErrorFail(prometheusServiceNIC, err, "NIC.WaitForCompletionRef failed for %s", *NICParameters.Name)
+			}
+			OnARMAPISuccess(prometheusServiceNIC, "NIC.CreateOrUpdate")
+
+			// Fetch NIC details
+			NIC, err = NICFuture.Result(clients.GetNicImpl())
+			if err != nil {
+				// Since machine creation failed, delete any infra resources created
+				deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+				if deleteErr != nil {
+					klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+				}
+
+				return nil, err
+			}
+			klog.V(3).Infof("NIC creation was successful for %q", nicName)
+		} else {
+			// Get on NIC returns a non 404 error. Exiting creation with the error.
+
+			// Since machine creation failed, delete any infra resources created
+			deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
+			if deleteErr != nil {
+				klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
+			}
+
+			return nil, OnARMAPIErrorFail(prometheusServiceNIC, err, "NIC.Get failed for %s", nicName)
 		}
 
-		return nil, OnARMAPIErrorFail(prometheusServiceNIC, err, "NIC.CreateOrUpdate failed for %s", *NICParameters.Name)
-	}
-
-	// Wait until NIC is created
-	err = NICFuture.WaitForCompletionRef(ctx, clients.GetClient())
-	if err != nil {
-		// Since machine creation failed, delete any infra resources created
-		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
-		if deleteErr != nil {
-			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
-		}
-
-		return nil, OnARMAPIErrorFail(prometheusServiceNIC, err, "NIC.WaitForCompletionRef failed for %s", *NICParameters.Name)
-	}
-	OnARMAPISuccess(prometheusServiceNIC, "NIC.CreateOrUpdate")
-
-	// Fetch NIC details
-	NIC, err := NICFuture.Result(clients.GetNicImpl())
-	if err != nil {
-		// Since machine creation failed, delete any infra resources created
-		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
-		if deleteErr != nil {
-			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
-		}
-
-		return nil, err
+	} else {
+		klog.V(3).Infof("Found existing NIC with matching name, hence adopting NIC with name %q", nicName)
 	}
 
 	/*
@@ -443,6 +480,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	VMParameters := d.getVMParameters(vmName, vmImageRef, *NIC.ID)
 
 	// VM creation request
+	klog.V(3).Infof("VM creation began for %q", vmName)
 	VMFuture, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
 	if err != nil {
 		//Since machine creation failed, delete any infra resources created
@@ -454,6 +492,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 		return nil, OnARMAPIErrorFail(prometheusServiceVM, err, "GetVM().CreateOrUpdate failed for %s", *VMParameters.Name)
 	}
 	// Wait until VM is created
+	klog.V(3).Infof("Waiting for VM create call completion for %q", vmName)
 	err = VMFuture.WaitForCompletionRef(ctx, clients.GetClient())
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
@@ -478,6 +517,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	}
 
 	OnARMAPISuccess(prometheusServiceVM, "VM.CreateOrUpdate")
+	klog.V(3).Infof("VM has been created succesfully for %q", vmName)
 
 	return &VM, nil
 }
@@ -616,16 +656,35 @@ func FetchAttachedVMfromNIC(ctx context.Context, clients spi.AzureDriverClientsI
 
 // DeleteNIC function deletes the attached Network Interface Card
 func DeleteNIC(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, nicName string) error {
+
 	klog.V(2).Infof("NIC delete started for %q", nicName)
 	defer klog.V(2).Infof("NIC deleted for %q", nicName)
 
-	future, err := clients.GetNic().Delete(ctx, resourceGroupName, nicName)
+	nicDeletionCtx, cancel := context.WithTimeout(ctx, nicDeletionTimeout)
+	defer cancel()
+
+	future, err := clients.GetNic().Delete(nicDeletionCtx, resourceGroupName, nicName)
 	if err != nil {
 		return OnARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
 	}
-	if err := future.WaitForCompletionRef(ctx, clients.GetClient()); err != nil {
+
+	err = future.WaitForCompletionRef(ctx, clients.GetClient())
+	if err != nil {
 		return OnARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
 	}
+
+	err = backoff.WaitUntil(
+		ctx,
+		intialInterval,
+		maxInterval,
+		maxElapsedTime,
+		checkNICStatus(ctx, clients, resourceGroupName, nicName, false),
+	)
+
+	if err != nil {
+		return OnARMAPIErrorFail(prometheusServiceNIC, err, "nic.Delete")
+	}
+
 	OnARMAPISuccess(prometheusServiceNIC, "NIC deletion was successful for %s", nicName)
 	return nil
 }
@@ -775,8 +834,53 @@ func OnARMAPISuccess(prometheusService string, format string, v ...interface{}) 
 	PrometheusSuccess(prometheusService)
 }
 
-// NotFound ...
+// NotFound function return True if the http response error denotes the Not Found Status
 func NotFound(err error) bool {
 	isDetailedError, _, detailedError := RetrieveRequestID(err)
 	return isDetailedError && detailedError.Response.StatusCode == 404
+}
+
+func checkNICStatus(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, nicName string, shouldExist bool) func() error {
+	return func() error {
+
+		klog.Errorf("\n\nCOMES HERE %v %s %s\n\n", ctx, resourceGroupName, nicName)
+		nic, err := clients.GetNic().Get(ctx, resourceGroupName, nicName, "")
+		klog.Errorf("\n\nError is %s\n\n", err)
+
+		// Case-1: If NIC should exist, check below if condition
+		if shouldExist {
+			if err == nil && nic.ID != nil {
+				// NIC exists
+				return nil
+			}
+
+			klog.V(4).Infof("NIC %q does not exist", nicName)
+			return fmt.Errorf("NIC %q does not exist", nicName)
+		}
+
+		// Case-2: If NIC should not exist, check below condition
+		if err != nil && isResourceNotFoundError(err) {
+			// NIC doesn't exist, hence deletion is successful
+			return nil
+		}
+
+		klog.V(4).Infof("NIC %q exists", nicName)
+		return fmt.Errorf("NIC %q exists", nicName)
+	}
+}
+
+// isResourceNotFoundError returns true when resource is not found at provider
+func isResourceNotFoundError(err error) bool {
+	const (
+		resourceNotFoundStatusCode = "404"
+	)
+
+	if e, ok := err.(autorest.DetailedError); ok {
+		statusCode := fmt.Sprintf("%v", e.StatusCode)
+		if statusCode == resourceNotFoundStatusCode {
+			return true
+		}
+	}
+
+	return false
 }

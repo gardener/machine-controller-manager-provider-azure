@@ -80,7 +80,7 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 	d.Secret = req.Secret
 	virtualMachine, err := d.createVMNicDisk(req)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	providerID := encodeMachineID(*virtualMachine.Location, *virtualMachine.Name)
@@ -107,7 +107,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 
 	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	d.AzureProviderSpec = providerSpec
 	d.Secret = req.Secret
@@ -122,7 +122,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 
 	clients, err := d.SPI.Setup(d.Secret)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// Check if the underlying resource group still exists. If not, skip the deletion, as all resources are gone.
@@ -130,7 +130,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 		if NotFound(err) {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
-		return nil, status.Error(codes.Unknown, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	if providerSpec.Properties.StorageProfile.DataDisks != nil && len(providerSpec.Properties.StorageProfile.DataDisks) > 0 {
@@ -139,7 +139,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 
 	err = d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &driver.DeleteMachineResponse{}, nil
@@ -215,12 +215,12 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 
 	clients, err := d.SPI.Setup(req.Secret)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	result, err = clients.GetVM().List(ctx, resourceGroupName)
 	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	items = append(items, result.Values()...)

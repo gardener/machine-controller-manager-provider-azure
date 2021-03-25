@@ -54,16 +54,16 @@ func getIntPointer(i int) *int {
 }
 
 var (
-	errorPrefix = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validat" +
+	errorPrefix = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Error while validat" +
 		"ing ProviderSpec [%s]]]"
 
-	secretError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while validat" +
+	secretError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Error while validat" +
 		"ing ProviderSpec [secret %s or %s is required field]]]"
 
-	providerSpecError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Error while v" +
+	providerSpecError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Error while v" +
 		"alidating ProviderSpec [%s is required field]]]"
 
-	providerSpecSubnetInfoError = "machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [Err" +
+	providerSpecSubnetInfoError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Err" +
 		"or while validating ProviderSpec [%s is a required subnet info]]]"
 )
 
@@ -126,6 +126,7 @@ var _ = Describe("MachineController", func() {
 				machineResponse *driver.CreateMachineResponse,
 				getSubnetError *autorest.DetailedError,
 				nicCreateOrUpdateError *autorest.DetailedError,
+				nicGetError *autorest.DetailedError,
 				vmCreateOrUpdateError *autorest.DetailedError,
 				errToHaveOccurred bool,
 				errMessage string,
@@ -137,6 +138,7 @@ var _ = Describe("MachineController", func() {
 					vnetName          = providerSpec.SubnetInfo.VnetName
 					subnetName        = providerSpec.SubnetInfo.SubnetName
 					vmImageRef        *compute.VirtualMachineImage
+					nicName           = dependencyNameFromVMName(vmName, nicSuffix)
 				)
 
 				// Create the mock controller and the mock clients
@@ -224,6 +226,17 @@ var _ = Describe("MachineController", func() {
 
 				NICParameters := mockDriver.getNICParameters(vmName, &subnet)
 
+				if nicGetError != nil {
+					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, nicName, "").Return(network.Interface{}, *nicGetError)
+				} else {
+					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, nicName, "").Return(network.Interface{}, autorest.DetailedError{
+						Response: &http.Response{
+							StatusCode: 404,
+						},
+						StatusCode: 404,
+					})
+				}
+
 				if nicCreateOrUpdateError != nil {
 					fakeClients.NIC.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name,
 						NICParameters).Return(network.InterfacesCreateOrUpdateFuture{}, *nicCreateOrUpdateError)
@@ -277,12 +290,6 @@ var _ = Describe("MachineController", func() {
 
 				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(DisksFutureAPI, nil)
 
-				fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{
-					InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
-						VirtualMachine: nil,
-					},
-				}, nil)
-
 				InterfacesFutureAPI := UnmarshalInterfacesDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation" +
 					"\",\"pollingURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Micros" +
 					"oft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState" +
@@ -291,9 +298,6 @@ var _ = Describe("MachineController", func() {
 					"bdd-nnjnn?api-version=2020-06-01\"}"))
 
 				fakeClients.NIC.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic").Return(InterfacesFutureAPI, nil)
-
-				NICId := "/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/providers/Microsoft.Net" +
-					"work/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-vs2lt-nic"
 
 				vmImageRef = &compute.VirtualMachineImage{
 					Name: mockDriver.AzureProviderSpec.Properties.StorageProfile.ImageReference.URN,
@@ -311,10 +315,27 @@ var _ = Describe("MachineController", func() {
 					*imageRef.Version,
 				).Return(*vmImageRef, nil)
 
+				NICId := "/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/providers/Microsoft.Net" +
+					"work/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-vs2lt-nic"
+
 				if vmCreateOrUpdateError != nil {
+
+					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, nicName, "").Return(network.Interface{}, autorest.DetailedError{
+						Response: &http.Response{
+							StatusCode: 404,
+						},
+						StatusCode: 404,
+					})
 					VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
 					fakeClients.VM.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters).Return(compute.VirtualMachinesCreateOrUpdateFuture{}, *vmCreateOrUpdateError)
 				} else {
+
+					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, nicName, "").Return(network.Interface{}, autorest.DetailedError{
+						Response: &http.Response{
+							StatusCode: 404,
+						},
+						StatusCode: 404,
+					})
 					VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
 					fakeClients.VM.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters).Return(VMFutureAPI, nil)
 				}
@@ -347,6 +368,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				false,
 				"",
 			),
@@ -357,6 +379,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
 					Secret:       newSecret(azureProviderSecretWithoutazureClientID),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -375,6 +398,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(secretError, "azureClientSecret", "clientSecret").Error(),
 			),
@@ -385,6 +409,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
 					Secret:       newSecret(azureProviderSecretWithoutazureTenantID),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -403,6 +428,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(secretError, "azureSubscriptionId", "subscriptionID").Error(),
 			),
@@ -413,6 +439,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
 					Secret:       newSecret(azureProviderSecretWithoutUserData),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -431,6 +458,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(providerSpecError, "Region").Error(),
 			),
@@ -441,6 +469,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutResourceGroup),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -459,6 +488,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(providerSpecSubnetInfoError, "VnetName").Error(),
 			),
@@ -469,6 +499,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutSubnetName),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -487,6 +518,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(providerSpecError, "VMSize").Error(),
 			),
@@ -497,6 +529,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithImproperImageURN),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -515,6 +548,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.storageProfile.osDisk.diskSizeGB: Required value: OSDisk size must be positive").Error(),
 			),
@@ -525,6 +559,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithoutOSDiskCreateOption),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -543,6 +578,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.osProfile.adminUsername: Required value: AdminUsername is required").Error(),
 			),
@@ -553,6 +589,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithNegativeDataDiskSize),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -571,6 +608,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].lun: Required value: DataDisk Lun is required").Error(),
 			),
@@ -581,6 +619,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithImproperLUN),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -600,6 +639,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].storageAccountType: Required value: DataDisk storage account type is required").Error(),
 			),
@@ -610,6 +650,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithDuplicatedLUN),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -628,6 +669,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.zone|.machineSet|.availabilitySet: Forbidden: Machine need to be assigned to a zone, a MachineSet or an AvailabilitySet").Error(),
 			),
@@ -638,6 +680,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithZMA),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -656,6 +699,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "properties.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned a MachineSet and an AvailabilitySet in parallel").Error(),
 			),
@@ -666,6 +710,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithInvalidMachineSet),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -684,6 +729,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
 				fmt.Errorf(errorPrefix, "providerSpec.kubernetes.io-cluster-: Required value: Tag required of the form kubernetes.io-cluster-****").Error(),
 			),
@@ -694,6 +740,7 @@ var _ = Describe("MachineController", func() {
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithEmptyNodeRoleTag),
 					Secret:       newSecret(azureProviderSecret),
 				},
+				nil,
 				nil,
 				nil,
 				nil,
@@ -711,16 +758,17 @@ var _ = Describe("MachineController", func() {
 				nil,
 				&autorest.DetailedError{
 					StatusCode: 500,
-					Message:    "Unknown error while fetching the Subnet data",
+					Message:    "Internal error while fetching the Subnet data",
 					Response: &http.Response{
-						Status:     "Unknown",
+						Status:     "Internal",
 						StatusCode: 500,
 					},
 				},
 				nil,
 				nil,
+				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [#: Unknown error while fetching the Subnet data: StatusCode=500]",
+				"machine codes error: code = [Internal] message = [#: Internal error while fetching the Subnet data: StatusCode=500]",
 			),
 			Entry("#28 Create a simple machine with nicCreateOrUpdate Error",
 				&mock.AzureProviderSpec,
@@ -733,15 +781,16 @@ var _ = Describe("MachineController", func() {
 				nil,
 				&autorest.DetailedError{
 					StatusCode: 500,
-					Message:    "Unknown error while Creating/Updating NIC",
+					Message:    "Internal error while Creating/Updating NIC",
 					Response: &http.Response{
-						Status:     "Unknown",
+						Status:     "Internal",
 						StatusCode: 500,
 					},
 				},
 				nil,
+				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [#: Unknown error while Creating/Updating NIC: StatusCode=500]",
+				"machine codes error: code = [Internal] message = [#: Internal error while Creating/Updating NIC: StatusCode=500]",
 			),
 			Entry("#29 Create a simple machine with unmarshalling error on providerSpec",
 				&mock.AzureProviderSpec,
@@ -754,8 +803,9 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [machine codes error: code = [Internal] message = [invalid character '\"' after object key]]",
+				"machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [invalid character '\"' after object key]]",
 			),
 			Entry("#30 Create a simple machine with vmCreateOrUpdate Error",
 				&mock.AzureProviderSpec,
@@ -767,16 +817,39 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				nil,
+				nil,
 				&autorest.DetailedError{
 					StatusCode: 500,
-					Message:    "Unknown error while Creating/Updating VM",
+					Message:    "Internal error while Creating/Updating VM",
 					Response: &http.Response{
-						Status:     "Unknown",
+						Status:     "Internal",
 						StatusCode: 500,
 					},
 				},
 				true,
-				"machine codes error: code = [Unknown] message = [#: Unknown error while Creating/Updating VM: StatusCode=500]",
+				"machine codes error: code = [Internal] message = [#: Internal error while Creating/Updating VM: StatusCode=500]",
+			),
+			Entry("#31 Create a simple machine with nicGet() Internal Error",
+				&mock.AzureProviderSpec,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				nil,
+				nil,
+				nil,
+				&autorest.DetailedError{
+					StatusCode: 500,
+					Message:    "Internal error while fetching NIC details",
+					Response: &http.Response{
+						Status:     "Internal",
+						StatusCode: 500,
+					},
+				},
+				nil,
+				true,
+				"machine codes error: code = [Internal] message = [#: Internal error while fetching NIC details: StatusCode=500]",
 			),
 		)
 	})
@@ -887,12 +960,16 @@ var _ = Describe("MachineController", func() {
 				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(DisksFutureAPI, nil)
 				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(DisksFutureAPI, nil)
 
+				NICId := "/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/providers/Microsoft.Net" +
+					"work/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-vs2lt-nic"
+
 				if !attachedNIC {
 
 					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{
 						InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
 							VirtualMachine: nil,
 						},
+						ID: &NICId,
 					}, nil)
 				} else {
 
@@ -912,7 +989,14 @@ var _ = Describe("MachineController", func() {
 					"ourceGroups/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5" +
 					"bdd-nnjnn?api-version=2020-06-01\"}"))
 
-				fakeClients.NIC.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic").Return(InterfacesFutureAPI, nil)
+				fakeClients.NIC.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-nic").Return(InterfacesFutureAPI, nil)
+
+				fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{}, autorest.DetailedError{
+					StatusCode: 404,
+					Response: &http.Response{
+						StatusCode: 404,
+					},
+				})
 
 				// if there is no variation in the machine class (various scenarios) call the
 				// machineRequest.MachineClass = newAzureMachineClass(providerSpec)
@@ -962,7 +1046,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [Cannot delete NIC dummy-machine-nic because it is attached to VM dummy-"+
+				"machine codes error: code = [Internal] message = [Cannot delete NIC dummy-machine-nic because it is attached to VM dummy-"+
 					"machine-id]",
 			),
 
@@ -982,7 +1066,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [Cannot delete disk dummy-machine-os-disk because it is attached to VM d"+
+				"machine codes error: code = [Internal] message = [Cannot delete disk dummy-machine-os-disk because it is attached to VM d"+
 					"ummy-machine-id]",
 			),
 
@@ -1002,7 +1086,7 @@ var _ = Describe("MachineController", func() {
 				true,
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [Cannot delete disk dummy-machine-"+
+				"machine codes error: code = [Internal] message = [Cannot delete disk dummy-machine-"+
 					fmt.Sprintf("%d", *mock.AzureProviderSpecWithDataDisks.Properties.StorageProfile.DataDisks[0].Lun)+"-data-disk because"+
 					" it is attached to VM dummy-machine-id]",
 			),
@@ -1023,7 +1107,7 @@ var _ = Describe("MachineController", func() {
 				true,
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [Cannot delete disk dummy-machine-"+
+				"machine codes error: code = [Internal] message = [Cannot delete disk dummy-machine-"+
 					fmt.Sprintf("%s-%d", mock.AzureProviderSpecWithDataDisksWithName.Properties.StorageProfile.DataDisks[0].Name,
 						*mock.AzureProviderSpecWithDataDisksWithName.Properties.StorageProfile.DataDisks[0].Lun)+
 					"-data-disk because it is attached to VM dummy-machine-id]",
@@ -1068,7 +1152,7 @@ var _ = Describe("MachineController", func() {
 				true,
 				"machine codes error: code = [NotFound] message = [#: Resource Group not found: StatusCode=404]",
 			),
-			Entry("#8 Delete a machine where group returns an unknown error",
+			Entry("#8 Delete a machine where group returns an Internal error",
 				&mock.AzureProviderSpec,
 				&driver.DeleteMachineRequest{
 					Machine:      newMachine("dummy-machine"),
@@ -1082,14 +1166,14 @@ var _ = Describe("MachineController", func() {
 				false,
 				&autorest.DetailedError{
 					StatusCode: 500,
-					Message:    "Unknown error with Resource group",
+					Message:    "Internal error with Resource group",
 					Response: &http.Response{
-						Status:     "Unknown",
+						Status:     "Internal",
 						StatusCode: 500,
 					},
 				},
 				true,
-				"machine codes error: code = [Unknown] message = [#: Unknown error with Resource group: StatusCode=500]",
+				"machine codes error: code = [Internal] message = [#: Internal error with Resource group: StatusCode=500]",
 			),
 			Entry("#9 Delete a machine where getVM has internal error",
 				&mock.AzureProviderSpec,
@@ -1112,7 +1196,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				nil,
 				true,
-				"machine codes error: code = [Unknown] message = [#: Internal error VM resource: StatusCode=500]",
+				"machine codes error: code = [Internal] message = [#: Internal error VM resource: StatusCode=500]",
 			),
 		)
 	})
@@ -1226,14 +1310,14 @@ var _ = Describe("MachineController", func() {
 				false,
 				&autorest.DetailedError{
 					StatusCode: 500,
-					Message:    "Unknown resource group",
+					Message:    "Internal resource group",
 					Response: &http.Response{
-						Status:     "Unknown",
+						Status:     "Internal",
 						StatusCode: 500,
 					},
 				},
 				true,
-				"machine codes error: code = [Unknown] message = [#: Unknown resource group: StatusCode=500]",
+				"machine codes error: code = [Internal] message = [#: Internal resource group: StatusCode=500]",
 			),
 			Entry("#3 List machines with VM List error scenario",
 				&mock.AzureProviderSpec,
@@ -1377,14 +1461,14 @@ var _ = Describe("MachineController", func() {
 				},
 				&autorest.DetailedError{
 					StatusCode: 500,
-					Message:    "Unknown error while listing machines",
+					Message:    "Internal error while listing machines",
 					Response: &http.Response{
-						Status:     "Unknown",
+						Status:     "Internal",
 						StatusCode: 500,
 					},
 				},
 				true,
-				"machine codes error: code = [Unknown] message = [#: Unknown error while listing machines: StatusCode=500]",
+				"machine codes error: code = [Internal] message = [#: Internal error while listing machines: StatusCode=500]",
 			),
 		)
 	})
@@ -1795,7 +1879,7 @@ func newAzureMachineClass(azureProviderSpec apis.AzureProviderSpec) *v1alpha1.Ma
 }
 
 func newAzureMachineClassWithError() *v1alpha1.MachineClass {
-	byteData := []byte("{\"location\":\"westeurope\",\"properties\":{\"hardwareProfile\":{\"vmSize\":\"Standard_DS2_v2\"},\"osProfile\":{\"adminUsername\":\"core\",\"linuxConfiguration\":{\"disablePasswordAuthentication\":true,\"ssh\":{\"publicKeys\":{\"keyData\":\"dummy keyData\",\"path\":\"/home/core/.ssh/authorized_keys\"}}}},\"storageProfile\":{\"imageReference\":{\"urn\":\"sap:gardenlinux:greatest:27.1.0\"},\"osDisk\":{\"caching\":\"None\",\"createOption\":\"FromImage\",\"diskSizeGB\":50,\"managedDisk\":{\"storageAccountType\":\"Standard_LRS\"}}},\"zone\":2},\"resourceGroup\":\"shoot--i538135--seed-az\",\"subnetInfo\":{\"subnetName\":\"shoot--i538135--seed-az-nodes\",\"vnetName\":\"shoot--i538135--seed-az\"},\"tags\":{\"Name\":\"shoot--i538135--seed-az\",\"kubernetes.io-cluster-shoot--i538135--seed-az\":\"1\",\"kubernetes.io-role-mcm\":\"1\",\"node.kubernetes.io_role\"\"node\",\"worker.garden.sapcloud.io_group\":\"worker-m0exd\",\"worker.gardener.cloud_pool\":\"worker-m0exd\",\"worker.gardener.cloud_system-components\":\"true\"}}")
+	byteData := []byte("{\"location\":\"westeurope\",\"properties\":{\"hardwareProfile\":{\"vmSize\":\"Standard_DS2_v2\"},\"osProfile\":{\"adminUsername\":\"core\",\"linuxConfiguration\":{\"disablePasswordAuthentication\":true,\"ssh\":{\"publicKeys\":{\"keyData\":\"dummy keyData\",\"path\":\"/home/core/.ssh/authorized_keys\"}}}},\"storageProfile\":{\"imageReference\":{\"urn\":\"sap:gardenlinux:greatest:27.1.0\"},\"osDisk\":{\"caching\":\"None\",\"createOption\":\"FromImage\",\"diskSizeGB\":50,\"managedDisk\":{\"storageAccountType\":\"Standard_LRS\"}}},\"zone\":2},\"resourceGroup\":\"shoot--project--seed-az\",\"subnetInfo\":{\"subnetName\":\"shoot--project--seed-az-nodes\",\"vnetName\":\"shoot--project--seed-az\"},\"tags\":{\"Name\":\"shoot--project--seed-az\",\"kubernetes.io-cluster-shoot--project--seed-az\":\"1\",\"kubernetes.io-role-mcm\":\"1\",\"node.kubernetes.io_role\"\"node\",\"worker.garden.sapcloud.io_group\":\"worker-m0exd\",\"worker.gardener.cloud_pool\":\"worker-m0exd\",\"worker.gardener.cloud_system-components\":\"true\"}}")
 
 	return &v1alpha1.MachineClass{
 		ObjectMeta: v1.ObjectMeta{

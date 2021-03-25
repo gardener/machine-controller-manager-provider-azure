@@ -22,8 +22,8 @@ func getInt32Pointer(i int32) *int32 {
 }
 
 var tags = map[string]string{
-	"Name": "shoot--i538135--seed-az",
-	"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
+	"Name": "shoot--project--seed-az",
+	"kubernetes.io-cluster-shoot--project--seed-az": "1",
 	"kubernetes.io-role-mcm":                        "1",
 	"node.kubernetes.io_role":                       "node",
 	"worker.garden.sapcloud.io_group":               "worker-m0exd",
@@ -74,10 +74,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -117,10 +117,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -161,8 +161,8 @@ var (
 		},
 		ResourceGroup: "",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -201,10 +201,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
 			VnetName:   "",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -244,9 +244,9 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
+			VnetName:   "shoot--project--seed-az",
 			SubnetName: "",
 		},
 		Tags: tags,
@@ -287,10 +287,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -330,10 +330,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -373,10 +373,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -414,10 +414,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -457,10 +457,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -500,10 +500,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -549,10 +549,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -598,10 +598,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -647,10 +647,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -696,10 +696,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -750,10 +750,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -800,10 +800,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -843,10 +843,10 @@ var (
 			},
 			Zone: nil,
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -893,10 +893,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -943,10 +943,10 @@ var (
 			},
 			Zone: nil,
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -991,10 +991,10 @@ var (
 			},
 			Zone: nil,
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -1034,10 +1034,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: map[string]string{
 			"Name":                                    "",
@@ -1085,14 +1085,14 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: map[string]string{
-			"Name": "shoot--i538135--seed-az",
-			"kubernetes.io-cluster-shoot--i538135--seed-az": "1",
+			"Name": "shoot--project--seed-az",
+			"kubernetes.io-cluster-shoot--project--seed-az": "1",
 			"node.kubernetes.io_role":                       "",
 			"worker.garden.sapcloud.io_group":               "worker-m0exd",
 			"worker.gardener.cloud_pool":                    "worker-m0exd",
@@ -1141,10 +1141,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
@@ -1191,10 +1191,10 @@ var (
 			},
 			Zone: getZone(2),
 		},
-		ResourceGroup: "shoot--i538135--seed-az",
+		ResourceGroup: "shoot--project--seed-az",
 		SubnetInfo: api.AzureSubnetInfo{
-			VnetName:   "shoot--i538135--seed-az",
-			SubnetName: "shoot--i538135--seed-az-nodes",
+			VnetName:   "shoot--project--seed-az",
+			SubnetName: "shoot--project--seed-az-nodes",
 		},
 		Tags: tags,
 	}
