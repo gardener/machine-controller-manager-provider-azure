@@ -40,7 +40,7 @@ Following are the basic development principles for this external plugin:
         ```bash
         kubectl apply -f kubernetes/crds.yaml
         ```
-    - Run the machine-controller-manager in the `cmi-client` branch
+    - Run the machine-controller-manager
         ```bash
         make start
         ```
