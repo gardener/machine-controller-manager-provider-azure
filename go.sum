@@ -76,6 +76,8 @@ github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWo
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/gardener/machine-controller-manager v0.37.0 h1:am2FNCmBNQyNwsagsqH/tEYdDADzPH5a0UCClX3V6JA=
 github.com/gardener/machine-controller-manager v0.37.0/go.mod h1:Be9VDEXC8fF62inu5kyq5pnzmBmaJOczDMYFQdhGDWk=
+github.com/gardener/machine-controller-manager v0.38.0 h1:87rUGuss/8qmNM4XAfgw//u325qpthZe3kx1LkLd7Yk=
+github.com/gardener/machine-controller-manager v0.38.0/go.mod h1:ZCAylEQMDmaYX/C72aaSQZ0QknwXeVvTnujU5a/Rdq4=
 github.com/ghodss/yaml v0.0.0-20150909031657-73d445a93680/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/go-logr/logr v0.1.0/go.mod h1:ixOQHD9gLJUVQQ2ZOR7zLEifBX6tGkNJF4QyIY7sIas=
 github.com/go-openapi/jsonpointer v0.0.0-20160704185906-46af16f9f7b1/go.mod h1:+35s3my2LFTysnkMfxsJBAMHj/DoqoB9knIWoYG/Vk0=
