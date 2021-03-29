@@ -131,15 +131,7 @@ var _ = Describe("MachineController", func() {
 				errToHaveOccurred bool,
 				errMessage string,
 			) {
-				var (
-					ctx               = context.Background()
-					vmName            = strings.ToLower(machineRequest.Machine.Name)
-					resourceGroupName = providerSpec.ResourceGroup
-					vnetName          = providerSpec.SubnetInfo.VnetName
-					subnetName        = providerSpec.SubnetInfo.SubnetName
-					vmImageRef        *compute.VirtualMachineImage
-					nicName           = dependencyNameFromVMName(vmName, nicSuffix)
-				)
+				var ctx = context.Background()
 
 				// Create the mock controller and the mock clients
 				controller := gomock.NewController(GinkgoT())
@@ -153,192 +145,11 @@ var _ = Describe("MachineController", func() {
 				// Define all the client expectations here and then proceed with the function call
 				fakeClients := mockDriverClients.(*mock.AzureDriverClients)
 
-				subnet := network.Subnet{
-					ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/provide" +
-						"rs/Microsoft.Network/virtualNetworks/dummy-resource-group/subnets/dummy-resource-group-nodes"),
-					Name: getStringPointer("dummy-resource-group-nodes"),
-					SubnetPropertiesFormat: &network.SubnetPropertiesFormat{
-						AddressPrefix: getStringPointer("10.250.0.0/16"),
-						NetworkSecurityGroup: &network.SecurityGroup{
-							ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group" +
-								"/providers/Microsoft.Network/networkSecurityGroups/dummy-resource-group-workers"),
-						},
-						RouteTable: &network.RouteTable{
-							ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group" +
-								"/providers/Microsoft.Network/routeTables/worker_route_table"),
-						},
-						IPConfigurations: &[]network.IPConfiguration{
-							{
-								ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-g" +
-									"roup/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-7jgvm-" +
-									"nic/ipConfigurations/dummy-resource-group-worker-m0exd-z2-b5bdd-7jgvm-nic"),
-							},
-							{
-								ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-g" +
-									"roup/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-rgqc2-" +
-									"nic/ipConfigurations/dummy-resource-group-worker-m0exd-z2-b5bdd-rgqc2-nic"),
-							},
-							{
-								ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-g" +
-									"roup/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-pfkg4-" +
-									"nic/ipConfigurations/dummy-resource-group-worker-m0exd-z2-b5bdd-pfkg4-nic"),
-							},
-						},
-						ProvisioningState:                 "Succeeded",
-						PrivateEndpointNetworkPolicies:    getStringPointer("Enabled"),
-						PrivateLinkServiceNetworkPolicies: getStringPointer("Enabled"),
-					},
-				}
-
-				NICFuture := UnmarshalNICFuture([]byte("{\"method\":\"PUT\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"https:/" +
-					"/management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Network/locations/weste" +
-					"urope/operations/e4469621-a170-4744-9aed-132d2992b230?api-version=2020-07-01\",\"lroState\":\"Succeeded\",\"resultUR" +
-					"I\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-" +
-					"group/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-qtjm8-nic?api-version" +
-					"=2020-07-01\"}"))
-
-				VMFutureAPI := UnmarshalVMCreateFuture([]byte("{\"method\":\"PUT\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"" +
-					"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute/location" +
-					"s/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\",\"r" +
-					"esultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-re" +
-					"source-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?api-versio" +
-					"n=2020-06-01\"}"))
-
-				splits := strings.Split(*providerSpec.Properties.StorageProfile.ImageReference.URN, ":")
-				publisher := splits[0]
-				offer := splits[1]
-				sku := splits[2]
-				version := splits[3]
-				imageRef := &compute.ImageReference{
-					Publisher: &publisher,
-					Offer:     &offer,
-					Sku:       &sku,
-					Version:   &version,
-				}
-
-				if getSubnetError != nil {
-					fakeClients.Subnet.EXPECT().Get(ctx, resourceGroupName, vnetName, subnetName, "").Return(subnet, *getSubnetError)
-				} else {
-					fakeClients.Subnet.EXPECT().Get(ctx, resourceGroupName, vnetName, subnetName, "").Return(subnet, nil)
-				}
-
 				mockDriver.AzureProviderSpec = providerSpec
 
-				NICParameters := mockDriver.getNICParameters(vmName, &subnet)
-
-				if nicGetError != nil {
-					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, nicName, "").Return(network.Interface{}, *nicGetError)
-				} else {
-					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, nicName, "").Return(network.Interface{}, autorest.DetailedError{
-						Response: &http.Response{
-							StatusCode: 404,
-						},
-						StatusCode: 404,
-					})
-				}
-
-				if nicCreateOrUpdateError != nil {
-					fakeClients.NIC.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name,
-						NICParameters).Return(network.InterfacesCreateOrUpdateFuture{}, *nicCreateOrUpdateError)
-
-				} else {
-					fakeClients.NIC.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *NICParameters.Name,
-						NICParameters).Return(NICFuture, nil)
-				}
-
-				// mocked methods for driver.deleteVMNICDisk
-				fakeClients.VM.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{
-					Name: getStringPointer(machineRequest.Machine.Name),
-					VirtualMachineProperties: &compute.VirtualMachineProperties{
-						StorageProfile: &compute.StorageProfile{
-							DataDisks: &[]compute.DataDisk{},
-						},
-					},
-				}, nil)
-
-				VMDeleteFutureAPI := UnmarshalVMDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\"" +
-					":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute/locat" +
-					"ions/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\"," +
-					"\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy" +
-					"-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?api-ver" +
-					"sion=2020-06-01\"}"))
-
-				fakeClients.VM.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name, getBoolPointer(false)).Return(VMDeleteFutureAPI, nil)
-
-				fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(compute.Disk{
-					ManagedBy: nil,
-				}, nil)
-
-				fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"data-disk-1-data-disk").Return(compute.Disk{
-					ManagedBy: nil,
-				}, nil)
-
-				fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(compute.Disk{
-					ManagedBy: nil,
-				}, nil)
-
-				DisksFutureAPI := UnmarshalDisksDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollin" +
-					"gURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute" +
-					"/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succee" +
-					"ded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups" +
-					"/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?a" +
-					"pi-version=2020-06-01\"}"))
-
-				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(DisksFutureAPI, nil)
-
-				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"data-disk-1-data-disk").Return(DisksFutureAPI, nil)
-
-				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(DisksFutureAPI, nil)
-
-				InterfacesFutureAPI := UnmarshalInterfacesDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation" +
-					"\",\"pollingURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Micros" +
-					"oft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState" +
-					"\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/res" +
-					"ourceGroups/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5" +
-					"bdd-nnjnn?api-version=2020-06-01\"}"))
-
-				fakeClients.NIC.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic").Return(InterfacesFutureAPI, nil)
-
-				vmImageRef = &compute.VirtualMachineImage{
-					Name: mockDriver.AzureProviderSpec.Properties.StorageProfile.ImageReference.URN,
-					VirtualMachineImageProperties: &compute.VirtualMachineImageProperties{
-						Plan: nil,
-					},
-				}
-
-				fakeClients.Images.EXPECT().Get(
-					ctx,
-					mockDriver.AzureProviderSpec.Location,
-					*imageRef.Publisher,
-					*imageRef.Offer,
-					*imageRef.Sku,
-					*imageRef.Version,
-				).Return(*vmImageRef, nil)
-
-				NICId := "/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/providers/Microsoft.Net" +
-					"work/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-vs2lt-nic"
-
-				if vmCreateOrUpdateError != nil {
-
-					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, nicName, "").Return(network.Interface{}, autorest.DetailedError{
-						Response: &http.Response{
-							StatusCode: 404,
-						},
-						StatusCode: 404,
-					})
-					VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
-					fakeClients.VM.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters).Return(compute.VirtualMachinesCreateOrUpdateFuture{}, *vmCreateOrUpdateError)
-				} else {
-
-					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, nicName, "").Return(network.Interface{}, autorest.DetailedError{
-						Response: &http.Response{
-							StatusCode: 404,
-						},
-						StatusCode: 404,
-					})
-					VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
-					fakeClients.VM.EXPECT().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters).Return(VMFutureAPI, nil)
-				}
+				assertNetworkResourcesForMachineCreation(mockDriver, fakeClients, providerSpec, machineRequest, getSubnetError, nicGetError, nicCreateOrUpdateError)
+				assertVMResourcesForMachineCreation(mockDriver, fakeClients, providerSpec, machineRequest, vmCreateOrUpdateError)
+				assertDiskResourcesForMachineCreation(mockDriver, fakeClients, providerSpec, machineRequest)
 
 				// if there is no variation in the machine class (various scenarios) call the
 				// machineRequest.MachineClass = newAzureMachineClass(providerSpec)
@@ -890,113 +701,14 @@ var _ = Describe("MachineController", func() {
 				mockDriver.AzureProviderSpec = providerSpec
 
 				if getGroupError != nil {
-					fakeClients.Group.EXPECT().Get(ctx, resourceGroupName).Return(resources.Group{}, *getGroupError)
+					fakeClients.Group.EXPECT().Get(gomock.Any(), resourceGroupName).Return(resources.Group{}, *getGroupError)
 				} else {
-					fakeClients.Group.EXPECT().Get(ctx, resourceGroupName).Return(resources.Group{}, nil)
+					fakeClients.Group.EXPECT().Get(gomock.Any(), resourceGroupName).Return(resources.Group{}, nil)
 				}
 
-				if getVMError != nil {
-					fakeClients.VM.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{}, *getVMError)
-				} else {
-					fakeClients.VM.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{
-						Name: getStringPointer(machineRequest.Machine.Name),
-						VirtualMachineProperties: &compute.VirtualMachineProperties{
-							StorageProfile: &compute.StorageProfile{
-								DataDisks: &[]compute.DataDisk{},
-							},
-						},
-					}, nil)
-				}
-
-				VMFutureAPI := UnmarshalVMDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\"" +
-					":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute/locat" +
-					"ions/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\"," +
-					"\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy" +
-					"-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?api-ver" +
-					"sion=2020-06-01\"}"))
-
-				fakeClients.VM.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name, getBoolPointer(false)).Return(VMFutureAPI, nil)
-
-				if !attachedOSDisk {
-					fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(compute.Disk{
-						ManagedBy: nil,
-					}, nil)
-				} else {
-					fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(compute.Disk{
-						ManagedBy: getStringPointer("dummy-machine-id"),
-					}, nil)
-				}
-
-				if !attachedDataDisk {
-					var diskName string
-					if providerSpec.Properties.StorageProfile.DataDisks[0].Name != "" {
-						diskName = fmt.Sprintf("%s-%d", providerSpec.Properties.StorageProfile.DataDisks[0].Name, *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
-					} else {
-						diskName = fmt.Sprintf("%d", *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
-					}
-					fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-"+diskName+"-data-disk").Return(compute.Disk{
-						ManagedBy: nil,
-					}, nil)
-				} else {
-
-					var diskName string
-					if providerSpec.Properties.StorageProfile.DataDisks[0].Name != "" {
-						diskName = fmt.Sprintf("%s-%d", providerSpec.Properties.StorageProfile.DataDisks[0].Name, *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
-					} else {
-						diskName = fmt.Sprintf("%d", *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
-					}
-					fakeClients.Disk.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-"+diskName+"-data-disk").Return(compute.Disk{
-						ManagedBy: getStringPointer("dummy-machine-id"),
-					}, nil)
-				}
-
-				DisksFutureAPI := UnmarshalDisksDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollin" +
-					"gURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute" +
-					"/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succee" +
-					"ded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups" +
-					"/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?a" +
-					"pi-version=2020-06-01\"}"))
-
-				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(DisksFutureAPI, nil)
-				fakeClients.Disk.EXPECT().Delete(ctx, resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(DisksFutureAPI, nil)
-
-				NICId := "/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/providers/Microsoft.Net" +
-					"work/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-vs2lt-nic"
-
-				if !attachedNIC {
-
-					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{
-						InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
-							VirtualMachine: nil,
-						},
-						ID: &NICId,
-					}, nil)
-				} else {
-
-					fakeClients.NIC.EXPECT().Get(ctx, resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{
-						InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
-							VirtualMachine: &network.SubResource{
-								ID: getStringPointer("dummy-machine-id"),
-							},
-						},
-					}, nil)
-				}
-
-				InterfacesFutureAPI := UnmarshalInterfacesDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation" +
-					"\",\"pollingURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Micros" +
-					"oft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState" +
-					"\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/res" +
-					"ourceGroups/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5" +
-					"bdd-nnjnn?api-version=2020-06-01\"}"))
-
-				fakeClients.NIC.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-nic").Return(InterfacesFutureAPI, nil)
-
-				fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{}, autorest.DetailedError{
-					StatusCode: 404,
-					Response: &http.Response{
-						StatusCode: 404,
-					},
-				})
+				assertVMResourcesForMachineDeletion(mockDriver, fakeClients, providerSpec, machineRequest, getVMError)
+				assertDiskResourcesForMachineDeletion(mockDriver, fakeClients, providerSpec, machineRequest, attachedOSDisk, attachedDataDisk)
+				assertNetworkResourcesForMachineDeletion(mockDriver, fakeClients, providerSpec, machineRequest, attachedNIC)
 
 				// if there is no variation in the machine class (various scenarios) call the
 				// machineRequest.MachineClass = newAzureMachineClass(providerSpec)
@@ -1228,51 +940,9 @@ var _ = Describe("MachineController", func() {
 				var (
 					ctx               = context.Background()
 					resourceGroupName = providerSpec.ResourceGroup
-					vmlr              compute.VirtualMachineListResultPage
 				)
 
-				if !nextWithContextError {
-					vmlr = compute.NewVirtualMachineListResultPage(
-						compute.VirtualMachineListResult{
-							Value: &[]compute.VirtualMachine{
-								{
-									Name:     getStringPointer("dummy-machine"),
-									Location: getStringPointer("westeurope"),
-								},
-							},
-							NextLink: getStringPointer(""),
-						},
-						func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
-							return compute.VirtualMachineListResult{}, nil
-						},
-					)
-				} else {
-					vmlr = compute.NewVirtualMachineListResultPage(
-						compute.VirtualMachineListResult{
-							Value: &[]compute.VirtualMachine{
-								{
-									Name:     getStringPointer("dummy-machine"),
-									Location: getStringPointer("westeurope"),
-								},
-							},
-							NextLink: getStringPointer(""),
-						},
-						func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
-							return compute.VirtualMachineListResult{}, fmt.Errorf("Error fetching the next Virtual Machine in the page")
-						},
-					)
-				}
-
-				if vmListError != nil {
-					fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
-						compute.VirtualMachineListResultPage{}, *vmListError,
-					)
-				} else {
-					fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
-						vmlr, nil,
-					)
-				}
-
+				assertVMResourcesForListingMachine(mockDriver, fakeClients, resourceGroupName, nextWithContextError, vmListError)
 				response, err := mockDriver.ListMachines(ctx, machineRequest)
 
 				if errToHaveOccurred {
@@ -1369,16 +1039,13 @@ var _ = Describe("MachineController", func() {
 						return compute.VirtualMachineListResult{}, nil
 					},
 				)
-				// fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
-				// 	vmlrp, nil,
-				// )
 
 				if vmListError != nil {
-					fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
+					fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName).Return(
 						compute.VirtualMachineListResultPage{}, vmListError,
 					)
 				} else {
-					fakeClients.VM.EXPECT().List(ctx, resourceGroupName).Return(
+					fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName).Return(
 						vmlrp, nil,
 					)
 				}
@@ -1937,4 +1604,421 @@ func getMigratedMachineClass(providerSpecificMachineClass interface{}) *v1alpha1
 	}
 
 	return machineClass
+}
+
+func assertNetworkResourcesForMachineCreation(
+	mockDriver *MachinePlugin,
+	fakeClients *mock.AzureDriverClients,
+	providerSpec *apis.AzureProviderSpec,
+	machineRequest *driver.CreateMachineRequest,
+	getSubnetError,
+	nicGetError, nicCreateOrUpdateError *autorest.DetailedError,
+) {
+
+	var (
+		vmName            = strings.ToLower(machineRequest.Machine.Name)
+		resourceGroupName = providerSpec.ResourceGroup
+		vnetName          = providerSpec.SubnetInfo.VnetName
+		subnetName        = providerSpec.SubnetInfo.SubnetName
+		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
+	)
+
+	subnet := network.Subnet{
+		ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/provide" +
+			"rs/Microsoft.Network/virtualNetworks/dummy-resource-group/subnets/dummy-resource-group-nodes"),
+		Name: getStringPointer("dummy-resource-group-nodes"),
+		SubnetPropertiesFormat: &network.SubnetPropertiesFormat{
+			AddressPrefix: getStringPointer("10.250.0.0/16"),
+			NetworkSecurityGroup: &network.SecurityGroup{
+				ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group" +
+					"/providers/Microsoft.Network/networkSecurityGroups/dummy-resource-group-workers"),
+			},
+			RouteTable: &network.RouteTable{
+				ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group" +
+					"/providers/Microsoft.Network/routeTables/worker_route_table"),
+			},
+			IPConfigurations: &[]network.IPConfiguration{
+				{
+					ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-g" +
+						"roup/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-7jgvm-" +
+						"nic/ipConfigurations/dummy-resource-group-worker-m0exd-z2-b5bdd-7jgvm-nic"),
+				},
+				{
+					ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-g" +
+						"roup/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-rgqc2-" +
+						"nic/ipConfigurations/dummy-resource-group-worker-m0exd-z2-b5bdd-rgqc2-nic"),
+				},
+				{
+					ID: getStringPointer("/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-g" +
+						"roup/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-pfkg4-" +
+						"nic/ipConfigurations/dummy-resource-group-worker-m0exd-z2-b5bdd-pfkg4-nic"),
+				},
+			},
+			ProvisioningState:                 "Succeeded",
+			PrivateEndpointNetworkPolicies:    getStringPointer("Enabled"),
+			PrivateLinkServiceNetworkPolicies: getStringPointer("Enabled"),
+		},
+	}
+
+	NICFuture := UnmarshalNICFuture([]byte("{\"method\":\"PUT\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"https:/" +
+		"/management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Network/locations/weste" +
+		"urope/operations/e4469621-a170-4744-9aed-132d2992b230?api-version=2020-07-01\",\"lroState\":\"Succeeded\",\"resultUR" +
+		"I\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-" +
+		"group/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-qtjm8-nic?api-version" +
+		"=2020-07-01\"}"))
+
+	if getSubnetError != nil {
+		fakeClients.Subnet.EXPECT().Get(gomock.Any(), resourceGroupName, vnetName, subnetName, "").Return(subnet, *getSubnetError)
+	} else {
+		fakeClients.Subnet.EXPECT().Get(gomock.Any(), resourceGroupName, vnetName, subnetName, "").Return(subnet, nil)
+	}
+
+	NICParameters := mockDriver.getNICParameters(vmName, &subnet)
+
+	if nicGetError != nil {
+		fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, nicName, "").Return(network.Interface{}, *nicGetError)
+	} else {
+		fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, nicName, "").Return(network.Interface{}, autorest.DetailedError{
+			Response: &http.Response{
+				StatusCode: 404,
+			},
+			StatusCode: 404,
+		})
+	}
+
+	if nicCreateOrUpdateError != nil {
+		fakeClients.NIC.EXPECT().CreateOrUpdate(gomock.Any(), resourceGroupName, *NICParameters.Name,
+			NICParameters).Return(network.InterfacesCreateOrUpdateFuture{}, *nicCreateOrUpdateError)
+
+	} else {
+		fakeClients.NIC.EXPECT().CreateOrUpdate(gomock.Any(), resourceGroupName, *NICParameters.Name,
+			NICParameters).Return(NICFuture, nil)
+	}
+
+	InterfacesFutureAPI := UnmarshalInterfacesDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation" +
+		"\",\"pollingURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Micros" +
+		"oft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState" +
+		"\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/res" +
+		"ourceGroups/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5" +
+		"bdd-nnjnn?api-version=2020-06-01\"}"))
+
+	fakeClients.NIC.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-nic").Return(InterfacesFutureAPI, nil)
+
+}
+
+func assertVMResourcesForMachineCreation(
+	mockDriver *MachinePlugin,
+	fakeClients *mock.AzureDriverClients,
+	providerSpec *apis.AzureProviderSpec,
+	machineRequest *driver.CreateMachineRequest,
+	vmCreateOrUpdateError *autorest.DetailedError,
+) {
+
+	var (
+		vmName            = strings.ToLower(machineRequest.Machine.Name)
+		resourceGroupName = providerSpec.ResourceGroup
+		nicName           = dependencyNameFromVMName(vmName, nicSuffix)
+		vmImageRef        *compute.VirtualMachineImage
+	)
+	VMFutureAPI := UnmarshalVMCreateFuture([]byte("{\"method\":\"PUT\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"" +
+		"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute/location" +
+		"s/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\",\"r" +
+		"esultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-re" +
+		"source-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?api-versio" +
+		"n=2020-06-01\"}"))
+
+	// mocked methods for driver.deleteVMNICDisk
+	fakeClients.VM.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{
+		Name: getStringPointer(machineRequest.Machine.Name),
+		VirtualMachineProperties: &compute.VirtualMachineProperties{
+			StorageProfile: &compute.StorageProfile{
+				DataDisks: &[]compute.DataDisk{},
+			},
+		},
+	}, nil)
+
+	VMDeleteFutureAPI := UnmarshalVMDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\"" +
+		":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute/locat" +
+		"ions/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\"," +
+		"\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy" +
+		"-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?api-ver" +
+		"sion=2020-06-01\"}"))
+
+	fakeClients.VM.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name, getBoolPointer(false)).Return(VMDeleteFutureAPI, nil)
+
+	splits := strings.Split(*providerSpec.Properties.StorageProfile.ImageReference.URN, ":")
+	publisher := splits[0]
+	offer := splits[1]
+	sku := splits[2]
+	version := splits[3]
+
+	imageRef := &compute.ImageReference{
+		Publisher: &publisher,
+		Offer:     &offer,
+		Sku:       &sku,
+		Version:   &version,
+	}
+
+	vmImageRef = &compute.VirtualMachineImage{
+		Name: mockDriver.AzureProviderSpec.Properties.StorageProfile.ImageReference.URN,
+		VirtualMachineImageProperties: &compute.VirtualMachineImageProperties{
+			Plan: nil,
+		},
+	}
+
+	fakeClients.Images.EXPECT().Get(
+		gomock.Any(),
+		mockDriver.AzureProviderSpec.Location,
+		*imageRef.Publisher,
+		*imageRef.Offer,
+		*imageRef.Sku,
+		*imageRef.Version,
+	).Return(*vmImageRef, nil)
+
+	NICId := "/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/providers/Microsoft.Net" +
+		"work/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-vs2lt-nic"
+
+	if vmCreateOrUpdateError != nil {
+
+		fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, nicName, "").Return(network.Interface{}, autorest.DetailedError{
+			Response: &http.Response{
+				StatusCode: 404,
+			},
+			StatusCode: 404,
+		})
+		VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
+		fakeClients.VM.EXPECT().CreateOrUpdate(gomock.Any(), resourceGroupName, *VMParameters.Name, VMParameters).Return(compute.VirtualMachinesCreateOrUpdateFuture{}, *vmCreateOrUpdateError)
+	} else {
+
+		fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, nicName, "").Return(network.Interface{}, autorest.DetailedError{
+			Response: &http.Response{
+				StatusCode: 404,
+			},
+			StatusCode: 404,
+		})
+		VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
+		fakeClients.VM.EXPECT().CreateOrUpdate(gomock.Any(), resourceGroupName, *VMParameters.Name, VMParameters).Return(VMFutureAPI, nil)
+	}
+}
+
+func assertDiskResourcesForMachineCreation(
+	mockDriver *MachinePlugin,
+	fakeClients *mock.AzureDriverClients,
+	providerSpec *api.AzureProviderSpec,
+	machineRequest *driver.CreateMachineRequest,
+) {
+	var resourceGroupName = providerSpec.ResourceGroup
+	fakeClients.Disk.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(compute.Disk{
+		ManagedBy: nil,
+	}, nil)
+
+	fakeClients.Disk.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"data-disk-1-data-disk").Return(compute.Disk{
+		ManagedBy: nil,
+	}, nil)
+
+	fakeClients.Disk.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(compute.Disk{
+		ManagedBy: nil,
+	}, nil)
+
+	DisksFutureAPI := UnmarshalDisksDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollin" +
+		"gURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute" +
+		"/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succee" +
+		"ded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups" +
+		"/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?a" +
+		"pi-version=2020-06-01\"}"))
+
+	fakeClients.Disk.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(DisksFutureAPI, nil)
+
+	fakeClients.Disk.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"data-disk-1-data-disk").Return(DisksFutureAPI, nil)
+
+	fakeClients.Disk.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(DisksFutureAPI, nil)
+
+}
+
+func assertVMResourcesForMachineDeletion(
+	mockDriver *MachinePlugin,
+	fakeClients *mock.AzureDriverClients,
+	providerSpec *apis.AzureProviderSpec,
+	machineRequest *driver.DeleteMachineRequest,
+	getVMError *autorest.DetailedError,
+) {
+	resourceGroupName := providerSpec.ResourceGroup
+	if getVMError != nil {
+		fakeClients.VM.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{}, *getVMError)
+	} else {
+		fakeClients.VM.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{
+			Name: getStringPointer(machineRequest.Machine.Name),
+			VirtualMachineProperties: &compute.VirtualMachineProperties{
+				StorageProfile: &compute.StorageProfile{
+					DataDisks: &[]compute.DataDisk{},
+				},
+			},
+		}, nil)
+	}
+
+	VMFutureAPI := UnmarshalVMDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\"" +
+		":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute/locat" +
+		"ions/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succeeded\"," +
+		"\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy" +
+		"-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?api-ver" +
+		"sion=2020-06-01\"}"))
+
+	fakeClients.VM.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name, getBoolPointer(false)).Return(VMFutureAPI, nil)
+
+}
+
+func assertDiskResourcesForMachineDeletion(
+	mockDriver *MachinePlugin,
+	fakeClients *mock.AzureDriverClients,
+	providerSpec *apis.AzureProviderSpec,
+	machineRequest *driver.DeleteMachineRequest,
+	attachedOSDisk, attachedDataDisk bool,
+) {
+	var (
+		diskName          string
+		resourceGroupName = providerSpec.ResourceGroup
+	)
+	if attachedOSDisk {
+		fakeClients.Disk.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(compute.Disk{
+			ManagedBy: getStringPointer("dummy-machine-id"),
+		}, nil)
+	} else {
+		fakeClients.Disk.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(compute.Disk{
+			ManagedBy: nil,
+		}, nil)
+	}
+
+	if attachedDataDisk {
+		if providerSpec.Properties.StorageProfile.DataDisks[0].Name != "" {
+			diskName = fmt.Sprintf("%s-%d", providerSpec.Properties.StorageProfile.DataDisks[0].Name, *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
+		} else {
+			diskName = fmt.Sprintf("%d", *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
+		}
+		fakeClients.Disk.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-"+diskName+"-data-disk").Return(compute.Disk{
+			ManagedBy: getStringPointer("dummy-machine-id"),
+		}, nil)
+
+	} else {
+		if providerSpec.Properties.StorageProfile.DataDisks[0].Name != "" {
+			diskName = fmt.Sprintf("%s-%d", providerSpec.Properties.StorageProfile.DataDisks[0].Name, *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
+		} else {
+			diskName = fmt.Sprintf("%d", *providerSpec.Properties.StorageProfile.DataDisks[0].Lun)
+		}
+		fakeClients.Disk.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-"+diskName+"-data-disk").Return(compute.Disk{
+			ManagedBy: nil,
+		}, nil)
+	}
+
+	DisksFutureAPI := UnmarshalDisksDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollin" +
+		"gURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute" +
+		"/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState\":\"Succee" +
+		"ded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups" +
+		"/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?a" +
+		"pi-version=2020-06-01\"}"))
+
+	fakeClients.Disk.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-os-disk").Return(DisksFutureAPI, nil)
+	fakeClients.Disk.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-1-data-disk").Return(DisksFutureAPI, nil)
+
+}
+
+func assertNetworkResourcesForMachineDeletion(
+
+	mockDriver *MachinePlugin,
+	fakeClients *mock.AzureDriverClients,
+	providerSpec *apis.AzureProviderSpec,
+	machineRequest *driver.DeleteMachineRequest,
+	attachedNIC bool,
+) {
+	resourceGroupName := providerSpec.ResourceGroup
+
+	NICId := "/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-group/providers/Microsoft.Net" +
+		"work/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-vs2lt-nic"
+
+	if attachedNIC {
+
+		fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{
+			InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
+				VirtualMachine: &network.SubResource{
+					ID: getStringPointer("dummy-machine-id"),
+				},
+			},
+		}, nil)
+
+	} else {
+
+		fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{
+			InterfacePropertiesFormat: &network.InterfacePropertiesFormat{
+				VirtualMachine: nil,
+			},
+			ID: &NICId,
+		}, nil)
+	}
+
+	InterfacesFutureAPI := UnmarshalInterfacesDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation" +
+		"\",\"pollingURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Micros" +
+		"oft.Compute/locations/westeurope/operations/e4a4273e-f571-420f-9629-aa6b95d46e7c?api-version=2020-06-01\",\"lroState" +
+		"\":\"Succeeded\",\"resultURI\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/res" +
+		"ourceGroups/dummy-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5" +
+		"bdd-nnjnn?api-version=2020-06-01\"}"))
+
+	fakeClients.NIC.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-nic").Return(InterfacesFutureAPI, nil)
+
+	fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name+"-nic", "").Return(network.Interface{}, autorest.DetailedError{
+		StatusCode: 404,
+		Response: &http.Response{
+			StatusCode: 404,
+		},
+	})
+}
+
+func assertVMResourcesForListingMachine(
+	mockDriver *MachinePlugin,
+	fakeClients *mock.AzureDriverClients,
+	resourceGroupName string,
+	nextWithContextError bool,
+	vmListError *autorest.DetailedError,
+) {
+
+	var vmlr compute.VirtualMachineListResultPage
+	if !nextWithContextError {
+		vmlr = compute.NewVirtualMachineListResultPage(
+			compute.VirtualMachineListResult{
+				Value: &[]compute.VirtualMachine{
+					{
+						Name:     getStringPointer("dummy-machine"),
+						Location: getStringPointer("westeurope"),
+					},
+				},
+				NextLink: getStringPointer(""),
+			},
+			func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
+				return compute.VirtualMachineListResult{}, nil
+			},
+		)
+	} else {
+		vmlr = compute.NewVirtualMachineListResultPage(
+			compute.VirtualMachineListResult{
+				Value: &[]compute.VirtualMachine{
+					{
+						Name:     getStringPointer("dummy-machine"),
+						Location: getStringPointer("westeurope"),
+					},
+				},
+				NextLink: getStringPointer(""),
+			},
+			func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
+				return compute.VirtualMachineListResult{}, fmt.Errorf("Error fetching the next Virtual Machine in the page")
+			},
+		)
+	}
+
+	if vmListError != nil {
+		fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName).Return(
+			compute.VirtualMachineListResultPage{}, *vmListError,
+		)
+	} else {
+		fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName).Return(
+			vmlr, nil,
+		)
+	}
 }

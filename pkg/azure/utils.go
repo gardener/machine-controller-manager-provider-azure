@@ -843,9 +843,7 @@ func NotFound(err error) bool {
 func checkNICStatus(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, nicName string, shouldExist bool) func() error {
 	return func() error {
 
-		klog.Errorf("\n\nCOMES HERE %v %s %s\n\n", ctx, resourceGroupName, nicName)
 		nic, err := clients.GetNic().Get(ctx, resourceGroupName, nicName, "")
-		klog.Errorf("\n\nError is %s\n\n", err)
 
 		// Case-1: If NIC should exist, check below if condition
 		if shouldExist {
