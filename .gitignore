@@ -10,7 +10,6 @@
 .idea
 *.DS_Store
 *amd64
-*.html
 main
 .cache_ggshield
 
