@@ -606,6 +606,7 @@ func fillUpMachineClass(azureMachineClass *v1alpha1.AzureMachineClass, machineCl
 		return status.Error(codes.Internal, err.Error())
 	}
 
+	machineClass.Provider = ProviderAzure
 	machineClass.SecretRef = azureMachineClass.Spec.SecretRef
 	machineClass.CredentialsSecretRef = azureMachineClass.Spec.CredentialsSecretRef
 	machineClass.Name = azureMachineClass.Name
