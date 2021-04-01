@@ -23,6 +23,14 @@ import (
 	"k8s.io/klog"
 )
 
+const (
+	// AzureMachineClassKind is the constant representing the AzureMachineClass
+	AzureMachineClassKind = "AzureMachineClass"
+
+	// ProviderAzure is the constant representing the Cloud Provider Azure
+	ProviderAzure = "azure"
+)
+
 // NOTE
 //
 // The basic working of the controller will work with just implementing the CreateMachine() & DeleteMachine() methods.
@@ -57,9 +65,6 @@ type MachinePlugin struct {
 	Secret            *corev1.Secret
 }
 
-// AzureMachineClassKind for Azure Machine Class
-const AzureMachineClassKind = "AzureMachineClass"
-
 // NewAzureDriver returns an empty AzureDriver object
 func NewAzureDriver(spi spi.SessionProviderInterface) *MachinePlugin {
 	return &MachinePlugin{
@@ -76,6 +81,11 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 	// Log messages to track request
 	klog.V(2).Infof("Machine creation request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine creation request has been processed for %q", req.Machine.Name)
+
+	// Check if incoming CR is a CR we support
+	if req.MachineClass.Provider != ProviderAzure {
+		return nil, fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+	}
 
 	d.Secret = req.Secret
 	virtualMachine, err := d.createVMNicDisk(req)
@@ -104,6 +114,11 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 	// Log messages to track delete request
 	klog.V(2).Infof("Machine deletion request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine deletion request has been processed for %q", req.Machine.Name)
+
+	// Check if incoming CR is a CR we support
+	if req.MachineClass.Provider != ProviderAzure {
+		return nil, fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+	}
 
 	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
 	if err != nil {
@@ -166,6 +181,11 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 	klog.V(2).Infof("Get request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine get request has been processed successfully for %q", req.Machine.Name)
 
+	// Check if incoming CR is a CR we support
+	if req.MachineClass.Provider != ProviderAzure {
+		return nil, fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+	}
+
 	var machineStatusResponse = &driver.GetMachineStatusResponse{}
 
 	listMachineRequest := &driver.ListMachinesRequest{MachineClass: req.MachineClass, Secret: req.Secret}
@@ -202,6 +222,11 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 	// Log messages to track start and end of request
 	klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
 	defer klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
+
+	// Check if incoming CR is a CR we support
+	if req.MachineClass.Provider != ProviderAzure {
+		return nil, fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+	}
 
 	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
 	d.AzureProviderSpec = providerSpec

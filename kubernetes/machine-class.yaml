@@ -10,6 +10,7 @@ kind: MachineClass
 metadata:
   name: <machineclass-name>
   namespace: <machineclass namespace>
+provider: azure
 providerSpec:
   location: westeurope
   properties:
