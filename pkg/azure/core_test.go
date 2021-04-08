@@ -183,6 +183,24 @@ var _ = Describe("MachineController", func() {
 				false,
 				"",
 			),
+			Entry("#1 Create a simple machine with wrong provider value in Machine Class",
+				&mock.AzureProviderSpec,
+				&driver.CreateMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClassWithProvider(mock.AzureProviderSpec, "aws"),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.CreateMachineResponse{
+					ProviderID: "azure:///westeurope/dummy-machine",
+					NodeName:   "dummy-machine",
+				},
+				nil,
+				nil,
+				nil,
+				nil,
+				true,
+				fmt.Errorf("Requested for Provider 'aws', we only support '%s'", ProviderAzure).Error(),
+			),
 			Entry("#2 Create machine without client id in secret",
 				&mock.AzureProviderSpec,
 				&driver.CreateMachineRequest{
@@ -741,7 +759,24 @@ var _ = Describe("MachineController", func() {
 				false,
 				nil,
 			),
-
+			Entry("#2 Delete a machine",
+				&mock.AzureProviderSpec,
+				&driver.DeleteMachineRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClassWithProvider(mock.AzureProviderSpec, "aws"),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.DeleteMachineResponse{
+					LastKnownState: "",
+				},
+				nil,
+				false,
+				false,
+				false,
+				nil,
+				true,
+				fmt.Errorf("Requested for Provider '%s', we only support '%s'", "aws", ProviderAzure).Error(),
+			),
 			Entry("#2 Delete a machine while a NIC is still attached",
 				&mock.AzureProviderSpec,
 				&driver.DeleteMachineRequest{
@@ -970,6 +1005,22 @@ var _ = Describe("MachineController", func() {
 				false,
 				"",
 			),
+			Entry("#1 List machines with wrong MachineClass Provider",
+				&mock.AzureProviderSpec,
+				&driver.ListMachinesRequest{
+					MachineClass: newAzureMachineClassWithProvider(mock.AzureProviderSpec, "aws"),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.ListMachinesResponse{
+					MachineList: map[string]string{
+						"azure:///westeurope/dummy-machine": "dummy-machine",
+					},
+				},
+				false,
+				nil,
+				true,
+				fmt.Errorf("Requested for Provider '%s', we only support '%s'", "aws", ProviderAzure).Error(),
+			),
 			Entry("#2 List machines with VM List error scenario",
 				&mock.AzureProviderSpec,
 				&driver.ListMachinesRequest{
@@ -1084,6 +1135,30 @@ var _ = Describe("MachineController", func() {
 				nil,
 				false,
 				"",
+			),
+			Entry("#1 GetMachineStatus of machine with wrong MachineClass reference",
+				&mock.AzureProviderSpec,
+				&driver.GetMachineStatusRequest{
+					Machine:      newMachine("dummy-machine"),
+					MachineClass: newAzureMachineClassWithProvider(mock.AzureProviderSpec, "aws"),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.GetMachineStatusResponse{
+					NodeName:   "dummy-machine",
+					ProviderID: "azure:///westeurope/dummy-machine",
+				},
+				compute.VirtualMachineListResult{
+					Value: &[]compute.VirtualMachine{
+						{
+							Name:     getStringPointer("dummy-machine"),
+							Location: getStringPointer("westeurope"),
+						},
+					},
+					NextLink: getStringPointer(""),
+				},
+				nil,
+				true,
+				fmt.Errorf("Requested for Provider '%s', we only support '%s'", "aws", ProviderAzure).Error(),
 			),
 			Entry("#2 GetMachineStatus of non existing machine",
 				&mock.AzureProviderSpec,
@@ -1533,6 +1608,19 @@ func newMachine(name string) *v1alpha1.Machine {
 	}
 }
 
+func newAzureMachineClassWithProvider(azureProviderSpec apis.AzureProviderSpec, provider string) *v1alpha1.MachineClass {
+	byteData, _ := json.Marshal(azureProviderSpec)
+	return &v1alpha1.MachineClass{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: "default",
+		},
+		ProviderSpec: runtime.RawExtension{
+			Raw: byteData,
+		},
+		Provider: provider,
+	}
+}
+
 func newAzureMachineClass(azureProviderSpec apis.AzureProviderSpec) *v1alpha1.MachineClass {
 	byteData, _ := json.Marshal(azureProviderSpec)
 	return &v1alpha1.MachineClass{
@@ -1542,6 +1630,7 @@ func newAzureMachineClass(azureProviderSpec apis.AzureProviderSpec) *v1alpha1.Ma
 		ProviderSpec: runtime.RawExtension{
 			Raw: byteData,
 		},
+		Provider: ProviderAzure,
 	}
 }
 
@@ -1555,6 +1644,7 @@ func newAzureMachineClassWithError() *v1alpha1.MachineClass {
 		ProviderSpec: runtime.RawExtension{
 			Raw: byteData,
 		},
+		Provider: ProviderAzure,
 	}
 }
 
@@ -1600,6 +1690,7 @@ func getMigratedMachineClass(providerSpecificMachineClass interface{}) *v1alpha1
 		ProviderSpec: runtime.RawExtension{
 			Raw: providerSpecMarshal,
 		},
+		Provider:  ProviderAzure,
 		SecretRef: providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.SecretRef,
 	}
 
