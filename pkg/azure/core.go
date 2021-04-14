@@ -28,7 +28,7 @@ const (
 	AzureMachineClassKind = "AzureMachineClass"
 
 	// ProviderAzure is the constant representing the Cloud Provider Azure
-	ProviderAzure = "azure"
+	ProviderAzure = "Azure"
 )
 
 // NOTE
@@ -82,9 +82,10 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 	klog.V(2).Infof("Machine creation request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine creation request has been processed for %q", req.Machine.Name)
 
-	// Check if incoming CR is a CR we support
+	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		return nil, fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	d.Secret = req.Secret
@@ -115,9 +116,10 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 	klog.V(2).Infof("Machine deletion request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine deletion request has been processed for %q", req.Machine.Name)
 
-	// Check if incoming CR is a CR we support
+	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		return nil, fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
@@ -181,9 +183,10 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 	klog.V(2).Infof("Get request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine get request has been processed successfully for %q", req.Machine.Name)
 
-	// Check if incoming CR is a CR we support
+	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		return nil, fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	var machineStatusResponse = &driver.GetMachineStatusResponse{}
@@ -223,9 +226,10 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 	klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
 	defer klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
 
-	// Check if incoming CR is a CR we support
+	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		return nil, fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)

@@ -65,6 +65,9 @@ var (
 
 	providerSpecSubnetInfoError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Err" +
 		"or while validating ProviderSpec [%s is a required subnet info]]]"
+
+	machineClassProviderError = "machine codes error: code = [InvalidArgument] message = [Requested for Provider '%s', we only support '" +
+		ProviderAzure + "']"
 )
 
 var _ = Describe("MachineController", func() {
@@ -199,7 +202,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf("Requested for Provider 'aws', we only support '%s'", ProviderAzure).Error(),
+				fmt.Errorf(machineClassProviderError, "aws").Error(),
 			),
 			Entry("#2 Create machine without client id in secret",
 				&mock.AzureProviderSpec,
@@ -775,7 +778,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				nil,
 				true,
-				fmt.Errorf("Requested for Provider '%s', we only support '%s'", "aws", ProviderAzure).Error(),
+				fmt.Errorf(machineClassProviderError, "aws").Error(),
 			),
 			Entry("#2 Delete a machine while a NIC is still attached",
 				&mock.AzureProviderSpec,
@@ -1019,7 +1022,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				nil,
 				true,
-				fmt.Errorf("Requested for Provider '%s', we only support '%s'", "aws", ProviderAzure).Error(),
+				fmt.Errorf(machineClassProviderError, "aws").Error(),
 			),
 			Entry("#2 List machines with VM List error scenario",
 				&mock.AzureProviderSpec,
@@ -1158,7 +1161,7 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				fmt.Errorf("Requested for Provider '%s', we only support '%s'", "aws", ProviderAzure).Error(),
+				fmt.Errorf(machineClassProviderError, "aws").Error(),
 			),
 			Entry("#2 GetMachineStatus of non existing machine",
 				&mock.AzureProviderSpec,
