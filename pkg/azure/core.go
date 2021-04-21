@@ -233,6 +233,9 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 	}
 
 	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	d.AzureProviderSpec = providerSpec
 
 	var (

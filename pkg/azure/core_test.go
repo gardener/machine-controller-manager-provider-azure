@@ -54,7 +54,10 @@ func getIntPointer(i int) *int {
 }
 
 var (
-	errorPrefix = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Error while validat" +
+	internalErrorPrefix = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Error while validat" +
+		"ing ProviderSpec [%s]]]"
+
+	invalidArgumentErrorPrefix = "machine codes error: code = [InvalidArgument] message = [machine codes error: code = [Internal] message = [Error while validat" +
 		"ing ProviderSpec [%s]]]"
 
 	secretError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Error while validat" +
@@ -367,7 +370,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.storageProfile.imageReference.urn: Required value: Invalid urn format, empty field").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.storageProfile.imageReference.urn: Required value: Invalid urn format, empty field").Error(),
 			),
 			Entry("#13 Create machine with negtive OS Disk Size in providerSpec",
 				&mock.AzureProviderSpecWithNegativeOSDiskSize,
@@ -382,7 +385,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.storageProfile.osDisk.diskSizeGB: Required value: OSDisk size must be positive").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.storageProfile.osDisk.diskSizeGB: Required value: OSDisk size must be positive").Error(),
 			),
 			Entry("#14 Create machine without OS Disk Creation Option in providerSpec",
 				&mock.AzureProviderSpecWithoutOSDiskCreateOption,
@@ -397,7 +400,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.storageProfile.osDisk.createOption: Required value: OSDisk create option is required").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.storageProfile.osDisk.createOption: Required value: OSDisk create option is required").Error(),
 			),
 			Entry("#15 Create machine without Admin Username in providerSpec",
 				&mock.AzureProviderSpecWithoutAdminUserName,
@@ -412,7 +415,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.osProfile.adminUsername: Required value: AdminUsername is required").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.osProfile.adminUsername: Required value: AdminUsername is required").Error(),
 			),
 			Entry("#16 Create machine with negative data disk size in providerSpec",
 				&mock.AzureProviderSpecWithNegativeDataDiskSize,
@@ -427,7 +430,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].diskSizeGB: Required value: DataDisk size must be positive").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.storageProfile.dataDisks[0].diskSizeGB: Required value: DataDisk size must be positive").Error(),
 			),
 			Entry("#17 Create machine without LUN in providerSpec",
 				&mock.AzureProviderSpecWithoutLUN,
@@ -442,7 +445,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].lun: Required value: DataDisk Lun is required").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.storageProfile.dataDisks[0].lun: Required value: DataDisk Lun is required").Error(),
 			),
 			Entry("#18 Create machine with improper LUN in providerSpec",
 				&mock.AzureProviderSpecWithImproperLUN,
@@ -457,7 +460,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, fmt.Errorf("properties.storageProfile.dataDisks[0].lun: Invalid value: %d: must be between 0 and "+
+				fmt.Errorf(internalErrorPrefix, fmt.Errorf("properties.storageProfile.dataDisks[0].lun: Invalid value: %d: must be between 0 and "+
 					"63, inclusive", *mock.AzureProviderSpecWithImproperLUN.Properties.StorageProfile.DataDisks[0].Lun).Error()).Error(),
 			),
 			Entry("#19 Create machine without Storage Account Type in providerSpec",
@@ -473,7 +476,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.storageProfile.dataDisks[0].storageAccountType: Required value: DataDisk storage account type is required").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.storageProfile.dataDisks[0].storageAccountType: Required value: DataDisk storage account type is required").Error(),
 			),
 			Entry("#20 Create machine with duplicated LUN in providerSpec",
 				&mock.AzureProviderSpecWithDuplicatedLUN,
@@ -488,7 +491,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, fmt.Errorf("properties.storageProfile.dataDisks: Invalid value: 1: Data Disk Lun '%d' duplicated 2 times, Lun must be unique", *mock.AzureProviderSpecWithDuplicatedLUN.Properties.StorageProfile.DataDisks[0].Lun).Error()).Error(),
+				fmt.Errorf(internalErrorPrefix, fmt.Errorf("properties.storageProfile.dataDisks: Invalid value: 1: Data Disk Lun '%d' duplicated 2 times, Lun must be unique", *mock.AzureProviderSpecWithDuplicatedLUN.Properties.StorageProfile.DataDisks[0].Lun).Error()).Error(),
 			),
 			Entry("#21 Create machine without Machineset, Zone & availability set in providerSpec",
 				&mock.AzureProviderSpecWithoutZMA,
@@ -503,7 +506,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.zone|.machineSet|.availabilitySet: Forbidden: Machine need to be assigned to a zone, a MachineSet or an AvailabilitySet").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.zone|.machineSet|.availabilitySet: Forbidden: Machine need to be assigned to a zone, a MachineSet or an AvailabilitySet").Error(),
 			),
 			Entry("#22 Create machine with Machineset, Zone & availability set in providerSpec",
 				&mock.AzureProviderSpecWithZMA,
@@ -518,7 +521,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.zone|.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned to a zone, a MachineSet and an AvailabilitySet in parallel").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.zone|.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned to a zone, a MachineSet and an AvailabilitySet in parallel").Error(),
 			),
 			Entry("#23 Create machine with only Machineset & availability set in providerSpec",
 				&mock.AzureProviderSpecWithMAOnly,
@@ -533,7 +536,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned a MachineSet and an AvailabilitySet in parallel").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.machineSet|.availabilitySet: Forbidden: Machine cannot be assigned a MachineSet and an AvailabilitySet in parallel").Error(),
 			),
 			Entry("#24 Create machine with invalid machine set in providerSpec",
 				&mock.AzureProviderSpecWithInvalidMachineSet,
@@ -548,7 +551,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, fmt.Errorf("properties.machineSet: Invalid value: \"%s\": Invalid MachineSet kind. Use either '%s' or '%s'", mock.AzureProviderSpecWithInvalidMachineSet.Properties.MachineSet.Kind, api.MachineSetKindVMO, api.MachineSetKindAvailabilitySet).Error()).Error(),
+				fmt.Errorf(internalErrorPrefix, fmt.Errorf("properties.machineSet: Invalid value: \"%s\": Invalid MachineSet kind. Use either '%s' or '%s'", mock.AzureProviderSpecWithInvalidMachineSet.Properties.MachineSet.Kind, api.MachineSetKindVMO, api.MachineSetKindAvailabilitySet).Error()).Error(),
 			),
 			Entry("#25 Create machine with empty cluster name in providerSpec",
 				&mock.AzureProviderSpecWithEmptyClusterNameTag,
@@ -563,7 +566,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "providerSpec.kubernetes.io-cluster-: Required value: Tag required of the form kubernetes.io-cluster-****").Error(),
+				fmt.Errorf(internalErrorPrefix, "providerSpec.kubernetes.io-cluster-: Required value: Tag required of the form kubernetes.io-cluster-****").Error(),
 			),
 			Entry("#26 Create machine with empty node role tag in providerSpec",
 				&mock.AzureProviderSpecWithEmptyNodeRoleTag,
@@ -578,7 +581,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "providerSpec.kubernetes.io-role-: Required value: Tag required of the form kubernetes.io-role-****").Error(),
+				fmt.Errorf(internalErrorPrefix, "providerSpec.kubernetes.io-role-: Required value: Tag required of the form kubernetes.io-role-****").Error(),
 			),
 			Entry("#27 Create a simple machine with getSubnet Error",
 				&mock.AzureProviderSpec,
@@ -877,7 +880,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				nil,
 				true,
-				fmt.Errorf(errorPrefix, "properties.osProfile.adminUsername: Required value: AdminUsername is required").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.osProfile.adminUsername: Required value: AdminUsername is required").Error(),
 			),
 			Entry("#7 Delete a machine where group does not exist",
 				&mock.AzureProviderSpec,
@@ -1054,6 +1057,23 @@ var _ = Describe("MachineController", func() {
 				nil,
 				true,
 				"Error fetching the next Virtual Machine in the page",
+			),
+			Entry("#5 List machines with wrong MachineClass",
+				&mock.AzureProviderSpec,
+				&driver.ListMachinesRequest{
+					MachineClass: newAzureMachineClass(mock.AzureProviderSpecWithNegativeDataDiskSize),
+					Secret:       newSecret(azureProviderSecret),
+				},
+				&driver.ListMachinesResponse{
+					MachineList: map[string]string{
+						"azure:///westeurope/dummy-machine": "dummy-machine",
+					},
+				},
+				false,
+				nil,
+				true,
+				fmt.Errorf(invalidArgumentErrorPrefix, "properties.storageProfile.dataDisks[0].diskSizeGB: Required value:"+
+					" DataDisk size must be positive").Error(),
 			),
 		)
 	})
