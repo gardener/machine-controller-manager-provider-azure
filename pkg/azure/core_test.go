@@ -1240,6 +1240,14 @@ var _ = Describe("MachineController", func() {
 
 	Describe("#GetVolumeIDs", func() {
 
+		var hostPathPVSpec = &corev1.PersistentVolumeSpec{
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/mnt/data",
+				},
+			},
+		}
+
 		DescribeTable("##Table",
 			func(
 				machineRequest *driver.GetVolumeIDsRequest,
@@ -1278,6 +1286,7 @@ var _ = Describe("MachineController", func() {
 								},
 							},
 						},
+						hostPathPVSpec,
 					},
 				},
 				&driver.GetVolumeIDsResponse{
@@ -1288,7 +1297,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				"",
 			),
-			Entry("# Get Volume IDs without any AzureDisks",
+			Entry("#2 Get Volume IDs without any AzureDisks",
 				&driver.GetVolumeIDsRequest{
 					PVSpecs: []*corev1.PersistentVolumeSpec{
 						{
@@ -1301,6 +1310,36 @@ var _ = Describe("MachineController", func() {
 				},
 				&driver.GetVolumeIDsResponse{
 					VolumeIDs: []string{},
+				},
+				false,
+				"",
+			),
+			Entry("#3 Get Volume IDs with CSI Azure out-of-tree PV (with .spec.csi.volumeHandle)",
+				&driver.GetVolumeIDsRequest{
+					PVSpecs: []*corev1.PersistentVolumeSpec{
+						{
+							PersistentVolumeSource: corev1.PersistentVolumeSource{
+								CSI: &corev1.CSIPersistentVolumeSource{
+									Driver:       "disk.csi.azure.com",
+									VolumeHandle: "vol-1",
+								},
+							},
+						},
+						{
+							PersistentVolumeSource: corev1.PersistentVolumeSource{
+								CSI: &corev1.CSIPersistentVolumeSource{
+									Driver:       "io.kubernetes.storage.mock",
+									VolumeHandle: "vol-2",
+								},
+							},
+						},
+						hostPathPVSpec,
+					},
+				},
+				&driver.GetVolumeIDsResponse{
+					VolumeIDs: []string{
+						"vol-1",
+					},
 				},
 				false,
 				"",
