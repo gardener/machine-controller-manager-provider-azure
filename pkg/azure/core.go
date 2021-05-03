@@ -29,6 +29,9 @@ const (
 
 	// ProviderAzure is the constant representing the Cloud Provider Azure
 	ProviderAzure = "Azure"
+
+	// AzureDiskDriverName is the name of the CSI driver for Azure Disk
+	AzureDiskDriverName = "disk.csi.azure.com"
 )
 
 // NOTE
@@ -290,12 +293,13 @@ func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeI
 
 	for i := range specs {
 		spec := specs[i]
-		if spec.AzureDisk == nil {
-			// Not an azure volume
-			continue
+		if spec.AzureDisk != nil {
+			name := spec.AzureDisk.DiskName
+			names = append(names, name)
+		} else if spec.CSI != nil && spec.CSI.Driver == AzureDiskDriverName && spec.CSI.VolumeHandle != "" {
+			name := spec.CSI.VolumeHandle
+			names = append(names, name)
 		}
-		name := spec.AzureDisk.DiskName
-		names = append(names, name)
 	}
 
 	return &driver.GetVolumeIDsResponse{VolumeIDs: names}, nil
