@@ -23,6 +23,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	spi "github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	backoff "github.com/gardener/machine-controller-manager/pkg/util/backoff"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -240,11 +241,29 @@ func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMac
 
 	if d.AzureProviderSpec.Properties.Zone != nil {
 		VMParameters.Zones = &[]string{strconv.Itoa(*d.AzureProviderSpec.Properties.Zone)}
-	} else if d.AzureProviderSpec.Properties.AvailabilitySet != nil {
+	}
+
+	// DEPRECATED: This will be removed in future in favour of the machineSet field which has a type for AvailabilitySet.
+	// TODO: Remove in future release.
+	if d.AzureProviderSpec.Properties.AvailabilitySet != nil {
 		VMParameters.VirtualMachineProperties.AvailabilitySet = &compute.SubResource{
 			ID: &d.AzureProviderSpec.Properties.AvailabilitySet.ID,
 		}
 	}
+
+	if d.AzureProviderSpec.Properties.MachineSet != nil {
+		switch d.AzureProviderSpec.Properties.MachineSet.Kind {
+		case machine.MachineSetKindVMO:
+			VMParameters.VirtualMachineProperties.VirtualMachineScaleSet = &compute.SubResource{
+				ID: &d.AzureProviderSpec.Properties.MachineSet.ID,
+			}
+		case machine.MachineSetKindAvailabilitySet:
+			VMParameters.VirtualMachineProperties.AvailabilitySet = &compute.SubResource{
+				ID: &d.AzureProviderSpec.Properties.MachineSet.ID,
+			}
+		}
+	}
+
 
 	if d.AzureProviderSpec.Properties.IdentityID != nil && *d.AzureProviderSpec.Properties.IdentityID != "" {
 		VMParameters.Identity = &compute.VirtualMachineIdentity{
