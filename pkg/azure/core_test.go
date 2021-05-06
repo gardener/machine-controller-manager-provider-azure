@@ -973,7 +973,7 @@ var _ = Describe("MachineController", func() {
 				mockDriver.Secret = machineRequest.Secret
 
 				// call setup before the create machine
-				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
+				mockDriverClients, _ := mockPluginSPIImpl.Setup(machineRequest.Secret)
 
 				// Define all the client expectations here and then proceed with the function call
 				fakeClients := mockDriverClients.(*mock.AzureDriverClients)
@@ -1011,7 +1011,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				"",
 			),
-			Entry("#1 List machines with wrong MachineClass Provider",
+			Entry("#2 List machines with wrong MachineClass Provider",
 				&mock.AzureProviderSpec,
 				&driver.ListMachinesRequest{
 					MachineClass: newAzureMachineClassWithProvider(mock.AzureProviderSpec, "aws"),
@@ -1027,7 +1027,7 @@ var _ = Describe("MachineController", func() {
 				true,
 				fmt.Errorf(machineClassProviderError, "aws").Error(),
 			),
-			Entry("#2 List machines with VM List error scenario",
+			Entry("#3 List machines with VM List error scenario",
 				&mock.AzureProviderSpec,
 				&driver.ListMachinesRequest{
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
@@ -1046,7 +1046,7 @@ var _ = Describe("MachineController", func() {
 				true,
 				"machine codes error: code = [Internal] message = [#: Internal resource group: StatusCode=500]",
 			),
-			Entry("#3 List machines with VM List error scenario",
+			Entry("#4 List machines with VM List error scenario",
 				&mock.AzureProviderSpec,
 				&driver.ListMachinesRequest{
 					MachineClass: newAzureMachineClass(mock.AzureProviderSpec),
@@ -1056,7 +1056,7 @@ var _ = Describe("MachineController", func() {
 				true,
 				nil,
 				true,
-				"Error fetching the next Virtual Machine in the page",
+				"machine codes error: code = [Internal] message = [Error fetching the next Virtual Machine in the page]",
 			),
 			Entry("#5 List machines with wrong MachineClass",
 				&mock.AzureProviderSpec,
@@ -1124,6 +1124,9 @@ var _ = Describe("MachineController", func() {
 					)
 				}
 
+				fakeClients.NIC.EXPECT().List(gomock.Any(), resourceGroupName).Return(network.InterfaceListResultPage{}, nil)
+				fakeClients.Disk.EXPECT().ListByResourceGroup(gomock.Any(), resourceGroupName).Return(compute.DiskListPage{}, nil)
+
 				response, err := mockDriver.GetMachineStatus(ctx, machineRequest)
 
 				if errToHaveOccurred {
@@ -1151,6 +1154,10 @@ var _ = Describe("MachineController", func() {
 						{
 							Name:     getStringPointer("dummy-machine"),
 							Location: getStringPointer("westeurope"),
+							Tags: map[string]*string{
+								"kubernetes.io-cluster-shoot--project--seed-az": getStringPointer("yes"),
+								"kubernetes.io-role-mcm":                        getStringPointer("1"),
+							},
 						},
 					},
 					NextLink: getStringPointer(""),
@@ -2133,6 +2140,10 @@ func assertVMResourcesForListingMachine(
 ) {
 
 	var vmlr compute.VirtualMachineListResultPage
+	tags := map[string]*string{
+		"kubernetes.io-cluster-shoot--project--seed-az": getStringPointer("yes"),
+		"kubernetes.io-role-mcm":                        getStringPointer("1"),
+	}
 	if !nextWithContextError {
 		vmlr = compute.NewVirtualMachineListResultPage(
 			compute.VirtualMachineListResult{
@@ -2140,6 +2151,7 @@ func assertVMResourcesForListingMachine(
 					{
 						Name:     getStringPointer("dummy-machine"),
 						Location: getStringPointer("westeurope"),
+						Tags:     tags,
 					},
 				},
 				NextLink: getStringPointer(""),
@@ -2155,6 +2167,7 @@ func assertVMResourcesForListingMachine(
 					{
 						Name:     getStringPointer("dummy-machine"),
 						Location: getStringPointer("westeurope"),
+						Tags:     tags,
 					},
 				},
 				NextLink: getStringPointer(""),
@@ -2174,4 +2187,8 @@ func assertVMResourcesForListingMachine(
 			vmlr, nil,
 		)
 	}
+
+	fakeClients.NIC.EXPECT().List(gomock.Any(), resourceGroupName).Return(network.InterfaceListResultPage{}, nil)
+	fakeClients.Disk.EXPECT().ListByResourceGroup(gomock.Any(), resourceGroupName).Return(compute.DiskListPage{}, nil)
+
 }
