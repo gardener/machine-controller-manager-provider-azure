@@ -22,13 +22,13 @@ func getInt32Pointer(i int32) *int32 {
 }
 
 var tags = map[string]string{
-	"Name": "shoot--project--seed-az",
-	"kubernetes.io-cluster-shoot--project--seed-az": "1",
-	"kubernetes.io-role-mcm":                        "1",
-	"node.kubernetes.io_role":                       "node",
-	"worker.garden.sapcloud.io_group":               "worker-m0exd",
-	"worker.gardener.cloud_pool":                    "worker-m0exd",
-	"worker.gardener.cloud_system-components":       "true",
+	"Name":                                    "shoot--project",
+	"kubernetes.io-cluster-shoot--project":    "1",
+	"kubernetes.io-role-mcm":                  "1",
+	"node.kubernetes.io_role":                 "node",
+	"worker.garden.sapcloud.io_group":         "worker-m0exd",
+	"worker.gardener.cloud_pool":              "worker-m0exd",
+	"worker.gardener.cloud_system-components": "true",
 }
 
 var (
