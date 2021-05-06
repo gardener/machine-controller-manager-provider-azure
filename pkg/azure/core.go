@@ -91,7 +91,7 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -125,7 +125,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -192,7 +192,7 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -211,7 +211,7 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 			return machineStatusResponse, nil
 		}
 	}
-	err = fmt.Errorf("Machine '%s' not found", req.Machine.Name)
+	err = fmt.Errorf("machine '%s' not found", req.Machine.Name)
 	return nil, status.Error(codes.NotFound, err.Error())
 }
 
@@ -235,7 +235,7 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -283,8 +283,8 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 	}
 	mergeIntoResult(listOfVMsByDisk)
 
+	OnARMAPISuccess(prometheusServiceVM, "VM.List")
 	return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
-
 }
 
 // GetVolumeIDs returns a list of Volume IDs for all PV Specs for whom a provider volume was found

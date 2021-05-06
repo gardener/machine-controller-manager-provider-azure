@@ -54,6 +54,14 @@ func getIntPointer(i int) *int {
 }
 
 var (
+	clusterTag = "kubernetes.io-cluster-shoot--project"
+	roleTag    = "kubernetes.io-role-mcm"
+
+	tags = map[string]*string{
+		clusterTag: getStringPointer("yes"),
+		roleTag:    getStringPointer("1"),
+	}
+
 	internalErrorPrefix = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Error while validat" +
 		"ing ProviderSpec [%s]]]"
 
@@ -69,7 +77,7 @@ var (
 	providerSpecSubnetInfoError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Err" +
 		"or while validating ProviderSpec [%s is a required subnet info]]]"
 
-	machineClassProviderError = "machine codes error: code = [InvalidArgument] message = [Requested for Provider '%s', we only support '" +
+	machineClassProviderError = "machine codes error: code = [InvalidArgument] message = [requested for Provider '%s', we only support '" +
 		ProviderAzure + "']"
 )
 
@@ -147,6 +155,7 @@ var _ = Describe("MachineController", func() {
 
 				// call setup before the create machine
 				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
+				Expect(err).ToNot(HaveOccurred())
 
 				// Define all the client expectations here and then proceed with the function call
 				fakeClients := mockDriverClients.(*mock.AzureDriverClients)
@@ -713,6 +722,7 @@ var _ = Describe("MachineController", func() {
 
 				// call setup before the create machine
 				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
+				Expect(err).ToNot(HaveOccurred())
 
 				// Define all the client expectations here and then proceed with the function call
 				fakeClients := mockDriverClients.(*mock.AzureDriverClients)
@@ -973,7 +983,8 @@ var _ = Describe("MachineController", func() {
 				mockDriver.Secret = machineRequest.Secret
 
 				// call setup before the create machine
-				mockDriverClients, _ := mockPluginSPIImpl.Setup(machineRequest.Secret)
+				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
+				Expect(err).ToNot(HaveOccurred())
 
 				// Define all the client expectations here and then proceed with the function call
 				fakeClients := mockDriverClients.(*mock.AzureDriverClients)
@@ -1098,6 +1109,7 @@ var _ = Describe("MachineController", func() {
 
 				// call setup before the create machine
 				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
+				Expect(err).ToNot(HaveOccurred())
 
 				// Define all the client expectations here and then proceed with the function call
 				fakeClients := mockDriverClients.(*mock.AzureDriverClients)
@@ -1209,7 +1221,7 @@ var _ = Describe("MachineController", func() {
 				},
 				nil,
 				true,
-				"machine codes error: code = [NotFound] message = [Machine 'dummy-machine' not found]",
+				"machine codes error: code = [NotFound] message = [machine 'dummy-machine' not found]",
 			),
 			Entry("#3 GetMachineStatus of machine with error while listing the machines",
 				&mock.AzureProviderSpec,
@@ -2138,12 +2150,7 @@ func assertVMResourcesForListingMachine(
 	nextWithContextError bool,
 	vmListError *autorest.DetailedError,
 ) {
-
 	var vmlr compute.VirtualMachineListResultPage
-	tags := map[string]*string{
-		"kubernetes.io-cluster-shoot--project--seed-az": getStringPointer("yes"),
-		"kubernetes.io-role-mcm":                        getStringPointer("1"),
-	}
 	if !nextWithContextError {
 		vmlr = compute.NewVirtualMachineListResultPage(
 			compute.VirtualMachineListResult{
