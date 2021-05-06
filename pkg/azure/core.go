@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -33,6 +32,11 @@ const (
 	// AzureDiskDriverName is the name of the CSI driver for Azure Disk
 	AzureDiskDriverName = "disk.csi.azure.com"
 )
+
+// VMs maintains a list of VM returned by the provider
+// Key refers to the machine-id on the cloud provider
+// value refers to the machine-name of the machine object
+type VMs map[string]string
 
 // NOTE
 //
@@ -87,7 +91,7 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -121,7 +125,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -188,7 +192,7 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -207,7 +211,7 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 			return machineStatusResponse, nil
 		}
 	}
-	err = fmt.Errorf("Machine '%s' not found", req.Machine.Name)
+	err = fmt.Errorf("machine '%s' not found", req.Machine.Name)
 	return nil, status.Error(codes.NotFound, err.Error())
 }
 
@@ -231,7 +235,7 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
-		err := fmt.Errorf("Requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
+		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -240,36 +244,44 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	d.AzureProviderSpec = providerSpec
+	d.Secret = req.Secret
 
 	var (
+		location          = providerSpec.Location
+		tags              = providerSpec.Tags
 		resourceGroupName = providerSpec.ResourceGroup
-		items             []compute.VirtualMachine
-		result            compute.VirtualMachineListResultPage
 		listOfVMs         = make(map[string]string)
 	)
 
-	clients, err := d.SPI.Setup(req.Secret)
+	clients, err := d.SPI.Setup(d.Secret)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	result, err = clients.GetVM().List(ctx, resourceGroupName)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	items = append(items, result.Values()...)
-	for result.NotDone() {
-		err = result.NextWithContext(ctx)
-		if err != nil {
-			return nil, OnARMAPIErrorFail(prometheusServiceVM, err, "VM.List")
+	mergeIntoResult := func(source VMs) {
+		for k, v := range source {
+			listOfVMs[k] = v
 		}
-		items = append(items, result.Values()...)
 	}
 
-	for _, item := range items {
-		listOfVMs[encodeMachineID(*item.Location, *item.Name)] = *item.Name
+	listOfVMs, err = getRelevantVMs(ctx, clients, resourceGroupName, location, tags)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
+	mergeIntoResult(listOfVMs)
+	klog.Errorf("List of VMs : %s", listOfVMs)
+
+	listOfVMsByNIC, err := getRelevantNICs(ctx, clients, resourceGroupName, location, tags)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	mergeIntoResult(listOfVMsByNIC)
+
+	listOfVMsByDisk, err := getRelevantDisks(ctx, clients, resourceGroupName, location, tags)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	mergeIntoResult(listOfVMsByDisk)
 
 	OnARMAPISuccess(prometheusServiceVM, "VM.List")
 	return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
