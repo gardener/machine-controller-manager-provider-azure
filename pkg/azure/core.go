@@ -269,7 +269,6 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	mergeIntoResult(listOfVMs)
-	klog.Errorf("List of VMs : %s", listOfVMs)
 
 	listOfVMsByNIC, err := getRelevantNICs(ctx, clients, resourceGroupName, location, tags)
 	if err != nil {

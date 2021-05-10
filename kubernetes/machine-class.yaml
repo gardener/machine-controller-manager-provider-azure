@@ -18,8 +18,12 @@ providerSpec:
       vmSize: Standard_DS2_v2
     networkProfile:
       networkInterfaces: {}
+      acceleratedNetworking: <boolean>
     osProfile:
       adminUsername: core
+      # adminPassword: <password>
+      customData: <string>
+      computerName: <string>
       linuxConfiguration:
         disablePasswordAuthentication: true
         ssh:
@@ -35,9 +39,22 @@ providerSpec:
         diskSizeGB: 50
         managedDisk:
           storageAccountType: <eg:Standard_LRS>
+      # dataDisks: 
+      #   - name: <string>
+      #     lun: <int32>
+      #     caching: <string>
+      #     storageAccountType: <string>
+      #     diskSizeGB: <int32>
     zone: 2
+    identityID: <string>
+    availabilitySet: 
+      id: <string>
+    machineSet: 
+      id: <string>
+      Kind: <string>
   resourceGroup: <resource-group-name>
   subnetInfo:
+    # vnetResourceGroup: <vnet-resource-group-name>
     subnetName: <subnet-name>
     vnetName: <vnet-name>
   tags:

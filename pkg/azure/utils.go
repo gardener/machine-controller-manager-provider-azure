@@ -1116,8 +1116,6 @@ func verifyAzureTags(tags map[string]*string, clusterNameTag, nodeRoleTag string
 		return false
 	}
 
-	klog.Errorf("%v %s %s", tags, clusterNameTag, nodeRoleTag)
-
 	var clusterNameMatched, nodeRoleMatched bool
 	for key := range tags {
 		if strings.Contains(key, clusterNameTag) {
