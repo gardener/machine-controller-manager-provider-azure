@@ -7,8 +7,7 @@ require (
 	github.com/Azure/go-autorest/autorest v0.11.17
 	github.com/Azure/go-autorest/autorest/adal v0.9.5
 	github.com/Azure/go-autorest/autorest/to v0.3.0
-	github.com/cenkalti/backoff/v4 v4.1.0 // indirect
-	github.com/gardener/machine-controller-manager v0.38.0
+	github.com/gardener/machine-controller-manager v0.39.0
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/onsi/ginkgo v1.15.2
@@ -24,7 +23,6 @@ require (
 )
 
 replace (
-
 	github.com/onsi/gomega => github.com/onsi/gomega v1.5.0
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.9.2
 	k8s.io/api => k8s.io/api v0.0.0-20190918155943-95b840bb6a1f // kubernetes-1.16.0

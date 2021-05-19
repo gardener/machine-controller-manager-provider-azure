@@ -12,6 +12,7 @@
 *amd64
 *.html
 main
+.cache_ggshield
 
 # Output of the go coverage tool
 *coverprofile.out*
