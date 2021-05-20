@@ -12,13 +12,11 @@ import (
 	"fmt"
 	"strings"
 
-	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
 )
 
@@ -67,9 +65,7 @@ type VMs map[string]string
 
 // MachinePlugin is the driver struct for holding Azure machine information
 type MachinePlugin struct {
-	SPI               spi.SessionProviderInterface
-	AzureProviderSpec *api.AzureProviderSpec
-	Secret            *corev1.Secret
+	SPI spi.SessionProviderInterface
 }
 
 // NewAzureDriver returns an empty AzureDriver object
@@ -95,7 +91,6 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	d.Secret = req.Secret
 	virtualMachine, err := d.createVMNicDisk(req)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -133,8 +128,6 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	d.AzureProviderSpec = providerSpec
-	d.Secret = req.Secret
 
 	var (
 		vmName            = strings.ToLower(req.Machine.Name)
@@ -144,7 +137,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 		dataDiskNames     []string
 	)
 
-	clients, err := d.SPI.Setup(d.Secret)
+	clients, err := d.SPI.Setup(req.Secret)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -243,8 +236,6 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	d.AzureProviderSpec = providerSpec
-	d.Secret = req.Secret
 
 	var (
 		location          = providerSpec.Location
@@ -253,7 +244,7 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 		listOfVMs         = make(map[string]string)
 	)
 
-	clients, err := d.SPI.Setup(d.Secret)
+	clients, err := d.SPI.Setup(req.Secret)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
