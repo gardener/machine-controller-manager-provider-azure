@@ -32,7 +32,7 @@ import (
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	gomock "github.com/golang/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func getStringPointer(s string) *string {
@@ -1390,7 +1390,7 @@ var _ = Describe("MachineController", func() {
 			Entry("#1 Generate machine class for migration",
 				&driver.GenerateMachineClassForMigrationRequest{
 					ProviderSpecificMachineClass: &v1alpha1.AzureMachineClass{
-						ObjectMeta: v1.ObjectMeta{
+						ObjectMeta: metav1.ObjectMeta{
 							Name:      "test-azure",
 							Namespace: "default",
 							Labels: map[string]string{
@@ -1405,7 +1405,7 @@ var _ = Describe("MachineController", func() {
 								"mcm/finalizer",
 							},
 						},
-						TypeMeta: v1.TypeMeta{},
+						TypeMeta: metav1.TypeMeta{},
 						Spec: v1alpha1.AzureMachineClassSpec{
 							Location:      "westeurope",
 							ResourceGroup: "sample-resource-group",
@@ -1489,7 +1489,7 @@ var _ = Describe("MachineController", func() {
 			Entry("#2 Generate machine class for migration for invalid machine class kind",
 				&driver.GenerateMachineClassForMigrationRequest{
 					ProviderSpecificMachineClass: &v1alpha1.AzureMachineClass{
-						ObjectMeta: v1.ObjectMeta{
+						ObjectMeta: metav1.ObjectMeta{
 							Name:      "test-azure",
 							Namespace: "default",
 							Labels: map[string]string{
@@ -1504,7 +1504,7 @@ var _ = Describe("MachineController", func() {
 								"mcm/finalizer",
 							},
 						},
-						TypeMeta: v1.TypeMeta{},
+						TypeMeta: metav1.TypeMeta{},
 						Spec: v1alpha1.AzureMachineClassSpec{
 							Location:      "westeurope",
 							ResourceGroup: "sample-resource-group",
@@ -1673,7 +1673,7 @@ func UnmarshalInterfacesDeleteFuture(bytesUnterfacesFutureAPI []byte) network.In
 
 func newMachine(name string) *v1alpha1.Machine {
 	return &v1alpha1.Machine{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
 	}
@@ -1682,7 +1682,7 @@ func newMachine(name string) *v1alpha1.Machine {
 func newAzureMachineClassWithProvider(azureProviderSpec apis.AzureProviderSpec, provider string) *v1alpha1.MachineClass {
 	byteData, _ := json.Marshal(azureProviderSpec)
 	return &v1alpha1.MachineClass{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 		},
 		ProviderSpec: runtime.RawExtension{
@@ -1695,7 +1695,7 @@ func newAzureMachineClassWithProvider(azureProviderSpec apis.AzureProviderSpec, 
 func newAzureMachineClass(azureProviderSpec apis.AzureProviderSpec) *v1alpha1.MachineClass {
 	byteData, _ := json.Marshal(azureProviderSpec)
 	return &v1alpha1.MachineClass{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 		},
 		ProviderSpec: runtime.RawExtension{
@@ -1709,7 +1709,7 @@ func newAzureMachineClassWithError() *v1alpha1.MachineClass {
 	byteData := []byte("{\"location\":\"westeurope\",\"properties\":{\"hardwareProfile\":{\"vmSize\":\"Standard_DS2_v2\"},\"osProfile\":{\"adminUsername\":\"core\",\"linuxConfiguration\":{\"disablePasswordAuthentication\":true,\"ssh\":{\"publicKeys\":{\"keyData\":\"dummy keyData\",\"path\":\"/home/core/.ssh/authorized_keys\"}}}},\"storageProfile\":{\"imageReference\":{\"urn\":\"sap:gardenlinux:greatest:27.1.0\"},\"osDisk\":{\"caching\":\"None\",\"createOption\":\"FromImage\",\"diskSizeGB\":50,\"managedDisk\":{\"storageAccountType\":\"Standard_LRS\"}}},\"zone\":2},\"resourceGroup\":\"shoot--project--seed-az\",\"subnetInfo\":{\"subnetName\":\"shoot--project--seed-az-nodes\",\"vnetName\":\"shoot--project--seed-az\"},\"tags\":{\"Name\":\"shoot--project--seed-az\",\"kubernetes.io-cluster-shoot--project--seed-az\":\"1\",\"kubernetes.io-role-mcm\":\"1\",\"node.kubernetes.io_role\"\"node\",\"worker.garden.sapcloud.io_group\":\"worker-m0exd\",\"worker.gardener.cloud_pool\":\"worker-m0exd\",\"worker.gardener.cloud_system-components\":\"true\"}}")
 
 	return &v1alpha1.MachineClass{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
 		},
 		ProviderSpec: runtime.RawExtension{
@@ -1750,8 +1750,8 @@ func getMigratedMachineClass(providerSpecificMachineClass interface{}) *v1alpha1
 	providerSpecMarshal, _ := json.Marshal(providerSpec)
 
 	machineClass := &v1alpha1.MachineClass{
-		TypeMeta: v1.TypeMeta{},
-		ObjectMeta: v1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:        providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Name,
 			Namespace:   providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Namespace,
 			Labels:      providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Labels,
@@ -1835,7 +1835,7 @@ func assertNetworkResourcesForMachineCreation(
 		fakeClients.Subnet.EXPECT().Get(gomock.Any(), resourceGroupName, vnetName, subnetName, "").Return(subnet, nil)
 	}
 
-	NICParameters := mockDriver.getNICParameters(vmName, &subnet, providerSpec)
+	NICParameters := getNICParameters(vmName, &subnet, providerSpec)
 
 	if nicGetError != nil {
 		fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, nicName, "").Return(network.Interface{}, *nicGetError)
@@ -1948,7 +1948,7 @@ func assertVMResourcesForMachineCreation(
 			},
 			StatusCode: 404,
 		})
-		VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId, providerSpec, machineRequest.Secret)
+		VMParameters := getVMParameters(vmName, vmImageRef, NICId, providerSpec, machineRequest.Secret)
 		fakeClients.VM.EXPECT().CreateOrUpdate(gomock.Any(), resourceGroupName, *VMParameters.Name, VMParameters).Return(compute.VirtualMachinesCreateOrUpdateFuture{}, *vmCreateOrUpdateError)
 	} else {
 
@@ -1958,7 +1958,7 @@ func assertVMResourcesForMachineCreation(
 			},
 			StatusCode: 404,
 		})
-		VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId, providerSpec, machineRequest.Secret)
+		VMParameters := getVMParameters(vmName, vmImageRef, NICId, providerSpec, machineRequest.Secret)
 		fakeClients.VM.EXPECT().CreateOrUpdate(gomock.Any(), resourceGroupName, *VMParameters.Name, VMParameters).Return(VMFutureAPI, nil)
 	}
 }

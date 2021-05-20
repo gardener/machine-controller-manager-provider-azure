@@ -83,7 +83,7 @@ func getAzureDataDiskNames(azureDataDisks []api.AzureDataDisk, vmname, suffix st
 	return azureDataDiskNames
 }
 
-func (d *MachinePlugin) getNICParameters(vmName string, subnet *network.Subnet, providerSpec *api.AzureProviderSpec) network.Interface {
+func getNICParameters(vmName string, subnet *network.Subnet, providerSpec *api.AzureProviderSpec) network.Interface {
 
 	var (
 		nicName            = dependencyNameFromVMName(vmName, nicSuffix)
@@ -119,7 +119,7 @@ func (d *MachinePlugin) getNICParameters(vmName string, subnet *network.Subnet, 
 	return NICParameters
 }
 
-func (d *MachinePlugin) generateDataDisks(vmName string, azureDataDisks []api.AzureDataDisk) []compute.DataDisk {
+func generateDataDisks(vmName string, azureDataDisks []api.AzureDataDisk) []compute.DataDisk {
 	var dataDisks []compute.DataDisk
 	for i, azureDataDisk := range azureDataDisks {
 
@@ -157,7 +157,7 @@ func (d *MachinePlugin) generateDataDisks(vmName string, azureDataDisks []api.Az
 	return dataDisks
 }
 
-func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string, providerSpec *api.AzureProviderSpec, secret *corev1.Secret) compute.VirtualMachine {
+func getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string, providerSpec *api.AzureProviderSpec, secret *corev1.Secret) compute.VirtualMachine {
 
 	var (
 		diskName    = dependencyNameFromVMName(vmName, diskSuffix)
@@ -171,7 +171,7 @@ func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMac
 		tagList[idx] = to.StringPtr(element)
 	}
 
-	imageReference := d.getImageReference(providerSpec)
+	imageReference := getImageReference(providerSpec)
 
 	var plan *compute.Plan
 	if image != nil && image.Plan != nil {
@@ -235,7 +235,7 @@ func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMac
 	}
 
 	if providerSpec.Properties.StorageProfile.DataDisks != nil && len(providerSpec.Properties.StorageProfile.DataDisks) > 0 {
-		dataDisks := d.generateDataDisks(vmName, providerSpec.Properties.StorageProfile.DataDisks)
+		dataDisks := generateDataDisks(vmName, providerSpec.Properties.StorageProfile.DataDisks)
 		VMParameters.StorageProfile.DataDisks = &dataDisks
 	}
 
@@ -276,7 +276,7 @@ func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMac
 	return VMParameters
 }
 
-func (d *MachinePlugin) getImageReference(providerSpec *api.AzureProviderSpec) compute.ImageReference {
+func getImageReference(providerSpec *api.AzureProviderSpec) compute.ImageReference {
 	imageRefClass := providerSpec.Properties.StorageProfile.ImageReference
 	if imageRefClass.ID != "" {
 		return compute.ImageReference{
@@ -361,7 +361,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 			*/
 
 			// Creating NICParameters for new NIC creation request
-			NICParameters := d.getNICParameters(vmName, &subnet, providerSpec)
+			NICParameters := getNICParameters(vmName, &subnet, providerSpec)
 
 			// NIC creation request
 			klog.V(3).Infof("NIC creation started for %q", nicName)
@@ -426,7 +426,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	// if ID is not set the image is referenced using a URN
 	if imageRefClass.ID == "" {
 
-		imageReference := d.getImageReference(providerSpec)
+		imageReference := getImageReference(providerSpec)
 		vmImage, err := clients.GetImages().Get(
 			ctx,
 			providerSpec.Location,
@@ -494,7 +494,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	}
 
 	// Creating VMParameters for new VM creation request
-	VMParameters := d.getVMParameters(vmName, vmImageRef, *NIC.ID, providerSpec, req.Secret)
+	VMParameters := getVMParameters(vmName, vmImageRef, *NIC.ID, providerSpec, req.Secret)
 
 	// VM creation request
 	klog.V(3).Infof("VM creation began for %q", vmName)
