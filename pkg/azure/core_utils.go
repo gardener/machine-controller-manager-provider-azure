@@ -32,7 +32,7 @@ func decodeProviderSpecAndSecret(machineClass *v1alpha1.MachineClass, secret *co
 	//Validate the Spec and Secrets
 	ValidationErr := validation.ValidateAzureSpecNSecret(providerSpec, secret)
 	if ValidationErr != nil {
-		err = fmt.Errorf("Error while validating ProviderSpec %v", ValidationErr)
+		err = fmt.Errorf("error while validating ProviderSpec %v", ValidationErr)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
