@@ -27,13 +27,11 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	apis "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	mock "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock"
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	gomock "github.com/golang/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -62,19 +60,19 @@ var (
 		roleTag:    getStringPointer("1"),
 	}
 
-	internalErrorPrefix = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Error while validat" +
+	internalErrorPrefix = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [error while validat" +
 		"ing ProviderSpec [%s]]]"
 
-	invalidArgumentErrorPrefix = "machine codes error: code = [InvalidArgument] message = [machine codes error: code = [Internal] message = [Error while validat" +
+	invalidArgumentErrorPrefix = "machine codes error: code = [InvalidArgument] message = [machine codes error: code = [Internal] message = [error while validat" +
 		"ing ProviderSpec [%s]]]"
 
-	secretError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Error while validat" +
+	secretError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [error while validat" +
 		"ing ProviderSpec [secret %s or %s is required field]]]"
 
-	providerSpecError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Error while v" +
+	providerSpecError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [error while v" +
 		"alidating ProviderSpec [%s is required field]]]"
 
-	providerSpecSubnetInfoError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [Err" +
+	providerSpecSubnetInfoError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [err" +
 		"or while validating ProviderSpec [%s is a required subnet info]]]"
 
 	machineClassProviderError = "machine codes error: code = [InvalidArgument] message = [requested for Provider '%s', we only support '" +
@@ -151,7 +149,6 @@ var _ = Describe("MachineController", func() {
 				controller := gomock.NewController(GinkgoT())
 				mockPluginSPIImpl := mock.NewMockPluginSPIImpl(controller)
 				mockDriver := NewAzureDriver(mockPluginSPIImpl)
-				mockDriver.Secret = machineRequest.Secret
 
 				// call setup before the create machine
 				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
@@ -159,8 +156,6 @@ var _ = Describe("MachineController", func() {
 
 				// Define all the client expectations here and then proceed with the function call
 				fakeClients := mockDriverClients.(*mock.AzureDriverClients)
-
-				mockDriver.AzureProviderSpec = providerSpec
 
 				assertNetworkResourcesForMachineCreation(mockDriver, fakeClients, providerSpec, machineRequest, getSubnetError, nicGetError, nicCreateOrUpdateError)
 				assertVMResourcesForMachineCreation(mockDriver, fakeClients, providerSpec, machineRequest, vmCreateOrUpdateError)
@@ -560,7 +555,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(internalErrorPrefix, fmt.Errorf("properties.machineSet: Invalid value: \"%s\": Invalid MachineSet kind. Use either '%s' or '%s'", mock.AzureProviderSpecWithInvalidMachineSet.Properties.MachineSet.Kind, api.MachineSetKindVMO, api.MachineSetKindAvailabilitySet).Error()).Error(),
+				fmt.Errorf(internalErrorPrefix, fmt.Errorf("properties.machineSet: Invalid value: \"%s\": Invalid MachineSet kind. Use either '%s' or '%s'", mock.AzureProviderSpecWithInvalidMachineSet.Properties.MachineSet.Kind, apis.MachineSetKindVMO, apis.MachineSetKindAvailabilitySet).Error()).Error(),
 			),
 			Entry("#25 Create machine with empty cluster name in providerSpec",
 				&mock.AzureProviderSpecWithEmptyClusterNameTag,
@@ -718,7 +713,6 @@ var _ = Describe("MachineController", func() {
 				controller := gomock.NewController(GinkgoT())
 				mockPluginSPIImpl := mock.NewMockPluginSPIImpl(controller)
 				mockDriver := NewAzureDriver(mockPluginSPIImpl)
-				mockDriver.Secret = machineRequest.Secret
 
 				// call setup before the create machine
 				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
@@ -731,8 +725,6 @@ var _ = Describe("MachineController", func() {
 					ctx               = context.Background()
 					resourceGroupName = providerSpec.ResourceGroup
 				)
-
-				mockDriver.AzureProviderSpec = providerSpec
 
 				if getGroupError != nil {
 					fakeClients.Group.EXPECT().Get(gomock.Any(), resourceGroupName).Return(resources.Group{}, *getGroupError)
@@ -809,7 +801,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				nil,
 				true,
-				"machine codes error: code = [Internal] message = [Cannot delete NIC dummy-machine-nic because it is attached to VM dummy-"+
+				"machine codes error: code = [Internal] message = [cannot delete NIC dummy-machine-nic because it is attached to VM dummy-"+
 					"machine-id]",
 			),
 
@@ -829,7 +821,7 @@ var _ = Describe("MachineController", func() {
 				false,
 				nil,
 				true,
-				"machine codes error: code = [Internal] message = [Cannot delete disk dummy-machine-os-disk because it is attached to VM d"+
+				"machine codes error: code = [Internal] message = [cannot delete disk dummy-machine-os-disk because it is attached to VM d"+
 					"ummy-machine-id]",
 			),
 
@@ -849,7 +841,7 @@ var _ = Describe("MachineController", func() {
 				true,
 				nil,
 				true,
-				"machine codes error: code = [Internal] message = [Cannot delete disk dummy-machine-"+
+				"machine codes error: code = [Internal] message = [cannot delete disk dummy-machine-"+
 					fmt.Sprintf("%d", *mock.AzureProviderSpecWithDataDisks.Properties.StorageProfile.DataDisks[0].Lun)+"-data-disk because"+
 					" it is attached to VM dummy-machine-id]",
 			),
@@ -870,7 +862,7 @@ var _ = Describe("MachineController", func() {
 				true,
 				nil,
 				true,
-				"machine codes error: code = [Internal] message = [Cannot delete disk dummy-machine-"+
+				"machine codes error: code = [Internal] message = [cannot delete disk dummy-machine-"+
 					fmt.Sprintf("%s-%d", mock.AzureProviderSpecWithDataDisksWithName.Properties.StorageProfile.DataDisks[0].Name,
 						*mock.AzureProviderSpecWithDataDisksWithName.Properties.StorageProfile.DataDisks[0].Lun)+
 					"-data-disk because it is attached to VM dummy-machine-id]",
@@ -980,7 +972,6 @@ var _ = Describe("MachineController", func() {
 				controller := gomock.NewController(GinkgoT())
 				mockPluginSPIImpl := mock.NewMockPluginSPIImpl(controller)
 				mockDriver := NewAzureDriver(mockPluginSPIImpl)
-				mockDriver.Secret = machineRequest.Secret
 
 				// call setup before the create machine
 				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
@@ -1105,7 +1096,6 @@ var _ = Describe("MachineController", func() {
 				controller := gomock.NewController(GinkgoT())
 				mockPluginSPIImpl := mock.NewMockPluginSPIImpl(controller)
 				mockDriver := NewAzureDriver(mockPluginSPIImpl)
-				mockDriver.Secret = machineRequest.Secret
 
 				// call setup before the create machine
 				mockDriverClients, err := mockPluginSPIImpl.Setup(machineRequest.Secret)
@@ -1683,7 +1673,7 @@ func UnmarshalInterfacesDeleteFuture(bytesUnterfacesFutureAPI []byte) network.In
 
 func newMachine(name string) *v1alpha1.Machine {
 	return &v1alpha1.Machine{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name: name,
 		},
 	}
@@ -1738,8 +1728,8 @@ func newSecret(azureProviderSecretRaw map[string][]byte) *corev1.Secret {
 func getMigratedMachineClass(providerSpecificMachineClass interface{}) *v1alpha1.MachineClass {
 
 	var (
-		properties api.AzureVirtualMachineProperties
-		subnetInfo api.AzureSubnetInfo
+		properties apis.AzureVirtualMachineProperties
+		subnetInfo apis.AzureSubnetInfo
 	)
 
 	data, _ := json.Marshal(providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.Properties)
@@ -1748,7 +1738,7 @@ func getMigratedMachineClass(providerSpecificMachineClass interface{}) *v1alpha1
 	data, _ = json.Marshal(providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.SubnetInfo)
 	_ = json.Unmarshal(data, &subnetInfo)
 
-	providerSpec := &api.AzureProviderSpec{
+	providerSpec := &apis.AzureProviderSpec{
 		Location:      providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.Location,
 		Tags:          providerSpecificMachineClass.(*v1alpha1.AzureMachineClass).Spec.Tags,
 		Properties:    properties,
@@ -1845,7 +1835,7 @@ func assertNetworkResourcesForMachineCreation(
 		fakeClients.Subnet.EXPECT().Get(gomock.Any(), resourceGroupName, vnetName, subnetName, "").Return(subnet, nil)
 	}
 
-	NICParameters := mockDriver.getNICParameters(vmName, &subnet)
+	NICParameters := mockDriver.getNICParameters(vmName, &subnet, providerSpec)
 
 	if nicGetError != nil {
 		fakeClients.NIC.EXPECT().Get(gomock.Any(), resourceGroupName, nicName, "").Return(network.Interface{}, *nicGetError)
@@ -1932,7 +1922,7 @@ func assertVMResourcesForMachineCreation(
 	}
 
 	vmImageRef = &compute.VirtualMachineImage{
-		Name: mockDriver.AzureProviderSpec.Properties.StorageProfile.ImageReference.URN,
+		Name: providerSpec.Properties.StorageProfile.ImageReference.URN,
 		VirtualMachineImageProperties: &compute.VirtualMachineImageProperties{
 			Plan: nil,
 		},
@@ -1940,7 +1930,7 @@ func assertVMResourcesForMachineCreation(
 
 	fakeClients.Images.EXPECT().Get(
 		gomock.Any(),
-		mockDriver.AzureProviderSpec.Location,
+		providerSpec.Location,
 		*imageRef.Publisher,
 		*imageRef.Offer,
 		*imageRef.Sku,
@@ -1958,7 +1948,7 @@ func assertVMResourcesForMachineCreation(
 			},
 			StatusCode: 404,
 		})
-		VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
+		VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId, providerSpec, machineRequest.Secret)
 		fakeClients.VM.EXPECT().CreateOrUpdate(gomock.Any(), resourceGroupName, *VMParameters.Name, VMParameters).Return(compute.VirtualMachinesCreateOrUpdateFuture{}, *vmCreateOrUpdateError)
 	} else {
 
@@ -1968,7 +1958,7 @@ func assertVMResourcesForMachineCreation(
 			},
 			StatusCode: 404,
 		})
-		VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId)
+		VMParameters := mockDriver.getVMParameters(vmName, vmImageRef, NICId, providerSpec, machineRequest.Secret)
 		fakeClients.VM.EXPECT().CreateOrUpdate(gomock.Any(), resourceGroupName, *VMParameters.Name, VMParameters).Return(VMFutureAPI, nil)
 	}
 }
@@ -1976,7 +1966,7 @@ func assertVMResourcesForMachineCreation(
 func assertDiskResourcesForMachineCreation(
 	mockDriver *MachinePlugin,
 	fakeClients *mock.AzureDriverClients,
-	providerSpec *api.AzureProviderSpec,
+	providerSpec *apis.AzureProviderSpec,
 	machineRequest *driver.CreateMachineRequest,
 ) {
 	var resourceGroupName = providerSpec.ResourceGroup

@@ -31,6 +31,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	metrics "github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	"github.com/prometheus/client_golang/prometheus"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
 )
@@ -76,24 +77,23 @@ func getAzureDataDiskPrefix(name string, lun *int32) string {
 func getAzureDataDiskNames(azureDataDisks []api.AzureDataDisk, vmname, suffix string) []string {
 	azureDataDiskNames := make([]string, len(azureDataDisks))
 	for i, disk := range azureDataDisks {
-		var diskLun *int32
-		diskLun = disk.Lun
+		var diskLun *int32 = disk.Lun
 		azureDataDiskNames[i] = dependencyNameFromVMNameAndDependency(getAzureDataDiskPrefix(disk.Name, diskLun), vmname, suffix)
 	}
 	return azureDataDiskNames
 }
 
-func (d *MachinePlugin) getNICParameters(vmName string, subnet *network.Subnet) network.Interface {
+func (d *MachinePlugin) getNICParameters(vmName string, subnet *network.Subnet, providerSpec *api.AzureProviderSpec) network.Interface {
 
 	var (
 		nicName            = dependencyNameFromVMName(vmName, nicSuffix)
-		location           = d.AzureProviderSpec.Location
+		location           = providerSpec.Location
 		enableIPForwarding = true
 	)
 
 	// Add tags to the machine resources
 	tagList := map[string]*string{}
-	for idx, element := range d.AzureProviderSpec.Tags {
+	for idx, element := range providerSpec.Tags {
 		tagList[idx] = to.StringPtr(element)
 	}
 
@@ -111,7 +111,7 @@ func (d *MachinePlugin) getNICParameters(vmName string, subnet *network.Subnet) 
 				},
 			},
 			EnableIPForwarding:          &enableIPForwarding,
-			EnableAcceleratedNetworking: d.AzureProviderSpec.Properties.NetworkProfile.AcceleratedNetworking,
+			EnableAcceleratedNetworking: providerSpec.Properties.NetworkProfile.AcceleratedNetworking,
 		},
 		Tags: tagList,
 	}
@@ -157,21 +157,21 @@ func (d *MachinePlugin) generateDataDisks(vmName string, azureDataDisks []api.Az
 	return dataDisks
 }
 
-func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string) compute.VirtualMachine {
+func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string, providerSpec *api.AzureProviderSpec, secret *corev1.Secret) compute.VirtualMachine {
 
 	var (
 		diskName    = dependencyNameFromVMName(vmName, diskSuffix)
-		UserDataEnc = base64.StdEncoding.EncodeToString([]byte(d.Secret.Data["userData"]))
-		location    = d.AzureProviderSpec.Location
+		UserDataEnc = base64.StdEncoding.EncodeToString([]byte(secret.Data["userData"]))
+		location    = providerSpec.Location
 	)
 
 	// Add tags to the machine resources
 	tagList := map[string]*string{}
-	for idx, element := range d.AzureProviderSpec.Tags {
+	for idx, element := range providerSpec.Tags {
 		tagList[idx] = to.StringPtr(element)
 	}
 
-	imageReference := getImageReference(d)
+	imageReference := d.getImageReference(providerSpec)
 
 	var plan *compute.Plan
 	if image != nil && image.Plan != nil {
@@ -190,31 +190,31 @@ func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMac
 		Location: &location,
 		VirtualMachineProperties: &compute.VirtualMachineProperties{
 			HardwareProfile: &compute.HardwareProfile{
-				VMSize: compute.VirtualMachineSizeTypes(d.AzureProviderSpec.Properties.HardwareProfile.VMSize),
+				VMSize: compute.VirtualMachineSizeTypes(providerSpec.Properties.HardwareProfile.VMSize),
 			},
 			StorageProfile: &compute.StorageProfile{
 				ImageReference: &imageReference,
 				OsDisk: &compute.OSDisk{
 					Name:    &diskName,
-					Caching: compute.CachingTypes(d.AzureProviderSpec.Properties.StorageProfile.OsDisk.Caching),
+					Caching: compute.CachingTypes(providerSpec.Properties.StorageProfile.OsDisk.Caching),
 					ManagedDisk: &compute.ManagedDiskParameters{
-						StorageAccountType: compute.StorageAccountTypes(d.AzureProviderSpec.Properties.StorageProfile.OsDisk.ManagedDisk.StorageAccountType),
+						StorageAccountType: compute.StorageAccountTypes(providerSpec.Properties.StorageProfile.OsDisk.ManagedDisk.StorageAccountType),
 					},
-					DiskSizeGB:   &d.AzureProviderSpec.Properties.StorageProfile.OsDisk.DiskSizeGB,
-					CreateOption: compute.DiskCreateOptionTypes(d.AzureProviderSpec.Properties.StorageProfile.OsDisk.CreateOption),
+					DiskSizeGB:   &providerSpec.Properties.StorageProfile.OsDisk.DiskSizeGB,
+					CreateOption: compute.DiskCreateOptionTypes(providerSpec.Properties.StorageProfile.OsDisk.CreateOption),
 				},
 			},
 			OsProfile: &compute.OSProfile{
 				ComputerName:  &vmName,
-				AdminUsername: &d.AzureProviderSpec.Properties.OsProfile.AdminUsername,
+				AdminUsername: &providerSpec.Properties.OsProfile.AdminUsername,
 				CustomData:    &UserDataEnc,
 				LinuxConfiguration: &compute.LinuxConfiguration{
-					DisablePasswordAuthentication: &d.AzureProviderSpec.Properties.OsProfile.LinuxConfiguration.DisablePasswordAuthentication,
+					DisablePasswordAuthentication: &providerSpec.Properties.OsProfile.LinuxConfiguration.DisablePasswordAuthentication,
 					SSH: &compute.SSHConfiguration{
 						PublicKeys: &[]compute.SSHPublicKey{
 							{
-								Path:    &d.AzureProviderSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.Path,
-								KeyData: &d.AzureProviderSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData,
+								Path:    &providerSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.Path,
+								KeyData: &providerSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData,
 							},
 						},
 					},
@@ -234,41 +234,41 @@ func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMac
 		Tags: tagList,
 	}
 
-	if d.AzureProviderSpec.Properties.StorageProfile.DataDisks != nil && len(d.AzureProviderSpec.Properties.StorageProfile.DataDisks) > 0 {
-		dataDisks := d.generateDataDisks(vmName, d.AzureProviderSpec.Properties.StorageProfile.DataDisks)
+	if providerSpec.Properties.StorageProfile.DataDisks != nil && len(providerSpec.Properties.StorageProfile.DataDisks) > 0 {
+		dataDisks := d.generateDataDisks(vmName, providerSpec.Properties.StorageProfile.DataDisks)
 		VMParameters.StorageProfile.DataDisks = &dataDisks
 	}
 
-	if d.AzureProviderSpec.Properties.Zone != nil {
-		VMParameters.Zones = &[]string{strconv.Itoa(*d.AzureProviderSpec.Properties.Zone)}
+	if providerSpec.Properties.Zone != nil {
+		VMParameters.Zones = &[]string{strconv.Itoa(*providerSpec.Properties.Zone)}
 	}
 
 	// DEPRECATED: This will be removed in future in favour of the machineSet field which has a type for AvailabilitySet.
 	// TODO: Remove in future release.
-	if d.AzureProviderSpec.Properties.AvailabilitySet != nil {
+	if providerSpec.Properties.AvailabilitySet != nil {
 		VMParameters.VirtualMachineProperties.AvailabilitySet = &compute.SubResource{
-			ID: &d.AzureProviderSpec.Properties.AvailabilitySet.ID,
+			ID: &providerSpec.Properties.AvailabilitySet.ID,
 		}
 	}
 
-	if d.AzureProviderSpec.Properties.MachineSet != nil {
-		switch d.AzureProviderSpec.Properties.MachineSet.Kind {
+	if providerSpec.Properties.MachineSet != nil {
+		switch providerSpec.Properties.MachineSet.Kind {
 		case machine.MachineSetKindVMO:
 			VMParameters.VirtualMachineProperties.VirtualMachineScaleSet = &compute.SubResource{
-				ID: &d.AzureProviderSpec.Properties.MachineSet.ID,
+				ID: &providerSpec.Properties.MachineSet.ID,
 			}
 		case machine.MachineSetKindAvailabilitySet:
 			VMParameters.VirtualMachineProperties.AvailabilitySet = &compute.SubResource{
-				ID: &d.AzureProviderSpec.Properties.MachineSet.ID,
+				ID: &providerSpec.Properties.MachineSet.ID,
 			}
 		}
 	}
 
-	if d.AzureProviderSpec.Properties.IdentityID != nil && *d.AzureProviderSpec.Properties.IdentityID != "" {
+	if providerSpec.Properties.IdentityID != nil && *providerSpec.Properties.IdentityID != "" {
 		VMParameters.Identity = &compute.VirtualMachineIdentity{
 			Type: compute.ResourceIdentityTypeUserAssigned,
 			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
-				*d.AzureProviderSpec.Properties.IdentityID: {},
+				*providerSpec.Properties.IdentityID: {},
 			},
 		}
 	}
@@ -276,8 +276,8 @@ func (d *MachinePlugin) getVMParameters(vmName string, image *compute.VirtualMac
 	return VMParameters
 }
 
-func getImageReference(d *MachinePlugin) compute.ImageReference {
-	imageRefClass := d.AzureProviderSpec.Properties.StorageProfile.ImageReference
+func (d *MachinePlugin) getImageReference(providerSpec *api.AzureProviderSpec) compute.ImageReference {
+	imageRefClass := providerSpec.Properties.StorageProfile.ImageReference
 	if imageRefClass.ID != "" {
 		return compute.ImageReference{
 			ID: &imageRefClass.ID,
@@ -303,7 +303,6 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	if err != nil {
 		return nil, err
 	}
-	d.AzureProviderSpec = providerSpec
 
 	var (
 		ctx               = context.Background()
@@ -362,7 +361,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 			*/
 
 			// Creating NICParameters for new NIC creation request
-			NICParameters := d.getNICParameters(vmName, &subnet)
+			NICParameters := d.getNICParameters(vmName, &subnet, providerSpec)
 
 			// NIC creation request
 			klog.V(3).Infof("NIC creation started for %q", nicName)
@@ -423,14 +422,14 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 		VM creation
 	*/
 	startTime := time.Now()
-	imageRefClass := d.AzureProviderSpec.Properties.StorageProfile.ImageReference
+	imageRefClass := providerSpec.Properties.StorageProfile.ImageReference
 	// if ID is not set the image is referenced using a URN
 	if imageRefClass.ID == "" {
 
-		imageReference := getImageReference(d)
+		imageReference := d.getImageReference(providerSpec)
 		vmImage, err := clients.GetImages().Get(
 			ctx,
-			d.AzureProviderSpec.Location,
+			providerSpec.Location,
 			*imageReference.Publisher,
 			*imageReference.Offer,
 			*imageReference.Sku,
@@ -466,7 +465,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 				return nil, OnARMAPIErrorFail(prometheusServiceVM, err, "MarketplaceAgreementsclient.Get failed for %s", req.MachineClass.Name)
 			}
 
-			if agreement.Accepted == nil || *agreement.Accepted == false {
+			if agreement.Accepted == nil || !*agreement.Accepted {
 				// Need to accept the terms at least once for the subscription
 				klog.V(2).Info("Accepting terms for subscription to make use of the plan")
 
@@ -495,7 +494,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	}
 
 	// Creating VMParameters for new VM creation request
-	VMParameters := d.getVMParameters(vmName, vmImageRef, *NIC.ID)
+	VMParameters := d.getVMParameters(vmName, vmImageRef, *NIC.ID, providerSpec, req.Secret)
 
 	// VM creation request
 	klog.V(3).Infof("VM creation began for %q", vmName)
@@ -521,7 +520,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 		return nil, OnARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.WaitForCompletionRef failed for %s", *VMParameters.Name)
 	}
-	klog.Infof("VM Created in %d", time.Now().Sub(startTime))
+	klog.Infof("VM Created in %d", time.Since(startTime))
 	// Fetch VM details
 	VM, err := VMFuture.Result(clients.GetVMImpl())
 	if err != nil {
@@ -566,7 +565,7 @@ func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, clients spi.AzureD
 			}
 			return err
 		} else if vmHoldingNic != "" {
-			return fmt.Errorf("Cannot delete NIC %s because it is attached to VM %s", nicName, vmHoldingNic)
+			return fmt.Errorf("cannot delete NIC %s because it is attached to VM %s", nicName, vmHoldingNic)
 		}
 
 		return DeleteNIC(ctx, clients, resourceGroupName, nicName)
@@ -577,11 +576,9 @@ func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, clients spi.AzureD
 
 	deleters := []func() error{nicDeleter, diskDeleter}
 
-	if dataDiskNames != nil {
-		for _, dataDiskName := range dataDiskNames {
-			dataDiskDeleter := GetDeleterForDisk(ctx, clients, resourceGroupName, dataDiskName)
-			deleters = append(deleters, dataDiskDeleter)
-		}
+	for _, dataDiskName := range dataDiskNames {
+		dataDiskDeleter := GetDeleterForDisk(ctx, clients, resourceGroupName, dataDiskName)
+		deleters = append(deleters, dataDiskDeleter)
 	}
 
 	return RunInParallel(deleters)
@@ -762,7 +759,7 @@ func GetDeleterForDisk(ctx context.Context, clients spi.AzureDriverClientsInterf
 			}
 			return err
 		} else if vmHoldingDisk != "" {
-			return fmt.Errorf("Cannot delete disk %s because it is attached to VM %s", diskName, vmHoldingDisk)
+			return fmt.Errorf("cannot delete disk %s because it is attached to VM %s", diskName, vmHoldingDisk)
 		}
 
 		return deleteDisk(ctx, clients, resourceGroupName, diskName)
@@ -782,7 +779,7 @@ func RunInParallel(funcs []func() error) error {
 		go func(results []error, idx int, funInner func() error) {
 			defer wg.Done()
 			if funInner == nil {
-				results[idx] = fmt.Errorf("Received nil function")
+				results[idx] = fmt.Errorf("received nil function")
 				return
 			}
 			err := funInner()
