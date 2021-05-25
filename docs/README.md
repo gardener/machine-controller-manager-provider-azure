@@ -17,11 +17,11 @@ The design of the Machine Controller Manager is influenced by the Kube Controlle
 It's designed to run in the master plane of a Kubernetes cluster. It follows the best principles and practices of writing controllers, including, but not limited to:
 
 - Reusing code from kube-controller-manager
-- leader election to allow HA deployments of the controller
+- Leader election to allow HA deployments of the controller
 - `workqueues` and multiple thread-workers
 - `SharedInformers` that limit to minimum network calls, de-serialization and provide helpful create/update/delete events for resources
-- rate-limiting to allow back-off in case of network outages and general instability of other cluster components
-- sending events to respected resources for easy debugging and overview
+- Rate-limiting to allow back-off in case of network outages and general instability of other cluster components
+- Sending events to respected resources for easy debugging and overview
 - Prometheus metrics, health and (optional) profiling endpoints
 
 ### Objects of Machine Controller Manager
@@ -29,37 +29,55 @@ It's designed to run in the master plane of a Kubernetes cluster. It follows the
 Machine Controller Manager reconciles a set of Custom Resources namely `MachineDeployment`, `MachineSet` and `Machines` which are managed & monitored by their controllers MachineDeployment Controller, MachineSet Controller, Machine Controller respectively along with another cooperative controller called the Safety Controller.
 
 Machine Controller Manager makes use of 4 CRD objects and 1 Kubernetes secret object to manage machines. They are as follows:
-1. `MachineClass`: Represents a template that contains cloud provider specific details used to create machines.
-1. `Machine`: Represents a VM which is backed by the cloud provider.
-1. `MachineSet`: Represents a group of machines managed by the Machine Controller Manager.
-1. `MachineDeployment`: Represents a group of machine-sets managed by the Machine Controller Manager to allow updating machines.
-1. `Secret`: Represents a Kubernetes secret that stores cloudconfig (initialization scripts used to create VMs) and cloud specific credentials
+| Custom ResourceObject | Description |
+| --- | --- |
+| `MachineClass`| A `MachineClass` represents a template that contains cloud provider specific details used to create machines.|
+| `Machine`| A `Machine` represents a VM which is backed by the cloud provider.|
+| `MachineSet` | A `MachineSet` ensures that the specified number of `Machine` replicas are running at a given point of time.|
+| `MachineDeployment`| A `MachineDeployment` provides a declarative update for `MachineSet` and `Machines`.|
+| `Secret`| A `Secret` here is a Kubernetes secret that stores cloudconfig (initialization scripts used to create VMs) and cloud specific credentials.|
 
-### Components of Machine Controller Manager
+### Associated Controllers of Machine Controller Manager
 
-- `MachineDeployment` provides a declarative update for `MachineSet` and `Machines`. MachineDeployment Controller reconciles the `MachineDeployment` objects and manages the lifecycle of `MachineSet` objects. `MachineDeployment` consumes provider specific `MachineClass` in its `spec.template.spec` which is the template of the VM spec that would be spawned on the cloud by MCM.
-- `MachineSet` ensures that the specified number of `Machine` replicas are running at a given point of time. MachineSet Controller reconciles the `MachineSet` objects and manages the lifecycle of `Machine` objects.
-- `Machines` are the backing objects for the actual VMs running on one of the supported cloud platforms. Machine Controller is the controller that actually communicates with the cloud provider to create/update/delete machines on the cloud.
-- There is a Safety Controller responsible for handling the unidentified or unknown behaviours from the cloud providers.
+<table>
+    <thead>
+        <tr>
+            <th>Controller</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>MachineDeployment controller</td>
+            <td>Machine Deployment controller reconciles the <code>MachineDeployment</code> objects and manages the lifecycle of <code>MachineSet</code> objects. <code>MachineDeployment</code> consumes provider specific <code>MachineClass` in its <code>spec.template.spec</code> which is the template of the VM spec that would be spawned on the cloud by MCM.</td>
+        </tr>
+        <tr>
+            <td>MachineSet controller</td>
+            <td>MachineSet controller reconciles the <code>MachineSet</code> objects and manages the lifecycle of <code>Machine</code> objects.</td>
+        </tr>
+        <tr>
+            <td>Safety controller</td>
+            <td>There is a Safety Controller responsible for handling the unidentified or unknown behaviours from the cloud providers. Safety Controller:
+                <ul>
+                    <li>
+                        freezes the MachineDeployment controller and MachineSet controller if the number of <code>Machine</code> objects goes beyond a certain threshold on top of <code>Spec.replicas</code>. It can be configured by the flag <code>--safety-up</code> or <code>--safety-down</code> and also <code>--machine-safety-overshooting-period`</code>.
+                    </li>
+                    <li>
+                        freezes the functionality of the MCM if either of the <code>target-apiserver</code> or the <code>control-apiserver</code> is not reachable.
+                    </li>
+                    <li>
+                        unfreezes the MCM automatically once situation is resolved to normal. A <code>freeze</code> label is applied on <code>MachineDeployment</code>/<code>MachineSet</code> to enforce the freeze condition.
+                    </li>
+                </ul>
+            </td>
+        </tr>
+    </tbody>
+</table>
 
 Along with the above Custom Controllers and Resources, MCM requires the `MachineClass` to use K8s `Secret` that stores cloudconfig (initialization scripts used to create VMs) and cloud specific credentials. All these controllers work in an co-operative manner. They form a parent-child relationship with `MachineDeployment` Controller being the grandparent, `MachineSet` Controller being the parent, and `Machine` Controller being the child.
 
-### More on Safety Controller
 
-Safety Controller undertakes the following responsibilities:
-
-**Orphan VM handling:**
-
-- It lists all the VMs in the cloud; matching the tag of given cluster name and maps the VMs with the `Machine` objects using the `ProviderID` field. VMs without any backing `Machine` objects are logged and deleted after confirmation.
-- This handler runs every 30 minutes and is configurable via `--machine-safety-orphan-vms-period` flag.
-
-**Freeze mechanism:**
-
-- Safety Controller freezes the MachineDeployment and MachineSet controller if the number of `Machine` objects goes beyond a certain threshold on top of `Spec.replicas`. It can be configured by the flag `--safety-up` or `--safety-down` and also `--machine-safety-overshooting-period`.
-- Safety Controller freezes the functionality of the MCM if either of the target-apiserver or the control-apiserver is not reachable.
-- Safety Controller unfreezes the MCM automatically once situation is resolved to normal. A freeze label is applied on `MachineDeployment`/`MachineSet` to enforce the freeze condition.
-
-### Working of MCM
+## Working of MCM
 
 ![Flowchart for working of Machine Controller Manager](./images/working-of-mcm.png)
 *Figure 1: Flowchart for working of Machine Controller Manager*
@@ -69,6 +87,23 @@ In MCM, there are two K8s clusters in the scope — a Control Cluster and a 
 When a `MachineDeployment` object is created, MachineDeployment Controller creates the corresponding `MachineSet` object. The MachineSet Controller in-turn creates the `Machine` objects. The Machine Controller then talks to the cloud provider API and actually creates the VMs on the cloud.
 
 The cloud initialization script that is introduced into the VMs via the K8s `Secret` consumed by the `MachineClasses` talks to the KCM (K8s Controller Manager) and creates the `node` objects. `Nodes` after registering themselves to the Target Cluster, start sending health signals to the `Machine` objects. That is when MCM updates the status of the `Machine` object from `Pending` to `Running`. 
+
+## Specification
+### Schema
+
+In the following description, a field that is italicised can be considered optional.
+
+#### **MachineClass**
+
+| Field Name | Type | Description |
+| --- | --- | --- |
+| `apiVersion` | string | APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources|
+| `kind` | string | Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds |
+| `metadata` | metav1.ObjectMeta | Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata |
+| `provider` | string | Provider is the combination of name and location of cloud specific drivers |
+| `providerSpec` | runtime.RawExtension | Provider Spec is the provider specific configuration to use during node creation. The schema for `providerSpec` is defined here. |   
+| `secretRef` | *corev1.SecretReference | SecretReference represents a Secret Reference. It has enough information to retrieve secret in any namespace. `SecretRef` stores the necessary secrets such as credentials or userdata. The schema for `secretRef` is defined here. More info: https://kubernetes.io/docs/concepts/configuration/secret |
+| `credentialsSecretRef` | *corev1.SecretReference | SecretReference represents a Secret Reference. It has enough information to retrieve secret in any namespace. `CredentialsSecretRef` can optionally store the credentials (in this case the SecretRef does not need to store them). This might be useful if multiple machine classes with the same credentials but different user-datas are used. More info: https://kubernetes.io/docs/concepts/configuration/secret |
 
 ### FAQ
 
@@ -88,6 +123,211 @@ Following are the basic development principles for this external plugin:
 * Machine Controller (MC) behaves as the controller used to interact with the cloud provider Azure and manages the VMs corresponding to the `Machine` objects.
 * Machine Controller Manager (MCM) deals with higher level objects such as `MachineSet` and `MachineDeployment` objects.
 
+
+## Associated controllers of Machine Controller Manager Provider Azure
+<table>
+    <thead>
+        <tr>
+            <th>Controller</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>Machine controller</td>
+            <td>
+                Machine controller reconciles the machine objects and creates the actual instances of the machines on the cloud by communicating with the cloud provider APIs.
+            </td>
+        </tr>
+        <tr>
+            <td>Safety controller</td>
+            <td>
+                Safety controller in the machine controller manages the orphan VMs.
+                <ul>
+                    <li>
+                        It lists all the VMs in the cloud; matching the tag of given cluster name and maps the VMs with the <code>Machine`</code> objects using the <code>ProviderID</code> field. VMs without any backing <code>Machine</code> objects are logged and deleted after confirmation.
+                    </li>
+                    <li>
+                        This handler runs every 30 minutes and is configurable via <code>--machine-safety-orphan-vms-period</code> flag.
+                    </li>
+                </ul>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+## Specification 
+### Schema
+#### **MachineClass.ProviderSpec**
+
+Provider Spec is the provider specific configuration to use during node creation. The provider specification for Azure is defined as below:
+
+| FieldName | Type | Description |
+| --- | --- | --- |
+| `location` | string | The resource location.|
+| `resourceGroup` | string | The name of the resource group.|
+| `subnetInfo` | [AzureSubnetInfo](#AzureSubnetInfo) | `subnetInfo` holds the information about the subnet resource.|
+| `properties` | [AzureVirtualMachineProperties](#AzureVirtualMachineProperties) | `properties` describes the properties of a Virtual Machine.|
+| `tags` | map[string]string | `tags` are set of key value pairs labelled on virtual machine to organise them into a taxonomy. |
+
+</br>
+
+#### **AzureSubnetInfo**
+`AzureSubnetInfo` holds the information about the subnet resource.
+
+| FieldName | Type | Description |
+| --- | --- | --- |
+| `subnetName` | string | Name of the subnet resource.|
+| `vnetName`| string | Name of the vnet resource. |
+| `vnetResourceGroup` | string | Name of the resource group to which vnet belongs to. |
+
+</br>
+
+#### **AzureVirtualMachineProperties**
+`AzureVirtualMachineProperties` describes the properties of a Virtual Machine.
+
+| FieldName | Type | Description |
+| --- | --- | --- |
+| `identityID` | string | The identity of the virtual machine |
+| `zone` | integer | The virtual machine zone.|
+| `availabilitySet` | [AzureSubResource](#AzureSubResource) | Specifies information about the availability set that the virtual machine should be assigned to. Virtual machines specified in the same availability set are allocated to different nodes to maximize availability. For more information about availability sets, see Manage the availability of virtual machines. </br></br> Currently, a VM can only be added to availability set at creation time. The availability set to which the VM is being added should be under the same resource group as the availability set resource. An existing VM cannot be added to an availability set. |
+| `hardwareProfile` | [AzureHardwareProfile](#AzureHardwareProfile) | Specifies the hardware settings for the virtual machine.|
+| `machineSet` | [AzureMachineSetConfig](#AzureMachineSetConfig) | AzureMachineSetConfig contains the information about the associated `machineSet`.|
+| `networkProfile` | [AzureNetworkProfile](#AzureNetworkProfile) | Specifies the network interfaces of the virtual machine. | 
+| `osProfile` | [AzureOSProfile](#AzureOSProfile) | Specifies the operating system settings used while creating the virtual machine. Some of the settings cannot be changed once VM is provisioned.|
+| `storageProfile` | AzureStorageProfile | Specifies the storage settings for the virtual machine disks.|
+
+</br>
+
+#### **AzureSubResource**
+Specifies information about the availability set that the virtual machine should be assigned to. Virtual machines specified in the same availability set are allocated to different nodes to maximize availability. For more information about availability sets, see Manage the availability of virtual machines.
+
+Currently, a VM can only be added to availability set at creation time. The availability set to which the VM is being added should be under the same resource group as the availability set resource. An existing VM cannot be added to an availability set.
+
+|FieldName|Type|Description|
+| --- | --- | --- |
+| `id` | string | This denotes the resource ID.|
+
+</br>
+
+#### **AzureHardwareProfile**
+Specifies the hardware settings for the virtual machine.
+
+
+<table>
+    <thead>
+        <tr>
+            <th>FieldName</th>
+            <th>Type</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                vmSize
+            </td>
+            <td>
+                string
+            </td>
+            <td>
+                Specifies the size of the virtual machine. The enum data type is currently deprecated and will be removed by December 23rd 2023. Recommended way to get the list of available sizes is using these APIs:
+                <ul>
+                    <li>
+                        <a href="https://docs.microsoft.com/en-us/rest/api/compute/availabilitysets/listavailablesizes">List all available virtual machine sizes in an availability set </a>
+                    </li>
+                    <li>
+                        <a href="https://docs.microsoft.com/en-us/rest/api/compute/resourceskus/list">List all available virtual machine sizes in a region </a>
+                    </li>
+                    <li>
+                        <a href="https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines/listavailablesizes">List all available virtual machine sizes for resizing.</a>
+                    </li>
+                </ul>
+                The available VM sizes depend on region and availability set.
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+</br>
+
+#### **AzureMachineSetConfig**
+AzureMachineSetConfig contains the information about the associated machineSet.
+
+| FieldName | Type | Description |
+| --- | --- | --- |
+| id | string | |
+| kind | string | |
+
+</br>
+
+#### **AzureNetworkProfile**
+Specifies the network interfaces of the virtual machine.
+
+| FieldName | Type | Description |
+| --- | --- | --- |
+| `networkInterfaces` | [AzureNetworkInterfaceReference](#AzureNetworkInterfaceReference) | Specifies the network interfaces of the virtual machine. |
+| `acceleratedNetworking` | boolean | Specifies if the acceleration is enabled in network  |
+
+</br>
+
+#### **AzureNetworkInterfaceReference** 
+Specifies the network interfaces of the virtual machine. 
+
+| FieldName | Type | Description |
+| --- | --- | --- |
+| `id` | string | Resource Id |
+| `properties` | [AzureNetworkInterfaceReferenceProperties](#AzureNetworkInterfaceReferenceProperties) | Specifies the primary network interface in case the virtual machine has more than 1 network interface.|
+
+</br>
+
+#### **AzureNetworkInterfaceReferenceProperties**
+| FieldName | Type | Description |
+| --- | --- | --- |
+| `primary` | boolean | Specifies the primary network interface in case the virtual machine has more than 1 network interface. |
+
+</br>
+
+#### **AzureOSProfile**
+Specifies the operating system settings for the virtual machine. Some of the settings cannot be changed once VM is provisioned. For more details see [documentation on osProfile in Azure Virtual Machines](https://docs.microsoft.com/en-us/rest/api/compute/virtualmachines/createorupdate#osprofile)
+
+| FieldName | Type | Description |
+| --- | --- | --- |
+| `computerName` | string |Specifies the host OS name of the virtual machine. This name cannot be updated after the VM is created. |
+|`adminUsername` |string|Specifies the name of the administrator account. This property cannot be updated after the VM is created.|
+|`adminPassword`|string|Specifies the password of the administrator account. |
+|`customData`|string|Specifies a base-64 encoded string of custom data. The base-64 encoded string is decoded to a binary array that is saved as a file on the Virtual Machine. The maximum length of the binary array is 65535 bytes. </br> </br> <b>Note: Do not pass any secrets or passwords in customData property</b> |
+|`linuxConfiguration`|[AzureLinuxConfiguration](#AzureLinuxConfiguration)|Specifies the Linux operating system settings on the virtual machine. For a list of supported Linux distributions, see [Linux on Azure-Endorsed Distributions](https://docs.microsoft.com/en-us/azure/virtual-machines/virtual-machines-linux-endorsed-distros?toc=/azure/virtual-machines/linux/toc.json) |
+
+</br>
+
+#### **AzureLinuxConfiguration**
+Specifies the Linux operating system settings on the virtual machine. 
+
+| FieldName | Type | Description |
+| --- | --- | --- |
+| `disablePasswordAuthentication` | boolean |Specifies whether password authentication should be disabled. |
+|`ssh`|[AzureSSHConfiguration](#AzureSSHConfiguration)|Specifies the ssh key configuration for a Linux OS.|
+
+</br>
+
+#### **AzureSSHConfiguration**
+
+| FieldName | Type | Description |
+| --- | --- | --- |
+| `publicKeys` | [AzureSSHPublicKey](#AzureSSHPublicKey) | Specifies the ssh key for a Linux OS.|
+
+</br>
+
+#### **AzureSSHPublicKey**
+Specifies the ssh key configuration for a Linux OS.
+
+| FieldName | Type | Description |
+| --- | --- | --- |
+| `path` | string |Specifies the full path on the created VM where ssh public key is stored. If the file already exists, the specified key is appended to the file. Example: `/home/user/.ssh/authorized_keys` |
+| `keyData` | string |SSH public key certificate used to authenticate with the VM through ssh. The key needs to be at least 2048-bit and in ssh-rsa format.  |
+
+</br>
 
 ## Usage of the Azure OOT
 
