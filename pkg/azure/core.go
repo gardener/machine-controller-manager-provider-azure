@@ -195,7 +195,7 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 
 	machines, err := d.ListMachines(ctx, listMachineRequest)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 	for providerID, VMName := range machines.MachineList {
 		if VMName == req.Machine.Name {

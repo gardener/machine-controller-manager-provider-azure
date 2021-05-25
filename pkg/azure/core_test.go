@@ -72,8 +72,7 @@ var (
 	providerSpecError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [error while v" +
 		"alidating ProviderSpec [%s is required field]]]"
 
-	providerSpecSubnetInfoError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [err" +
-		"or while validating ProviderSpec [%s is a required subnet info]]]"
+	providerSpecSubnetInfoError = "machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [error while validating ProviderSpec [%s is a required subnet info]]]"
 
 	machineClassProviderError = "machine codes error: code = [InvalidArgument] message = [requested for Provider '%s', we only support '" +
 		ProviderAzure + "']"
@@ -1242,7 +1241,7 @@ var _ = Describe("MachineController", func() {
 					},
 				},
 				true,
-				"machine codes error: code = [Internal] message = [#: Internal error while listing machines: StatusCode=500]",
+				"machine codes error: code = [Internal] message = [machine codes error: code = [Internal] message = [#: Internal error while listing machines: StatusCode=500]]",
 			),
 		)
 	})
