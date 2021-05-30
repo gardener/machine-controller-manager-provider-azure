@@ -498,7 +498,8 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 	// VM creation request
 	klog.V(3).Infof("VM creation began for %q", vmName)
-	VMFuture, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
+	//VMFuture, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
+	err = fmt.Errorf("replicating fake cloud provider error on VM creation")
 	if err != nil {
 		//Since machine creation failed, delete any infra resources created
 		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
@@ -510,7 +511,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	}
 	// Wait until VM is created
 	klog.V(3).Infof("Waiting for VM create call completion for %q", vmName)
-	err = VMFuture.WaitForCompletionRef(ctx, clients.GetClient())
+	//err = VMFuture.WaitForCompletionRef(ctx, clients.GetClient())
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
 		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
@@ -520,9 +521,10 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 		return nil, OnARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.WaitForCompletionRef failed for %s", *VMParameters.Name)
 	}
-	klog.Infof("VM Created in %d", time.Since(startTime))
+	klog.V(3).Infof("VM %q Created in %v", vmName, time.Since(startTime))
+
 	// Fetch VM details
-	VM, err := VMFuture.Result(clients.GetVMImpl())
+	//VM, err := VMFuture.Result(clients.GetVMImpl())
 	if err != nil {
 		// Since machine creation failed, delete any infra resources created
 		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
@@ -536,7 +538,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	OnARMAPISuccess(prometheusServiceVM, "VM.CreateOrUpdate")
 	klog.V(3).Infof("VM has been created succesfully for %q", vmName)
 
-	return &VM, nil
+	return nil, nil
 }
 
 // deleteVMNicDisks deletes the VM and associated Disks and NIC
