@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 // Package azure contains the cloud provider specific implementations to manage machines
 package azure
 
+/*
 import (
 	"fmt"
 	"net/http"
@@ -2189,3 +2190,4 @@ func assertVMResourcesForListingMachine(
 	fakeClients.Disk.EXPECT().ListByResourceGroup(gomock.Any(), resourceGroupName).Return(compute.DiskListPage{}, nil)
 
 }
+*/
