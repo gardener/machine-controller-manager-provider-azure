@@ -1,5 +1,5 @@
 <br>
-<h3 id="&#34;&#34;/v1.AzureProviderSpec">
+<h3 id="settings.gardener.cloud/v1.AzureProviderSpec">
 <b>AzureProviderSpec</b>
 </h3>
 <p>
@@ -20,7 +20,7 @@ on Azure.</p>
 string</td>
 <td>
 <code>
-&#34;&#34;/v1
+settings.gardener.cloud/v1
 </code>
 </td>
 </tr>
@@ -57,7 +57,7 @@ map[string]string
 <td>
 <code>properties</code></br>
 <em>
-<a href="#%22%22/v1.AzureVirtualMachineProperties">
+<a href="#settings.gardener.cloud/v1.AzureVirtualMachineProperties">
 AzureVirtualMachineProperties
 </a>
 </em>
@@ -81,7 +81,7 @@ string
 <td>
 <code>subnetInfo</code></br>
 <em>
-<a href="#%22%22/v1.AzureSubnetInfo">
+<a href="#settings.gardener.cloud/v1.AzureSubnetInfo">
 AzureSubnetInfo
 </a>
 </em>
@@ -93,12 +93,12 @@ AzureSubnetInfo
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureDataDisk">
+<h3 id="settings.gardener.cloud/v1.AzureDataDisk">
 <b>AzureDataDisk</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureStorageProfile">AzureStorageProfile</a>)
+<a href="#settings.gardener.cloud/v1.AzureStorageProfile">AzureStorageProfile</a>)
 </p>
 <p>
 <p>AzureDataDisk Specifies the parameters that are used to add a data disk to a virtual machine.
@@ -175,12 +175,12 @@ int32
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureHardwareProfile">
+<h3 id="settings.gardener.cloud/v1.AzureHardwareProfile">
 <b>AzureHardwareProfile</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
+<a href="#settings.gardener.cloud/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
 </p>
 <p>
 <p>AzureHardwareProfile is specifies the hardware settings for the virtual machine.
@@ -216,12 +216,12 @@ the list of available sizes is using these APIs:</p>
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureImageReference">
+<h3 id="settings.gardener.cloud/v1.AzureImageReference">
 <b>AzureImageReference</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureStorageProfile">AzureStorageProfile</a>)
+<a href="#settings.gardener.cloud/v1.AzureStorageProfile">AzureStorageProfile</a>)
 </p>
 <p>
 <p>AzureImageReference specifies information about the image to use. You can specify information about platform images,
@@ -261,12 +261,12 @@ string
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureLinuxConfiguration">
+<h3 id="settings.gardener.cloud/v1.AzureLinuxConfiguration">
 <b>AzureLinuxConfiguration</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureOSProfile">AzureOSProfile</a>)
+<a href="#settings.gardener.cloud/v1.AzureOSProfile">AzureOSProfile</a>)
 </p>
 <p>
 <p>AzureLinuxConfiguration is specifies the Linux operating system settings on the virtual machine.</p>
@@ -298,7 +298,7 @@ bool
 <td>
 <code>ssh</code></br>
 <em>
-<a href="#%22%22/v1.AzureSSHConfiguration">
+<a href="#settings.gardener.cloud/v1.AzureSSHConfiguration">
 AzureSSHConfiguration
 </a>
 </em>
@@ -310,12 +310,12 @@ AzureSSHConfiguration
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureMachineSetConfig">
+<h3 id="settings.gardener.cloud/v1.AzureMachineSetConfig">
 <b>AzureMachineSetConfig</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
+<a href="#settings.gardener.cloud/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
 </p>
 <p>
 <p>AzureMachineSetConfig contains the information about the associated machineSet.</p>
@@ -351,12 +351,12 @@ string
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureManagedDiskParameters">
+<h3 id="settings.gardener.cloud/v1.AzureManagedDiskParameters">
 <b>AzureManagedDiskParameters</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureOSDisk">AzureOSDisk</a>)
+<a href="#settings.gardener.cloud/v1.AzureOSDisk">AzureOSDisk</a>)
 </p>
 <p>
 <p>AzureManagedDiskParameters is the parameters of a managed disk.</p>
@@ -395,12 +395,12 @@ NOTE: UltraSSD_LRS can only be used with data disks, it cannot be used with OS D
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureNetworkInterfaceReference">
+<h3 id="settings.gardener.cloud/v1.AzureNetworkInterfaceReference">
 <b>AzureNetworkInterfaceReference</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureNetworkProfile">AzureNetworkProfile</a>)
+<a href="#settings.gardener.cloud/v1.AzureNetworkProfile">AzureNetworkProfile</a>)
 </p>
 <p>
 <p>AzureNetworkInterfaceReference specifies the network interfaces of the virtual machine.</p>
@@ -428,7 +428,7 @@ string
 <td>
 <code>properties</code></br>
 <em>
-<a href="#%22%22/v1.AzureNetworkInterfaceReferenceProperties">
+<a href="#settings.gardener.cloud/v1.AzureNetworkInterfaceReferenceProperties">
 AzureNetworkInterfaceReferenceProperties
 </a>
 </em>
@@ -441,12 +441,12 @@ more than 1 network interface.</p>
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureNetworkInterfaceReferenceProperties">
+<h3 id="settings.gardener.cloud/v1.AzureNetworkInterfaceReferenceProperties">
 <b>AzureNetworkInterfaceReferenceProperties</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureNetworkInterfaceReference">AzureNetworkInterfaceReference</a>)
+<a href="#settings.gardener.cloud/v1.AzureNetworkInterfaceReference">AzureNetworkInterfaceReference</a>)
 </p>
 <p>
 <p>AzureNetworkInterfaceReferenceProperties is describes a network interface
@@ -475,12 +475,12 @@ has more than 1 network interface.</p>
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureNetworkProfile">
+<h3 id="settings.gardener.cloud/v1.AzureNetworkProfile">
 <b>AzureNetworkProfile</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
+<a href="#settings.gardener.cloud/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
 </p>
 <p>
 <p>AzureNetworkProfile specifies the network interfaces of the virtual machine.</p>
@@ -497,7 +497,7 @@ has more than 1 network interface.</p>
 <td>
 <code>networkInterfaces</code></br>
 <em>
-<a href="#%22%22/v1.AzureNetworkInterfaceReference">
+<a href="#settings.gardener.cloud/v1.AzureNetworkInterfaceReference">
 AzureNetworkInterfaceReference
 </a>
 </em>
@@ -520,12 +520,12 @@ AzureNetworkInterfaceReference
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureOSDisk">
+<h3 id="settings.gardener.cloud/v1.AzureOSDisk">
 <b>AzureOSDisk</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureStorageProfile">AzureStorageProfile</a>)
+<a href="#settings.gardener.cloud/v1.AzureStorageProfile">AzureStorageProfile</a>)
 </p>
 <p>
 <p>AzureOSDisk specifies information about the operating system disk used by the virtual machine.
@@ -568,7 +568,7 @@ Default: <em>None</em> for Standard storage. <em>ReadOnly</em> for Premium stora
 <td>
 <code>managedDisk</code></br>
 <em>
-<a href="#%22%22/v1.AzureManagedDiskParameters">
+<a href="#settings.gardener.cloud/v1.AzureManagedDiskParameters">
 AzureManagedDiskParameters
 </a>
 </em>
@@ -609,12 +609,12 @@ marketplace image, you also use the plan element previously described.</p>
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureOSProfile">
+<h3 id="settings.gardener.cloud/v1.AzureOSProfile">
 <b>AzureOSProfile</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
+<a href="#settings.gardener.cloud/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
 </p>
 <p>
 <p>AzureOSProfile specifies the operating system settings for the virtual machine.
@@ -706,7 +706,7 @@ creation</a></p>
 <td>
 <code>linuxConfiguration</code></br>
 <em>
-<a href="#%22%22/v1.AzureLinuxConfiguration">
+<a href="#settings.gardener.cloud/v1.AzureLinuxConfiguration">
 AzureLinuxConfiguration
 </a>
 </em>
@@ -719,12 +719,12 @@ Distributions</a>.</p>
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureSSHConfiguration">
+<h3 id="settings.gardener.cloud/v1.AzureSSHConfiguration">
 <b>AzureSSHConfiguration</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureLinuxConfiguration">AzureLinuxConfiguration</a>)
+<a href="#settings.gardener.cloud/v1.AzureLinuxConfiguration">AzureLinuxConfiguration</a>)
 </p>
 <p>
 <p>AzureSSHConfiguration specifies the ssh key configuration for a Linux OS.</p>
@@ -741,7 +741,7 @@ Distributions</a>.</p>
 <td>
 <code>publicKeys</code></br>
 <em>
-<a href="#%22%22/v1.AzureSSHPublicKey">
+<a href="#settings.gardener.cloud/v1.AzureSSHPublicKey">
 AzureSSHPublicKey
 </a>
 </em>
@@ -753,12 +753,12 @@ AzureSSHPublicKey
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureSSHPublicKey">
+<h3 id="settings.gardener.cloud/v1.AzureSSHPublicKey">
 <b>AzureSSHPublicKey</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureSSHConfiguration">AzureSSHConfiguration</a>)
+<a href="#settings.gardener.cloud/v1.AzureSSHConfiguration">AzureSSHConfiguration</a>)
 </p>
 <p>
 <p>AzureSSHPublicKey the list of SSH public keys used to authenticate with linux based VMs.
@@ -798,12 +798,12 @@ string
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureStorageProfile">
+<h3 id="settings.gardener.cloud/v1.AzureStorageProfile">
 <b>AzureStorageProfile</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
+<a href="#settings.gardener.cloud/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
 </p>
 <p>
 <p>AzureStorageProfile is specifies the storage settings for the virtual machine disks.</p>
@@ -820,7 +820,7 @@ string
 <td>
 <code>imageReference</code></br>
 <em>
-<a href="#%22%22/v1.AzureImageReference">
+<a href="#settings.gardener.cloud/v1.AzureImageReference">
 AzureImageReference
 </a>
 </em>
@@ -836,7 +836,7 @@ creation operations.</p>
 <td>
 <code>osDisk</code></br>
 <em>
-<a href="#%22%22/v1.AzureOSDisk">
+<a href="#settings.gardener.cloud/v1.AzureOSDisk">
 AzureOSDisk
 </a>
 </em>
@@ -851,7 +851,7 @@ machines</a>.</p>
 <td>
 <code>dataDisks</code></br>
 <em>
-<a href="#%22%22/v1.AzureDataDisk">
+<a href="#settings.gardener.cloud/v1.AzureDataDisk">
 []AzureDataDisk
 </a>
 </em>
@@ -865,12 +865,12 @@ machines</a>.</p>
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureSubResource">
+<h3 id="settings.gardener.cloud/v1.AzureSubResource">
 <b>AzureSubResource</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
+<a href="#settings.gardener.cloud/v1.AzureVirtualMachineProperties">AzureVirtualMachineProperties</a>)
 </p>
 <p>
 <p>AzureSubResource specifies information about the availability set that the virtual machine
@@ -904,12 +904,12 @@ string
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureSubnetInfo">
+<h3 id="settings.gardener.cloud/v1.AzureSubnetInfo">
 <b>AzureSubnetInfo</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureProviderSpec">AzureProviderSpec</a>)
+<a href="#settings.gardener.cloud/v1.AzureProviderSpec">AzureProviderSpec</a>)
 </p>
 <p>
 <p>AzureSubnetInfo is the information containing the subnet details</p>
@@ -958,12 +958,12 @@ string
 </tbody>
 </table>
 <br>
-<h3 id="&#34;&#34;/v1.AzureVirtualMachineProperties">
+<h3 id="settings.gardener.cloud/v1.AzureVirtualMachineProperties">
 <b>AzureVirtualMachineProperties</b>
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#%22%22/v1.AzureProviderSpec">AzureProviderSpec</a>)
+<a href="#settings.gardener.cloud/v1.AzureProviderSpec">AzureProviderSpec</a>)
 </p>
 <p>
 <p>AzureVirtualMachineProperties describes the properties of a Virtual Machine.</p>
@@ -980,7 +980,7 @@ string
 <td>
 <code>hardwareProfile</code></br>
 <em>
-<a href="#%22%22/v1.AzureHardwareProfile">
+<a href="#settings.gardener.cloud/v1.AzureHardwareProfile">
 AzureHardwareProfile
 </a>
 </em>
@@ -993,7 +993,7 @@ AzureHardwareProfile
 <td>
 <code>storageProfile</code></br>
 <em>
-<a href="#%22%22/v1.AzureStorageProfile">
+<a href="#settings.gardener.cloud/v1.AzureStorageProfile">
 AzureStorageProfile
 </a>
 </em>
@@ -1006,7 +1006,7 @@ AzureStorageProfile
 <td>
 <code>osProfile</code></br>
 <em>
-<a href="#%22%22/v1.AzureOSProfile">
+<a href="#settings.gardener.cloud/v1.AzureOSProfile">
 AzureOSProfile
 </a>
 </em>
@@ -1020,7 +1020,7 @@ machine. Some of the settings cannot be changed once VM is provisioned.</p>
 <td>
 <code>networkProfile</code></br>
 <em>
-<a href="#%22%22/v1.AzureNetworkProfile">
+<a href="#settings.gardener.cloud/v1.AzureNetworkProfile">
 AzureNetworkProfile
 </a>
 </em>
@@ -1033,7 +1033,7 @@ AzureNetworkProfile
 <td>
 <code>availabilitySet</code></br>
 <em>
-<a href="#%22%22/v1.AzureSubResource">
+<a href="#settings.gardener.cloud/v1.AzureSubResource">
 AzureSubResource
 </a>
 </em>
@@ -1076,7 +1076,7 @@ An existing VM cannot be added to an availability set.</p>
 <td>
 <code>machineSet</code></br>
 <em>
-<a href="#%22%22/v1.AzureMachineSetConfig">
+<a href="#settings.gardener.cloud/v1.AzureMachineSetConfig">
 AzureMachineSetConfig
 </a>
 </em>

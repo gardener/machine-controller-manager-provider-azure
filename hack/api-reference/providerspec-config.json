@@ -37,8 +37,7 @@
     ],
     "typeDisplayNamePrefixOverrides": {
         "k8s.io/api/": "Kubernetes ",
-        "k8s.io/apimachinery/pkg/apis/": "Kubernetes ",
-        "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis/v1": ""
+        "k8s.io/apimachinery/pkg/apis/": "Kubernetes "
     },
     "markdownDisabled": false
 }
