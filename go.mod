@@ -21,7 +21,6 @@ require (
 )
 
 replace (
-	github.com/gardener/machine-controller-manager => /Users/i538135/go/src/github.com/gardener/machine-controller-manager
 	github.com/onsi/gomega => github.com/onsi/gomega v1.5.0
 	github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.9.2
 	k8s.io/api => k8s.io/api v0.0.0-20190918155943-95b840bb6a1f // kubernetes-1.16.0
