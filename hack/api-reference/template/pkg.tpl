@@ -1,5 +1,8 @@
 {{ define "packages" }}
 
+## Specification
+### ProviderSpec Schema
+
 {{ range .packages }}
     {{ range (visibleTypes (sortedTypes .Types))}}
         {{ template "type" .  }}

@@ -4,10 +4,12 @@
 {{ if not (hiddenMember .)}}
 <tr>
     <td>
-        <code>{{ fieldName . }}</code></br>
+        <code>{{ fieldName . }}</code>
+    </td>
+    <td>
         <em>
             {{ if linkForType .Type }}
-                <a href="{{ linkForType .Type}}">
+                <a href="#?id={{ linkForType .Type }}">
                     {{ typeDisplayName .Type }}
                 </a>
             {{ else }}

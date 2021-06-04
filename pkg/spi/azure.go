@@ -19,7 +19,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 	corev1 "k8s.io/api/core/v1"
 
-	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
+	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/apis/v1"
 )
 
 // PluginSPIImpl is the real implementation of SPI interface that makes the calls to the Azure SDK.

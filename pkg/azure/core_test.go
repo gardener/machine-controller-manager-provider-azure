@@ -27,8 +27,8 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	apis "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
-	mock "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock"
+	mock "github.com/gardener/machine-controller-manager-provider-azure/pkg/apis/mock"
+	apis "github.com/gardener/machine-controller-manager-provider-azure/pkg/apis/v1"
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	gomock "github.com/golang/mock/gomock"
 	corev1 "k8s.io/api/core/v1"

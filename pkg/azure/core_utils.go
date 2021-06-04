@@ -11,8 +11,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis/validation"
+	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/apis/v1"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/apis/validation"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"

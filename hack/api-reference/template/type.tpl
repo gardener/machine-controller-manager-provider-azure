@@ -12,7 +12,7 @@
         {{- range . -}}
             {{- if $prev -}}, {{ end -}}
             {{ $prev = . }}
-            <a href="{{ linkForType . }}">{{ typeDisplayName . }}</a>
+            <a href="#?id={{ linkForType . }}">{{ typeDisplayName . }}</a>
         {{- end -}}
         )
     </p>
@@ -28,6 +28,7 @@
     <thead>
         <tr>
             <th>Field</th>
+            <th>Type</th>
             <th>Description</th>
         </tr>
     </thead>
@@ -35,8 +36,12 @@
         {{ if isExportedType . }}
         <tr>
             <td>
-                <code>apiVersion</code></br>
-                string</td>
+                <code>apiVersion</code>
+                
+            </td>
+            <td>
+                string
+            </td>
             <td>
                 <code>
                     {{apiGroup .}}
@@ -45,10 +50,14 @@
         </tr>
         <tr>
             <td>
-                <code>kind</code></br>
+                <code>kind</code>
+            </td>
+            <td>
                 string
             </td>
-            <td><code>{{.Name.Name}}</code></td>
+            <td>
+                <code>{{.Name.Name}}</code>
+            </td>
         </tr>
         {{ end }}
         {{ template "members" .}}

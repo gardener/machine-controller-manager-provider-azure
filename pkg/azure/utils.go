@@ -21,7 +21,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
-	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
+	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/apis/v1"
 	spi "github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
