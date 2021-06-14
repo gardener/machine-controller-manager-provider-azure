@@ -520,7 +520,8 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 		return nil, OnARMAPIErrorFail(prometheusServiceVM, err, "VMFuture.WaitForCompletionRef failed for %s", *VMParameters.Name)
 	}
-	klog.Infof("VM Created in %d", time.Since(startTime))
+	klog.V(3).Infof("VM Created in %d", time.Since(startTime))
+
 	// Fetch VM details
 	VM, err := VMFuture.Result(clients.GetVMImpl())
 	if err != nil {
@@ -936,7 +937,7 @@ func getRelevantVMs(ctx context.Context, clients spi.AzureDriverClientsInterface
 			instanceID := encodeMachineID(location, *server.Name)
 
 			listOfVMs[instanceID] = *server.Name
-			klog.V(3).Infof("Found machine with name: %q", *server.Name)
+			klog.V(4).Infof("Found machine with name: %q", *server.Name)
 
 		}
 	}
@@ -983,7 +984,7 @@ func getRelevantNICs(ctx context.Context, clients spi.AzureDriverClientsInterfac
 
 			instanceID := encodeMachineID(location, machineName)
 			listOfVMs[instanceID] = machineName
-			klog.V(3).Infof("Found nic with name %q, hence appending machine %q", *nic.Name, machineName)
+			klog.V(4).Infof("Found nic with name %q, hence appending machine %q", *nic.Name, machineName)
 
 		}
 	}
@@ -1034,8 +1035,7 @@ func getRelevantDisks(ctx context.Context, clients spi.AzureDriverClientsInterfa
 				instanceID := encodeMachineID(location, machineName)
 
 				listOfVMs[instanceID] = machineName
-				klog.V(3).Infof("Found disk with name %q, hence appending machine %q", *disk.Name, machineName)
-
+				klog.V(4).Infof("Found disk with name %q, hence appending machine %q", *disk.Name, machineName)
 			}
 		}
 	}
