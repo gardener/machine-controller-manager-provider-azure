@@ -17,7 +17,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -81,6 +81,14 @@ func NewAzureDriver(spi spi.SessionProviderInterface) *MachinePlugin {
 // This logic is used by safety controller to delete orphan VMs which are not backed by any machine CRD
 //
 func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (*driver.CreateMachineResponse, error) {
+
+	select {
+	case <-ctx.Done():
+		err := ctx.Err()
+		return nil, status.Error(codes.DeadlineExceeded, err.Error())
+	default:
+	}
+
 	// Log messages to track request
 	klog.V(2).Infof("Machine creation request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine creation request has been processed for %q", req.Machine.Name)
@@ -114,6 +122,14 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 //                                                Could be helpful to continue operations in future requests.
 //
 func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {
+
+	select {
+	case <-ctx.Done():
+		err := ctx.Err()
+		return nil, status.Error(codes.DeadlineExceeded, err.Error())
+	default:
+	}
+
 	// Log messages to track delete request
 	klog.V(2).Infof("Machine deletion request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine deletion request has been processed for %q", req.Machine.Name)
