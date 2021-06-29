@@ -18,7 +18,6 @@ limitations under the License.
 package controller
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -27,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/cache"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -108,7 +107,6 @@ func (c *controller) machineClassDelete(obj interface{}) {
 // reconcileClusterMachineClassKey reconciles an machineClass due to controller resync
 // or an event on the machineClass.
 func (c *controller) reconcileClusterMachineClassKey(key string) error {
-	ctx := context.Background()
 	_, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -124,7 +122,7 @@ func (c *controller) reconcileClusterMachineClassKey(key string) error {
 		return err
 	}
 
-	err = c.reconcileClusterMachineClass(ctx, class)
+	err = c.reconcileClusterMachineClass(class)
 	if err != nil {
 		// Re-enqueue after a 10s window
 		c.enqueueMachineClassAfter(class, 10*time.Second)
@@ -137,7 +135,7 @@ func (c *controller) reconcileClusterMachineClassKey(key string) error {
 	return nil
 }
 
-func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1alpha1.MachineClass) error {
+func (c *controller) reconcileClusterMachineClass(class *v1alpha1.MachineClass) error {
 	klog.V(4).Info("Start Reconciling machineclass: ", class.Name)
 	defer klog.V(4).Info("Stop Reconciling machineclass: ", class.Name)
 
@@ -148,34 +146,24 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 		return err
 	}
 
-	// Fetch all machines referring the machineClass
-	machines, err := c.findMachinesForClass(machineutils.MachineClassKind, class.Name)
-	if err != nil {
-		return err
-	}
-
-	if class.DeletionTimestamp == nil && len(machines) > 0 {
-		// If deletionTimestamp is not set and at least one machine is referring this machineClass
-
-		if finalizers := sets.NewString(class.Finalizers...); !finalizers.Has(MCMFinalizerName) {
-			// Add machineClassFinalizer as if doesn't exist
-			err = c.addMachineClassFinalizers(ctx, class)
-			if err != nil {
-				return err
-			}
-
-			// Enqueue all machines once finalizer is added to machineClass
-			// This is to allow processing of such machines
-			for _, machine := range machines {
-				c.enqueueMachine(machine)
-			}
+	// Add finalizer to avoid losing machineClass object
+	if class.DeletionTimestamp == nil {
+		err = c.addMachineClassFinalizers(class)
+		if err != nil {
+			return err
 		}
 
 		return nil
 	}
 
+	// fetch all machines referring the machineClass
+	machines, err := c.findMachinesForClass(machineutils.MachineClassKind, class.Name)
+	if err != nil {
+		return err
+	}
+
 	if len(machines) > 0 {
-		// Machines are still referring the machine class, please wait before deletion
+		// machines are still referring the machine class, please wait before deletion
 		klog.V(3).Infof("Cannot remove finalizer on %s because still (%d) machines are referencing it", class.Name, len(machines))
 
 		for _, machine := range machines {
@@ -185,12 +173,8 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 		return fmt.Errorf("Retry as machine objects are still referring the machineclass")
 	}
 
-	if finalizers := sets.NewString(class.Finalizers...); finalizers.Has(MCMFinalizerName) {
-		// Delete finalizer if exists on machineClass
-		return c.deleteMachineClassFinalizers(ctx, class)
-	}
-
-	return nil
+	// delete machine class finalizer if exists
+	return c.deleteMachineClassFinalizers(class)
 }
 
 /*
@@ -198,28 +182,36 @@ func (c *controller) reconcileClusterMachineClass(ctx context.Context, class *v1
 	Manipulate Finalizers
 */
 
-func (c *controller) addMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass) error {
-	finalizers := sets.NewString(class.Finalizers...)
-	finalizers.Insert(MCMFinalizerName)
-	return c.updateMachineClassFinalizers(ctx, class, finalizers.List())
+func (c *controller) addMachineClassFinalizers(class *v1alpha1.MachineClass) error {
+	clone := class.DeepCopy()
+
+	if finalizers := sets.NewString(clone.Finalizers...); !finalizers.Has(MCMFinalizerName) {
+		finalizers.Insert(MCMFinalizerName)
+		return c.updateMachineClassFinalizers(clone, finalizers.List())
+	}
+	return nil
 }
 
-func (c *controller) deleteMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass) error {
-	finalizers := sets.NewString(class.Finalizers...)
-	finalizers.Delete(MCMFinalizerName)
-	return c.updateMachineClassFinalizers(ctx, class, finalizers.List())
+func (c *controller) deleteMachineClassFinalizers(class *v1alpha1.MachineClass) error {
+	clone := class.DeepCopy()
+
+	if finalizers := sets.NewString(clone.Finalizers...); finalizers.Has(MCMFinalizerName) {
+		finalizers.Delete(MCMFinalizerName)
+		return c.updateMachineClassFinalizers(clone, finalizers.List())
+	}
+	return nil
 }
 
-func (c *controller) updateMachineClassFinalizers(ctx context.Context, class *v1alpha1.MachineClass, finalizers []string) error {
+func (c *controller) updateMachineClassFinalizers(class *v1alpha1.MachineClass, finalizers []string) error {
 	// Get the latest version of the class so that we can avoid conflicts
-	class, err := c.controlMachineClient.MachineClasses(class.Namespace).Get(ctx, class.Name, metav1.GetOptions{})
+	class, err := c.controlMachineClient.MachineClasses(class.Namespace).Get(class.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
 	clone := class.DeepCopy()
 	clone.Finalizers = finalizers
-	_, err = c.controlMachineClient.MachineClasses(class.Namespace).Update(ctx, clone, metav1.UpdateOptions{})
+	_, err = c.controlMachineClient.MachineClasses(class.Namespace).Update(clone)
 	if err != nil {
 		klog.Warning("Updating machineClass failed, retrying. ", class.Name, err)
 		return err

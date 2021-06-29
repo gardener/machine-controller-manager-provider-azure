@@ -18,7 +18,6 @@ limitations under the License.
 package nodeops
 
 import (
-	"context"
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
@@ -69,8 +68,8 @@ func getNodeCondition(node *v1.Node, conditionType v1.NodeConditionType) *v1.Nod
 }
 
 // GetNodeCondition get the nodes condition matching the specified type
-func GetNodeCondition(ctx context.Context, c clientset.Interface, nodeName string, conditionType v1.NodeConditionType) (*v1.NodeCondition, error) {
-	node, err := c.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+func GetNodeCondition(c clientset.Interface, nodeName string, conditionType v1.NodeConditionType) (*v1.NodeCondition, error) {
+	node, err := c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +77,7 @@ func GetNodeCondition(ctx context.Context, c clientset.Interface, nodeName strin
 }
 
 // AddOrUpdateConditionsOnNode adds a condition to the node's status
-func AddOrUpdateConditionsOnNode(ctx context.Context, c clientset.Interface, nodeName string, condition v1.NodeCondition) error {
+func AddOrUpdateConditionsOnNode(c clientset.Interface, nodeName string, condition v1.NodeCondition) error {
 	firstTry := true
 	return clientretry.RetryOnConflict(Backoff, func() error {
 		var err error
@@ -86,10 +85,10 @@ func AddOrUpdateConditionsOnNode(ctx context.Context, c clientset.Interface, nod
 		// First we try getting node from the API server cache, as it's cheaper. If it fails
 		// we get it from etcd to be sure to have fresh data.
 		if firstTry {
-			oldNode, err = c.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{ResourceVersion: "0"})
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{ResourceVersion: "0"})
 			firstTry = false
 		} else {
-			oldNode, err = c.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
+			oldNode, err = c.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 		}
 
 		if err != nil {
@@ -99,17 +98,17 @@ func AddOrUpdateConditionsOnNode(ctx context.Context, c clientset.Interface, nod
 		var newNode *v1.Node
 		oldNodeCopy := oldNode
 		newNode = AddOrUpdateCondition(oldNodeCopy, condition)
-		return UpdateNodeConditions(ctx, c, nodeName, oldNode, newNode)
+		return UpdateNodeConditions(c, nodeName, oldNode, newNode)
 	})
 }
 
 // UpdateNodeConditions is for updating the node conditions from oldNode to the newNode
 // using the nodes Update() method
-func UpdateNodeConditions(ctx context.Context, c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
+func UpdateNodeConditions(c clientset.Interface, nodeName string, oldNode *v1.Node, newNode *v1.Node) error {
 	newNodeClone := oldNode.DeepCopy()
 	newNodeClone.Status.Conditions = newNode.Status.Conditions
 
-	_, err := c.CoreV1().Nodes().UpdateStatus(ctx, newNodeClone, metav1.UpdateOptions{})
+	_, err := c.CoreV1().Nodes().UpdateStatus(newNodeClone)
 	if err != nil {
 		return fmt.Errorf("failed to create update conditions for node %q: %v", nodeName, err)
 	}

@@ -44,7 +44,7 @@ github.com/evanphx/json-patch
 github.com/form3tech-oss/jwt-go
 # github.com/fsnotify/fsnotify v1.4.9
 github.com/fsnotify/fsnotify
-# github.com/gardener/machine-controller-manager v0.39.0 => /Users/i538135/go/src/github.com/gardener/machine-controller-manager
+# github.com/gardener/machine-controller-manager v0.39.0
 ## explicit
 github.com/gardener/machine-controller-manager/pkg/apis/machine
 github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1
@@ -69,11 +69,9 @@ github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheu
 github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/core
 github.com/gardener/machine-controller-manager/pkg/util/clientbuilder/machine
 github.com/gardener/machine-controller-manager/pkg/util/configz
-github.com/gardener/machine-controller-manager/pkg/util/k8sutils
 github.com/gardener/machine-controller-manager/pkg/util/nodeops
 github.com/gardener/machine-controller-manager/pkg/util/provider/app
 github.com/gardener/machine-controller-manager/pkg/util/provider/app/options
-github.com/gardener/machine-controller-manager/pkg/util/provider/cache
 github.com/gardener/machine-controller-manager/pkg/util/provider/drain
 github.com/gardener/machine-controller-manager/pkg/util/provider/driver
 github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes
@@ -177,7 +175,6 @@ github.com/pkg/errors
 ## explicit
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
-github.com/prometheus/client_golang/prometheus/promhttp
 # github.com/prometheus/client_model v0.2.0
 github.com/prometheus/client_model/go
 # github.com/prometheus/common v0.10.0
@@ -219,7 +216,7 @@ golang.org/x/net/idna
 # golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sys v0.0.0-20210514084401-e8d321eab015
+# golang.org/x/sys v0.0.0-20210112080510-489259a85091
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
@@ -617,6 +614,7 @@ k8s.io/component-base/logs/json
 k8s.io/component-base/logs/sanitization
 # k8s.io/klog v1.0.0
 ## explicit
+k8s.io/klog
 # k8s.io/klog/v2 v2.4.0
 ## explicit
 k8s.io/klog/v2
@@ -631,7 +629,6 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 ## explicit
 sigs.k8s.io/yaml
-# github.com/gardener/machine-controller-manager => /Users/i538135/go/src/github.com/gardener/machine-controller-manager
 # github.com/onsi/gomega => github.com/onsi/gomega v1.5.0
 # github.com/prometheus/client_golang => github.com/prometheus/client_golang v0.9.2
 # k8s.io/api => k8s.io/api v0.20.5

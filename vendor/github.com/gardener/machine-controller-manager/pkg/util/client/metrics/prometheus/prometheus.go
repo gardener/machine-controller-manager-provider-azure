@@ -56,11 +56,7 @@ var (
 func init() {
 	prometheus.MustRegister(requestLatency)
 	prometheus.MustRegister(requestResult)
-	opts := metrics.RegisterOpts{
-		RequestLatency: &latencyAdapter{requestLatency},
-		RequestResult:  &resultAdapter{requestResult},
-	}
-	metrics.Register(opts)
+	metrics.Register(&latencyAdapter{requestLatency}, &resultAdapter{requestResult})
 }
 
 type latencyAdapter struct {

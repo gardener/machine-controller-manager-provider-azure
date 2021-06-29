@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
+Copyright (c) 2020 SAP SE or an SAP affiliate company. All rights reserved. This file is licensed under the Apache Software License, v. 2 except as noted otherwise in the LICENSE file
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"context"
 	"time"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
@@ -38,14 +37,14 @@ type MachineClassesGetter interface {
 
 // MachineClassInterface has methods to work with MachineClass resources.
 type MachineClassInterface interface {
-	Create(ctx context.Context, machineClass *v1alpha1.MachineClass, opts v1.CreateOptions) (*v1alpha1.MachineClass, error)
-	Update(ctx context.Context, machineClass *v1alpha1.MachineClass, opts v1.UpdateOptions) (*v1alpha1.MachineClass, error)
-	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
-	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.MachineClass, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.MachineClassList, error)
-	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MachineClass, err error)
+	Create(*v1alpha1.MachineClass) (*v1alpha1.MachineClass, error)
+	Update(*v1alpha1.MachineClass) (*v1alpha1.MachineClass, error)
+	Delete(name string, options *v1.DeleteOptions) error
+	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
+	Get(name string, options v1.GetOptions) (*v1alpha1.MachineClass, error)
+	List(opts v1.ListOptions) (*v1alpha1.MachineClassList, error)
+	Watch(opts v1.ListOptions) (watch.Interface, error)
+	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.MachineClass, err error)
 	MachineClassExpansion
 }
 
@@ -64,20 +63,20 @@ func newMachineClasses(c *MachineV1alpha1Client, namespace string) *machineClass
 }
 
 // Get takes name of the machineClass, and returns the corresponding machineClass object, and an error if there is any.
-func (c *machineClasses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.MachineClass, err error) {
+func (c *machineClasses) Get(name string, options v1.GetOptions) (result *v1alpha1.MachineClass, err error) {
 	result = &v1alpha1.MachineClass{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("machineclasses").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
+		Do().
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of MachineClasses that match those selectors.
-func (c *machineClasses) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.MachineClassList, err error) {
+func (c *machineClasses) List(opts v1.ListOptions) (result *v1alpha1.MachineClassList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -88,13 +87,13 @@ func (c *machineClasses) List(ctx context.Context, opts v1.ListOptions) (result 
 		Resource("machineclasses").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do(ctx).
+		Do().
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested machineClasses.
-func (c *machineClasses) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *machineClasses) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -105,74 +104,71 @@ func (c *machineClasses) Watch(ctx context.Context, opts v1.ListOptions) (watch.
 		Resource("machineclasses").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch(ctx)
+		Watch()
 }
 
 // Create takes the representation of a machineClass and creates it.  Returns the server's representation of the machineClass, and an error, if there is any.
-func (c *machineClasses) Create(ctx context.Context, machineClass *v1alpha1.MachineClass, opts v1.CreateOptions) (result *v1alpha1.MachineClass, err error) {
+func (c *machineClasses) Create(machineClass *v1alpha1.MachineClass) (result *v1alpha1.MachineClass, err error) {
 	result = &v1alpha1.MachineClass{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("machineclasses").
-		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(machineClass).
-		Do(ctx).
+		Do().
 		Into(result)
 	return
 }
 
 // Update takes the representation of a machineClass and updates it. Returns the server's representation of the machineClass, and an error, if there is any.
-func (c *machineClasses) Update(ctx context.Context, machineClass *v1alpha1.MachineClass, opts v1.UpdateOptions) (result *v1alpha1.MachineClass, err error) {
+func (c *machineClasses) Update(machineClass *v1alpha1.MachineClass) (result *v1alpha1.MachineClass, err error) {
 	result = &v1alpha1.MachineClass{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("machineclasses").
 		Name(machineClass.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(machineClass).
-		Do(ctx).
+		Do().
 		Into(result)
 	return
 }
 
 // Delete takes name of the machineClass and deletes it. Returns an error if one occurs.
-func (c *machineClasses) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *machineClasses) Delete(name string, options *v1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("machineclasses").
 		Name(name).
-		Body(&opts).
-		Do(ctx).
+		Body(options).
+		Do().
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *machineClasses) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+func (c *machineClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
+	if listOptions.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("machineclasses").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
+		VersionedParams(&listOptions, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
+		Body(options).
+		Do().
 		Error()
 }
 
 // Patch applies the patch and returns the patched machineClass.
-func (c *machineClasses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.MachineClass, err error) {
+func (c *machineClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.MachineClass, err error) {
 	result = &v1alpha1.MachineClass{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("machineclasses").
-		Name(name).
 		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
+		Name(name).
 		Body(data).
-		Do(ctx).
+		Do().
 		Into(result)
 	return
 }

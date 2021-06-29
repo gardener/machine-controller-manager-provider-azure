@@ -21,7 +21,7 @@ import (
 	clientset "github.com/gardener/machine-controller-manager/pkg/client/clientset/versioned"
 	restclient "k8s.io/client-go/rest"
 
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 // ClientBuilder allows you to get clients and configs for controllers
