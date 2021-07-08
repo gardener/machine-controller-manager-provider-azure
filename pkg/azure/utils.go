@@ -299,7 +299,7 @@ func getImageReference(providerSpec *api.AzureProviderSpec) compute.ImageReferen
 
 func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*compute.VirtualMachine, error) {
 
-	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	providerSpec, err := DecodeProviderSpecAndSecret(req.MachineClass, req.Secret)
 	if err != nil {
 		return nil, err
 	}

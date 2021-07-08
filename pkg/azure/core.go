@@ -124,7 +124,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	providerSpec, err := DecodeProviderSpecAndSecret(req.MachineClass, req.Secret)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -232,7 +232,7 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	providerSpec, err := decodeProviderSpecAndSecret(req.MachineClass, req.Secret)
+	providerSpec, err := DecodeProviderSpecAndSecret(req.MachineClass, req.Secret)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
