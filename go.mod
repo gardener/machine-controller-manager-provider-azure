@@ -10,7 +10,7 @@ require (
 	github.com/gardener/machine-controller-manager v0.39.0
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.3.2 // indirect
-	github.com/onsi/ginkgo v1.15.2
+	github.com/onsi/ginkgo v1.16.2
 	github.com/onsi/gomega v1.11.0
 	github.com/prometheus/client_golang v1.5.1
 	github.com/spf13/pflag v1.0.5
