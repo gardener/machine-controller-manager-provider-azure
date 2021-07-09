@@ -8,16 +8,18 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+// ResourcesTrackerImpl implements the Resource Tracker Interface from the Integration test suite
 type ResourcesTrackerImpl struct {
+	ClusterName      string
 	InitialVolumes   []string
 	InitialInstances []string
 	InitialMachines  []string
 	MachineClass     *v1alpha1.MachineClass
-	SecretData       map[string][]byte
-	ClusterName      string
 	ResourceGroup    string
+	SecretData       map[string][]byte
 }
 
+// InitializeResourceTracker is the constructor of ResourceTrackerImpl
 func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1.MachineClass, secretData map[string][]byte, clusterName string) error {
 
 	clusterTag := "tag:kubernetes.io/cluster/" + clusterName
@@ -38,13 +40,13 @@ func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1
 		return err
 	}
 
-	instances, err := GetVMsWithTag(clients, "tag:mcm-integration-test", "true", machineClass, r.ResourceGroup, secretData)
+	instances, err := getVMsWithTag(clients, "tag:mcm-integration-test", "true", machineClass, r.ResourceGroup, secretData)
 	if err == nil {
 		r.InitialInstances = instances
-		volumes, err := GetAvailableDisks(clients, clusterTag, clusterTagValue, machineClass, r.ResourceGroup, secretData)
+		volumes, err := getAvailableDisks(clients, clusterTag, clusterTagValue, machineClass, r.ResourceGroup, secretData)
 		if err == nil {
 			r.InitialVolumes = volumes
-			r.InitialMachines, err = DescribeMachines(machineClass, secretData)
+			r.InitialMachines, err = getMachines(machineClass, secretData)
 			return err
 		}
 		return err
@@ -94,20 +96,22 @@ func (r *ResourcesTrackerImpl) probeResources() ([]string, []string, []string, e
 	clusterTag := "tag:kubernetes.io/cluster/" + r.ClusterName
 	clusterTagValue := "1"
 
-	instances, err := GetVMsWithTag(clients, "tag:mcm-integration-test", "true", r.MachineClass, r.ResourceGroup, r.SecretData)
+	instances, err := getVMsWithTag(clients, "tag:mcm-integration-test", "true", r.MachineClass, r.ResourceGroup, r.SecretData)
 	if err != nil {
 		return instances, nil, nil, err
 	}
 
 	// Check for available volumes in cloud provider with tag/label [Status:available]
-	availVols, err := GetAvailableDisks(clients, clusterTag, clusterTagValue, r.MachineClass, r.ResourceGroup, r.SecretData)
+	availVols, err := getAvailableDisks(clients, clusterTag, clusterTagValue, r.MachineClass, r.ResourceGroup, r.SecretData)
 	if err != nil {
 		return instances, availVols, nil, err
 	}
 
-	availMachines, _ := DescribeMachines(r.MachineClass, r.SecretData)
+	// check for available machines
+	availMachines, _ := getMachines(r.MachineClass, r.SecretData)
+
 	// Check for available vpc and network interfaces in cloud provider with tag
-	err = AdditionalResourcesCheck(clients, r.ResourceGroup, clusterTag, clusterTagValue)
+	err = additionalResourcesCheck(clients, r.ResourceGroup, clusterTag, clusterTagValue)
 
 	return instances, availVols, availMachines, err
 

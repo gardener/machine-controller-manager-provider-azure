@@ -27,9 +27,67 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 )
 
+// AdditionalResourcesCheck check for orphan network interfaces
+func additionalResourcesCheck(clients spi.AzureDriverClientsInterface, resourceGroup, tagName, tagValue string) error {
+	ctx := context.TODO()
+
+	networkInterfaces, err := clients.GetNic().List(ctx, resourceGroup)
+	if err != nil {
+		return err
+	}
+	for _, networkInterface := range networkInterfaces.Values() {
+		if value, ok := networkInterface.Tags[tagName]; ok && tagValue == *value {
+			fmt.Println(networkInterface.Name)
+			nicDeleteFuture, err := clients.GetNic().Delete(ctx, resourceGroup, *networkInterface.Name)
+			if err != nil {
+				return err
+			}
+			if err = nicDeleteFuture.WaitForCompletionRef(ctx, clients.GetClient()); err != nil {
+				return err
+			}
+		}
+	}
+	return err
+}
+
+// deleteVolume deletes the specified volume
+func deleteVolume(clients spi.AzureDriverClientsInterface, resourceGroup, VolumeID string) error {
+	ctx := context.TODO()
+	diskDeleteFuture, err := clients.GetDisk().Delete(ctx, resourceGroup, VolumeID)
+	if err != nil {
+		return err
+	}
+
+	if err = diskDeleteFuture.WaitForCompletionRef(ctx, clients.GetClient()); err != nil {
+		return err
+	}
+	return err
+}
+
+// getAvailableDisks describes volumes with the specified tag
+func getAvailableDisks(clients spi.AzureDriverClientsInterface, tagName string, tagValue string, machineClass *v1alpha1.MachineClass, resourceGroup string, secretData map[string][]byte) ([]string, error) {
+
+	var availVolID []string
+
+	volumes, err := clients.GetDisk().ListByResourceGroup(context.TODO(), resourceGroup)
+	if err != nil {
+		return availVolID, err
+	}
+
+	for _, volume := range volumes.Values() {
+		if value, ok := volume.Tags[tagName]; ok && *value == tagValue {
+			availVolID = append(availVolID, *volume.Name)
+			deleteVolume(clients, resourceGroup, *volume.Name)
+		}
+	}
+
+	return availVolID, nil
+}
+
+// getAzureClients returns Azure clients
 func getAzureClients(secretData map[string][]byte) (spi.AzureDriverClientsInterface, error) {
-	var SPI spi.PluginSPIImpl
-	driver := provider.NewAzureDriver(&SPI)
+
+	driver := provider.NewAzureDriver(&spi.PluginSPIImpl{})
 	client, err := driver.SPI.Setup(&v1.Secret{Data: secretData})
 	if err != nil {
 		return nil, err
@@ -37,7 +95,8 @@ func getAzureClients(secretData map[string][]byte) (spi.AzureDriverClientsInterf
 	return client, nil
 }
 
-func DescribeMachines(machineClass *v1alpha1.MachineClass, secretData map[string][]byte) ([]string, error) {
+// get machines returns the list of names of the machine objects in the control cluster
+func getMachines(machineClass *v1alpha1.MachineClass, secretData map[string][]byte) ([]string, error) {
 	var (
 		machines []string
 		SPI      spi.PluginSPIImpl
@@ -60,8 +119,8 @@ func DescribeMachines(machineClass *v1alpha1.MachineClass, secretData map[string
 	return machines, nil
 }
 
-// GetVMsWithTag describes the instance with the specified tag
-func GetVMsWithTag(clients spi.AzureDriverClientsInterface, tagName string, tagValue string, machineClass *v1alpha1.MachineClass, resourceGroup string, secretData map[string][]byte) ([]string, error) {
+// getVMsWithTag describes the instance with the specified tag
+func getVMsWithTag(clients spi.AzureDriverClientsInterface, tagName string, tagValue string, machineClass *v1alpha1.MachineClass, resourceGroup string, secretData map[string][]byte) ([]string, error) {
 
 	var instancesID []string
 
@@ -76,54 +135,4 @@ func GetVMsWithTag(clients spi.AzureDriverClientsInterface, tagName string, tagV
 	}
 
 	return instancesID, nil
-}
-
-// GetAvailableDisks describes volumes with the specified tag
-func GetAvailableDisks(clients spi.AzureDriverClientsInterface, tagName string, tagValue string, machineClass *v1alpha1.MachineClass, resourceGroup string, secretData map[string][]byte) ([]string, error) {
-
-	var availVolID []string
-	// extract the resource group value from the providerSpec of MachineClass
-
-	volumes, err := clients.GetDisk().ListByResourceGroup(context.TODO(), resourceGroup)
-	if err != nil {
-		return availVolID, err
-	}
-
-	for _, volume := range volumes.Values() {
-		if value, ok := volume.Tags[tagName]; ok && *value == tagValue {
-			availVolID = append(availVolID, *volume.Name)
-			DeleteVolume(clients, resourceGroup, *volume.Name)
-		}
-	}
-
-	return availVolID, nil
-}
-
-// DeleteVolume deletes the specified volume
-func DeleteVolume(clients spi.AzureDriverClientsInterface, resourceGroup, VolumeID string) error {
-	// TO-DO: deletes an available volume with the specified volume ID
-	// If the command succeeds, no output is returned.
-	ctx := context.TODO()
-	diskDeleteFuture, err := clients.GetDisk().Delete(ctx, resourceGroup, VolumeID)
-	if err != nil {
-		return err
-	}
-	if err = diskDeleteFuture.WaitForCompletionRef(ctx, clients.GetClient()); err != nil {
-		return err
-	}
-	return err
-}
-
-// AdditionalResourcesCheck describes VPCs and network interfaces
-func AdditionalResourcesCheck(clients spi.AzureDriverClientsInterface, resourceGroup, tagName, tagValue string) error {
-	// TO-DO: Checks for Network interfaces
-	// If the command succeeds, no output is returned.
-	networkInterfaces, err := clients.GetNic().List(context.TODO(), resourceGroup)
-	if err != nil {
-		return err
-	}
-	for _, networkInterface := range networkInterfaces.Values() {
-		fmt.Println(networkInterface.Name)
-	}
-	return err
 }
