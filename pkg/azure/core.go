@@ -97,7 +97,6 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 	}
 
 	providerID := encodeMachineID(*virtualMachine.Location, *virtualMachine.Name)
-	klog.Infof("Provider ID: %s\nNodeName: %s\n", providerID, *virtualMachine.Name)
 
 	return &driver.CreateMachineResponse{ProviderID: providerID, NodeName: *virtualMachine.Name}, nil
 }
@@ -180,7 +179,7 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 // The request should return a NOT_FOUND (5) status error code if the machine is not existing
 func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (*driver.GetMachineStatusResponse, error) {
 	// Log messages to track start and end of request
-	klog.V(2).Infof("Get request has been recieved for %q", req.Machine.Name)
+	klog.V(4).Infof("Get request has been recieved for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine get request has been processed successfully for %q", req.Machine.Name)
 
 	// Check if provider in the MachineClass is the provider we support
