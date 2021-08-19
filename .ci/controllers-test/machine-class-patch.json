@@ -1,0 +1,8 @@
+{
+    "providerSpec": {
+        "tags": {
+            "kubernetes.io-role-node": null,
+            "kubernetes.io-role-integration-test": "1"
+        }
+    }
+}
