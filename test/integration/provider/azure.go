@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/utils/pointer"
+	pointer "k8s.io/utils/pointer"
 
 	provider "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
@@ -34,44 +34,60 @@ func additionalResourcesCheck(
 	resourceGroup,
 	tagName,
 	tagValue string,
-) error {
+) {
 	ctx := context.TODO()
 
 	networkInterfaces, err := clients.GetNic().List(ctx, resourceGroup)
 	if err != nil {
-		return err
+		fmt.Printf("List operation failed on NIC from resource group %s with error %s,", resourceGroup, err.Error())
 	}
 	for _, networkInterface := range networkInterfaces.Values() {
 		if value, ok := networkInterface.Tags[tagName]; ok && tagValue == *value {
 			fmt.Println(networkInterface.Name)
 			nicDeleteFuture, err := clients.GetNic().Delete(ctx, resourceGroup, *networkInterface.Name)
 			if err != nil {
-				return err
+				fmt.Printf("Delete operation failed on NIC %s with error %s,", *networkInterface.Name, err.Error())
 			}
 			if err = nicDeleteFuture.WaitForCompletionRef(ctx, clients.GetClient()); err != nil {
-				return err
+				fmt.Printf("Delete operation failed on NIC %s with error %s,", *networkInterface.Name, err.Error())
 			}
 		}
 	}
-	return err
 }
 
-// deleteVolume deletes the specified volume
+// deleteVolume deletes the specified volume on Azure
 func deleteVolume(
 	clients spi.AzureDriverClientsInterface,
 	resourceGroup,
 	VolumeID string,
-) error {
+) {
 	ctx := context.TODO()
 	diskDeleteFuture, err := clients.GetDisk().Delete(ctx, resourceGroup, VolumeID)
 	if err != nil {
-		return err
+		fmt.Printf("Delete operation failed on Volume %s with error %s,", VolumeID, err.Error())
 	}
 
 	if err = diskDeleteFuture.WaitForCompletionRef(ctx, clients.GetClient()); err != nil {
-		return err
+		fmt.Printf("Delete operation failed on Volume %s with error %s,", VolumeID, err.Error())
 	}
-	return err
+
+}
+
+// deleteVM deletes the specified Virtual Machine on Azure
+func deleteVM(
+	clients spi.AzureDriverClientsInterface,
+	resourceGroup,
+	VMName string) {
+
+	ctx := context.TODO()
+	virtualMachineFuture, err := clients.GetVM().Delete(ctx, resourceGroup, VMName, pointer.BoolPtr(false))
+	if err != nil {
+		fmt.Printf("Delete operation failed on VM %s with error %s,", VMName, err.Error())
+	}
+
+	if err = virtualMachineFuture.WaitForCompletionRef(ctx, clients.GetClient()); err != nil {
+		fmt.Printf("Delete operation failed on VM %s with error %s,", VMName, err.Error())
+	}
 }
 
 // getAvailableDisks fetches all the disks associated with the VMs of the target cluster
@@ -154,12 +170,9 @@ func getVMsWithTag(
 	secretData map[string][]byte,
 ) ([]string, error) {
 
-	var (
-		instancesID []string
-		ctx         = context.TODO()
-	)
+	var instancesID []string
 
-	virtualMachines, err := clients.GetVM().List(ctx, resourceGroup)
+	virtualMachines, err := clients.GetVM().List(context.TODO(), resourceGroup)
 	if err != nil {
 		return instancesID, err
 	}
@@ -167,14 +180,7 @@ func getVMsWithTag(
 	for _, virtualMachine := range virtualMachines.Values() {
 		if value, ok := virtualMachine.Tags[tagName]; ok && *value == tagValue {
 			instancesID = append(instancesID, *virtualMachine.Name)
-			virtualMachineFuture, err := clients.GetVM().Delete(ctx, resourceGroup, *virtualMachine.Name, pointer.BoolPtr(false))
-			if err != nil {
-				fmt.Printf("Delete operation failed on VM %s with error %s,", *virtualMachine.Name, err.Error())
-			}
-
-			if err = virtualMachineFuture.WaitForCompletionRef(ctx, clients.GetClient()); err != nil {
-				fmt.Printf("Delete operation failed on VM %s with error %s,", *virtualMachine.Name, err.Error())
-			}
+			deleteVM(clients, resourceGroup, *virtualMachine.Name)
 		}
 	}
 

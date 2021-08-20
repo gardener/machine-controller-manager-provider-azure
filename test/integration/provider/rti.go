@@ -14,7 +14,7 @@ var (
 	// is expected to have these tags set so that the machines from this suite won't be
 	// orphan collected.
 	clusterTag      = "mcm-integration-test"
-	clusterTagValue = "True"
+	clusterTagValue = "true"
 )
 
 // ResourcesTrackerImpl implements the Resource Tracker Interface from the Integration test suite
@@ -68,17 +68,17 @@ func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
 	if err == nil {
 		orphanedResourceInstances := differenceOrphanedResources(r.InitialInstances, afterTestExecutionInstances)
 		if orphanedResourceInstances != nil {
-			fmt.Println("orphaned instances are:", orphanedResourceInstances)
+			fmt.Println("orphaned instances were:", orphanedResourceInstances)
 			return true
 		}
 		orphanedResourceAvailVols := differenceOrphanedResources(r.InitialVolumes, afterTestExecutionAvailVols)
 		if orphanedResourceAvailVols != nil {
-			fmt.Println("orphaned volumes are:", orphanedResourceAvailVols)
+			fmt.Println("orphaned volumes were:", orphanedResourceAvailVols)
 			return true
 		}
 		orphanedResourceAvailMachines := differenceOrphanedResources(r.InitialMachines, afterTestExecutionAvailmachines)
 		if orphanedResourceAvailMachines != nil {
-			fmt.Println("orphaned volumes are:", orphanedResourceAvailMachines)
+			fmt.Println("orphaned volumes were:", orphanedResourceAvailMachines)
 			return true
 		}
 		return false
@@ -98,7 +98,7 @@ func (r *ResourcesTrackerImpl) probeResources() ([]string, []string, []string, e
 		return nil, nil, nil, err
 	}
 
-	instances, err := getVMsWithTag(clients, clusterTag, "true", r.MachineClass, r.ResourceGroup, r.SecretData)
+	instances, err := getVMsWithTag(clients, clusterTag, clusterTagValue, r.MachineClass, r.ResourceGroup, r.SecretData)
 	if err != nil {
 		return instances, nil, nil, err
 	}
@@ -112,8 +112,8 @@ func (r *ResourcesTrackerImpl) probeResources() ([]string, []string, []string, e
 	// check for available machines
 	availMachines, _ := getMachines(r.MachineClass, r.SecretData)
 
-	// Check for available vpc and network interfaces in cloud provider with tag
-	err = additionalResourcesCheck(clients, r.ResourceGroup, clusterTag, clusterTagValue)
+	// Check for available network interfaces in cloud provider with tag
+	additionalResourcesCheck(clients, r.ResourceGroup, clusterTag, clusterTagValue)
 
 	return instances, availVols, availMachines, err
 
