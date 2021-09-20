@@ -70,12 +70,12 @@ func (r *ResourcesTrackerImpl) probeResources() ([]string, []string, []string, [
 		return nil, nil, nil, nil, err
 	}
 
-	VMs, err := getOrphanedVMs(clients, ITResourceTagKey, ITResourceTagValue, r.MachineClass, r.ResourceGroup, r.SecretData)
+	VMs, err := getOrphanedVMs(clients, r.MachineClass, r.ResourceGroup, r.SecretData)
 	if err != nil {
 		return VMs, nil, nil, nil, err
 	}
 
-	availVols, err := getOrphanedDisks(clients, ITResourceTagKey, ITResourceTagValue, r.ResourceGroup)
+	availVols, err := getOrphanedDisks(clients, r.ResourceGroup)
 	if err != nil {
 		return VMs, availVols, nil, nil, err
 	}
@@ -85,7 +85,7 @@ func (r *ResourcesTrackerImpl) probeResources() ([]string, []string, []string, [
 		return VMs, availVols, availMachines, nil, err
 	}
 
-	availNICs, err := getOrphanedNICs(clients, r.ResourceGroup, ITResourceTagKey, ITResourceTagValue)
+	availNICs, err := getOrphanedNICs(clients, r.ResourceGroup)
 
 	return VMs, availVols, availMachines, availNICs, err
 

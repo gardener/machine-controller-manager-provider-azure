@@ -122,8 +122,6 @@ func getMachines(
 // getOrphanedDisks returns the list of orphaned disks which couldn't be deleted.
 func getOrphanedDisks(
 	clients spi.AzureDriverClientsInterface,
-	tagName string,
-	tagValue string,
 	resourceGroup string,
 ) ([]string, error) {
 
@@ -135,7 +133,7 @@ func getOrphanedDisks(
 	}
 
 	for _, disk := range disks.Values() {
-		if value, ok := disk.Tags[tagName]; ok && *value == tagValue {
+		if value, ok := disk.Tags[ITResourceTagKey]; ok && *value == ITResourceTagValue {
 			err := deleteDisk(clients, resourceGroup, *disk.Name)
 			if err != nil {
 				orphanedDisks = append(orphanedDisks, *disk.Name)
@@ -149,9 +147,7 @@ func getOrphanedDisks(
 // getOrphanedNICs returns the list of orphaned NICs which couldn't be deleted.
 func getOrphanedNICs(
 	clients spi.AzureDriverClientsInterface,
-	resourceGroup,
-	tagName,
-	tagValue string,
+	resourceGroup string,
 ) ([]string, error) {
 	ctx := context.TODO()
 
@@ -164,7 +160,7 @@ func getOrphanedNICs(
 	}
 
 	for _, networkInterface := range networkInterfaces.Values() {
-		if value, ok := networkInterface.Tags[tagName]; ok && tagValue == *value {
+		if value, ok := networkInterface.Tags[ITResourceTagKey]; ok && ITResourceTagValue == *value {
 			err = deleteNICs(clients, resourceGroup, *networkInterface.Name)
 			if err != nil {
 				orphanedNICs = append(orphanedNICs, *networkInterface.Name)
@@ -177,8 +173,6 @@ func getOrphanedNICs(
 // getOrphanedVMs returns the list of orphaned virtual machines which couldn't be deleted.
 func getOrphanedVMs(
 	clients spi.AzureDriverClientsInterface,
-	tagName string,
-	tagValue string,
 	machineClass *v1alpha1.MachineClass,
 	resourceGroup string,
 	secretData map[string][]byte,
@@ -192,7 +186,7 @@ func getOrphanedVMs(
 	}
 
 	for _, virtualMachine := range virtualMachines.Values() {
-		if value, ok := virtualMachine.Tags[tagName]; ok && *value == tagValue {
+		if value, ok := virtualMachine.Tags[ITResourceTagKey]; ok && *value == ITResourceTagValue {
 			err := deleteVM(clients, resourceGroup, *virtualMachine.Name)
 			if err != nil {
 				orphanedVMs = append(orphanedVMs, *virtualMachine.Name)
