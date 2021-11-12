@@ -5,7 +5,7 @@
 Out of tree (controller based) implementation for `Azure` as a new provider.
 
 ## About
-The Azure Out Of Tree provider implements the interface defined at [MCM OOT driver](https://github.com/gardener/machine-controller-manager/blob/master/pkg/util/provider/driver/driver.go)..
+The Azure Out Of Tree provider implements the interface defined at [MCM OOT driver](https://github.com/gardener/machine-controller-manager/blob/master/pkg/util/provider/driver/driver.go).
 
 ## Fundamental Design Principles:
 Following are the basic development principles for this external plugin:
