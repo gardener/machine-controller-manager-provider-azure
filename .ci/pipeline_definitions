@@ -2,11 +2,8 @@ machine-controller-manager-provider-azure:
   template: 'default'
   base_definition:
     repo: ~
-    traits:
-      version:
-        preprocess:
-          'inject-commit-hash'
-        inject_effective_version: true
+  inherit:
+    publish_template: &publish_anchor
       publish:
         dockerimages:
           machine-controller-manager-provider-azure:
@@ -17,24 +14,43 @@ machine-controller-manager-provider-azure:
                 build: ~
             registry: 'gcr-readwrite'
             image: 'eu.gcr.io/gardener-project/gardener/machine-controller-manager-provider-azure'
-    steps:
-      check:
-        image: 'golang:1.16.6'
-      build:
-        image: 'golang:1.16.6'
-        output_dir: 'binary'
-      test:
-        image: 'golang:1.16.6'
+    steps_template: &steps_anchor
+      steps:
+        check:
+          image: 'golang:1.16.6'
+        build:
+          image: 'golang:1.16.6'
+          output_dir: 'binary'
+        test:
+          image: 'eu.gcr.io/gardener-project/gardener/testmachinery/base-step:stable'
+    version_template: &version_anchor
+      version:
+        inject_effective_version: true
   jobs:
     head-update:
+      <<: *steps_anchor
       traits:
+        <<: *version_anchor
         component_descriptor: ~
         draft_release: ~
+        <<: *publish_anchor
     pull-request:
+      <<: *steps_anchor
       traits:
+        <<: *version_anchor
         pull-request: ~
-    release:
+        <<: *publish_anchor
+    create-upgrade-prs:
       traits:
+        component_descriptor: ~
+        version: ~
+        cronjob:
+          interval: '5m'
+        update_component_deps: ~
+    release:
+      <<: *steps_anchor
+      traits:
+        <<: *publish_anchor
         version:
           preprocess: 'finalize'
         release:
