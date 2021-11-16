@@ -7,10 +7,14 @@ import (
 )
 
 var (
-	// ITResourceTagKey and ITResourceTagValue are specifically used for integration test
+	// ITResourceTagKey is specifically used for integration test
 	// primarily to avoid orphan collection of resources when the control cluster is
 	// non seed cluster
-	ITResourceTagKey   = "kubernetes.io-role-integration-test"
+	ITResourceTagKey = "kubernetes.io-role-integration-test"
+
+	// ITResourceTagValue is specifically used for integration test
+	// primarily to avoid orphan collection of resources when the control cluster is
+	// non seed cluster
 	ITResourceTagValue = "1"
 )
 
@@ -21,7 +25,7 @@ type ResourcesTrackerImpl struct {
 	SecretData    map[string][]byte
 }
 
-// InitializeResourceTracker is the constructor of ResourceTrackerImpl
+// InitializeResourcesTracker is the constructor of ResourceTrackerImpl
 func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1.MachineClass, secretData map[string][]byte, clusterName string) error {
 
 	r.MachineClass = machineClass
