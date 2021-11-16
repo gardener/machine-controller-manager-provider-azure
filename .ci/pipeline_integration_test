@@ -1,7 +1,3 @@
-#pwd= /tmp/build/a94a8fe5/pull-request-gardener.machine-controller-manager-provider-azure-pr.master/tmp/src/github.com/gardener/machine-controller-manager-provider-azure
-#source path= /tmp/build/a94a8fe5/pull-request-gardener.machine-controller-manager-provider-azure-pr.master
-#logs_path= /tmp/build/a94a8fe5/pull-request-gardener.machine-controller-manager-provider-azure-pr.master/.ci/controllers-test/logs
-
 ############################################## <Color> ##############################################
 RED='\033[0;31m'
 NC='\033[0m' # No Color
@@ -18,8 +14,8 @@ num_of_existing_nodes=1
 declare CONTROL_KUBECONFIG=${SOURCE_PATH}/dev/control_kubeconfig.yaml
 declare TARGET_KUBECONFIG=${SOURCE_PATH}/dev/target_kubeconfig.yaml
 
-${cli_path} config attribute --cfg-type kubernetes --cfg-name mcm-ci-gcp-oot-control --key kubeconfig > dev/control_kubeconfig.yaml
-${cli_path} config attribute --cfg-type kubernetes --cfg-name mcm-ci-gcp-oot-target --key kubeconfig > dev/target_kubeconfig.yaml
+${cli_path} config attribute --cfg-type kubernetes --cfg-name mcm-ci-az-oot-control --key kubeconfig > dev/control_kubeconfig.yaml
+${cli_path} config attribute --cfg-type kubernetes --cfg-name mcm-ci-az-oot-target --key kubeconfig > dev/target_kubeconfig.yaml
 
 
 export CONTROL_KUBECONFIG
