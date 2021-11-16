@@ -173,7 +173,6 @@ func getOrphanedNICs(
 // getOrphanedVMs returns the list of orphaned virtual machines which couldn't be deleted.
 func getOrphanedVMs(
 	clients spi.AzureDriverClientsInterface,
-	machineClass *v1alpha1.MachineClass,
 	resourceGroup string,
 	secretData map[string][]byte,
 ) ([]string, error) {
