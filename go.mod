@@ -7,7 +7,7 @@ require (
 	github.com/Azure/go-autorest/autorest v0.11.17
 	github.com/Azure/go-autorest/autorest/adal v0.9.5
 	github.com/Azure/go-autorest/autorest/to v0.3.0
-	github.com/gardener/machine-controller-manager v0.41.0
+	github.com/gardener/machine-controller-manager v0.43.0
 	github.com/golang/mock v1.4.4
 	github.com/onsi/ginkgo v1.16.2
 	github.com/onsi/gomega v1.11.0
@@ -82,7 +82,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.20.6 // indirect
 	k8s.io/apiserver v0.20.6 // indirect
 	k8s.io/client-go v0.20.6 // indirect
-	k8s.io/cluster-bootstrap v0.0.0-20190918163108-da9fdfce26bb // indirect
+	k8s.io/cluster-bootstrap v0.20.6 // indirect
 	k8s.io/klog/v2 v2.4.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.0.3 // indirect
