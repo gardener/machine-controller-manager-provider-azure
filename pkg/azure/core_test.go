@@ -374,7 +374,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(internalErrorPrefix, "properties.storageProfile.imageReference.urn: Required value: Invalid urn format, empty field").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.storageProfile.imageReference.urn: Required value: invalid urn format, empty field").Error(),
 			),
 			Entry("#13 Create machine with negtive OS Disk Size in providerSpec",
 				&mock.AzureProviderSpecWithNegativeOSDiskSize,

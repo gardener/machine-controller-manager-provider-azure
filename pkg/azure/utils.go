@@ -284,6 +284,12 @@ func getImageReference(providerSpec *api.AzureProviderSpec) compute.ImageReferen
 		}
 	}
 
+	if imageRefClass.CommunityGalleryImageID != nil {
+		return compute.ImageReference{
+			CommunityGalleryImageID: imageRefClass.CommunityGalleryImageID,
+		}
+	}
+
 	splits := strings.Split(*imageRefClass.URN, ":")
 	publisher := splits[0]
 	offer := splits[1]
@@ -423,9 +429,8 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	*/
 	startTime := time.Now()
 	imageRefClass := providerSpec.Properties.StorageProfile.ImageReference
-	// if ID is not set the image is referenced using a URN
-	if imageRefClass.ID == "" {
-
+	// if ID and community id are not set the image is referenced using a URN
+	if imageRefClass.URN != nil {
 		imageReference := getImageReference(providerSpec)
 		vmImage, err := clients.GetImages().Get(
 			ctx,
