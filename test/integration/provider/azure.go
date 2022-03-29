@@ -179,7 +179,7 @@ func getOrphanedVMs(
 
 	var orphanedVMs []string
 
-	virtualMachines, err := clients.GetVM().List(context.TODO(), resourceGroup)
+	virtualMachines, err := clients.GetVM().List(context.TODO(), resourceGroup, "")
 	if err != nil {
 		return orphanedVMs, err
 	}

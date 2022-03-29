@@ -15,9 +15,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 
-	computeapi "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2020-06-30/compute/computeapi"
+	computeapi "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-12-01/compute/computeapi"
 	marketplaceorderingapi "github.com/Azure/azure-sdk-for-go/services/marketplaceordering/mgmt/2015-06-01/marketplaceordering/marketplaceorderingapi"
-	networkapi "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-07-01/network/networkapi"
+	networkapi "github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-05-01/network/networkapi"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
