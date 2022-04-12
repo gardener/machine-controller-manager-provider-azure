@@ -40,6 +40,13 @@ machine-controller-manager-provider-azure:
         <<: *version_anchor
         pull-request: ~
         <<: *publish_anchor
+    create-upgrade-prs:
+      traits:
+        component_descriptor: ~
+        version: ~
+        cronjob:
+          interval: '5m'
+        update_component_deps: ~
     release:
       <<: *steps_anchor
       traits:
