@@ -37,7 +37,7 @@ import (
 )
 
 // modify the second parameter to modify the timeout
-var commons = common.NewIntegrationTestFramework(&provider.ResourcesTrackerImpl{}, 600)
+var commons = common.NewIntegrationTestFramework(&provider.ResourcesTrackerImpl{}, 900)
 
 var _ = BeforeSuite(commons.SetupBeforeSuite)
 
