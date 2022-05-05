@@ -19,12 +19,12 @@ machine-controller-manager-provider-azure:
             image: 'eu.gcr.io/gardener-project/gardener/machine-controller-manager-provider-azure'
     steps:
       check:
-        image: 'golang:1.13.5'
+        image: 'golang:1.17.9'
       build:
-        image: 'golang:1.13.5'
+        image: 'golang:1.17.9'
         output_dir: 'binary'
       test:
-        image: 'golang:1.13.5'
+        image: 'golang:1.17.9'
   jobs:
     head-update:
       traits:
