@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #############      builder                                  #############
-FROM golang:1.17.5 AS builder
+FROM golang:1.17.9 AS builder
 
 WORKDIR /go/src/github.com/gardener/machine-controller-manager-provider-azure
 COPY . .
@@ -11,7 +11,7 @@ COPY . .
 RUN .ci/build
 
 #############      base                                     #############
-FROM eu.gcr.io/gardener-project/3rd/alpine:3.15.0 as base
+FROM alpine:3.15.4 as base
 
 RUN apk add --update bash curl tzdata
 WORKDIR /
