@@ -105,7 +105,7 @@ func getNICParameters(vmName string, subnet *network.Subnet, providerSpec *api.A
 				{
 					Name: &nicName,
 					InterfaceIPConfigurationPropertiesFormat: &network.InterfaceIPConfigurationPropertiesFormat{
-						PrivateIPAllocationMethod: network.Dynamic,
+						PrivateIPAllocationMethod: network.IPAllocationMethodDynamic,
 						Subnet:                    subnet,
 					},
 				},
@@ -284,6 +284,12 @@ func getImageReference(providerSpec *api.AzureProviderSpec) compute.ImageReferen
 		}
 	}
 
+	if imageRefClass.CommunityGalleryImageID != nil {
+		return compute.ImageReference{
+			CommunityGalleryImageID: imageRefClass.CommunityGalleryImageID,
+		}
+	}
+
 	splits := strings.Split(*imageRefClass.URN, ":")
 	publisher := splits[0]
 	offer := splits[1]
@@ -423,9 +429,8 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	*/
 	startTime := time.Now()
 	imageRefClass := providerSpec.Properties.StorageProfile.ImageReference
-	// if ID is not set the image is referenced using a URN
-	if imageRefClass.ID == "" {
-
+	// if ID and community id are not set the image is referenced using a URN
+	if imageRefClass.URN != nil {
 		imageReference := getImageReference(providerSpec)
 		vmImage, err := clients.GetImages().Get(
 			ctx,
@@ -1045,7 +1050,7 @@ func getRelevantDisks(ctx context.Context, clients spi.AzureDriverClientsInterfa
 
 func getAllVMs(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string) ([]compute.VirtualMachine, error) {
 	var items []compute.VirtualMachine
-	result, err := clients.GetVM().List(ctx, resourceGroupName)
+	result, err := clients.GetVM().List(ctx, resourceGroupName, "")
 	if err != nil {
 		return items, OnARMAPIErrorFail(prometheusServiceVM, err, "vm.List")
 	}

@@ -1,15 +1,15 @@
-# github.com/Azure/azure-sdk-for-go v50.0.0+incompatible
+# github.com/Azure/azure-sdk-for-go v62.3.0+incompatible
 ## explicit
 github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute
 github.com/Azure/azure-sdk-for-go/profiles/latest/marketplaceordering/mgmt/marketplaceordering
 github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network
 github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/resources
-github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2020-06-30/compute
-github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2020-06-30/compute/computeapi
+github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-12-01/compute
+github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-12-01/compute/computeapi
 github.com/Azure/azure-sdk-for-go/services/marketplaceordering/mgmt/2015-06-01/marketplaceordering
 github.com/Azure/azure-sdk-for-go/services/marketplaceordering/mgmt/2015-06-01/marketplaceordering/marketplaceorderingapi
-github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-07-01/network
-github.com/Azure/azure-sdk-for-go/services/network/mgmt/2020-07-01/network/networkapi
+github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-05-01/network
+github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-05-01/network/networkapi
 github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2020-10-01/resources
 github.com/Azure/azure-sdk-for-go/version
 # github.com/Azure/go-autorest v14.2.0+incompatible
@@ -295,6 +295,8 @@ github.com/onsi/gomega
 github.com/onsi/gomega/format
 github.com/onsi/gomega/gbytes
 github.com/onsi/gomega/gexec
+github.com/onsi/gomega/gstruct
+github.com/onsi/gomega/gstruct/errors
 github.com/onsi/gomega/internal/assertion
 github.com/onsi/gomega/internal/asyncassertion
 github.com/onsi/gomega/internal/oraclematcher

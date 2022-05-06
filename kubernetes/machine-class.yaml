@@ -33,6 +33,7 @@ providerSpec:
     storageProfile:
       imageReference:
         urn: sap:gardenlinux:greatest:184.0.0
+      # communityGalleryImageID: /CommunityGalleries/<community-gallery-id>/Images/<image-name>/Versions/<image-version>
       osDisk:
         caching: None
         createOption: FromImage

@@ -374,7 +374,7 @@ var _ = Describe("MachineController", func() {
 				nil,
 				nil,
 				true,
-				fmt.Errorf(internalErrorPrefix, "properties.storageProfile.imageReference.urn: Required value: Invalid urn format, empty field").Error(),
+				fmt.Errorf(internalErrorPrefix, "properties.storageProfile.imageReference.urn: Required value: invalid urn format, empty field").Error(),
 			),
 			Entry("#13 Create machine with negtive OS Disk Size in providerSpec",
 				&mock.AzureProviderSpecWithNegativeOSDiskSize,
@@ -1117,11 +1117,11 @@ var _ = Describe("MachineController", func() {
 				)
 
 				if vmListError != nil {
-					fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName).Return(
+					fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName, "").Return(
 						compute.VirtualMachineListResultPage{}, vmListError,
 					)
 				} else {
-					fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName).Return(
+					fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName, "").Return(
 						vmlrp, nil,
 					)
 				}
@@ -1817,17 +1817,17 @@ func assertNetworkResourcesForMachineCreation(
 				},
 			},
 			ProvisioningState:                 "Succeeded",
-			PrivateEndpointNetworkPolicies:    getStringPointer("Enabled"),
-			PrivateLinkServiceNetworkPolicies: getStringPointer("Enabled"),
+			PrivateEndpointNetworkPolicies:    "Enabled",
+			PrivateLinkServiceNetworkPolicies: "Enabled",
 		},
 	}
 
 	NICFuture := UnmarshalNICFuture([]byte("{\"method\":\"PUT\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\":\"https:/" +
 		"/management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Network/locations/weste" +
-		"urope/operations/e4469621-a170-4744-9aed-132d2992b230?api-version=2020-07-01\",\"lroState\":\"Succeeded\",\"resultUR" +
+		"urope/operations/e4469621-a170-4744-9aed-132d2992b230?api-version=2021-05-01\",\"lroState\":\"Succeeded\",\"resultUR" +
 		"I\":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/resourceGroups/dummy-resource-" +
 		"group/providers/Microsoft.Network/networkInterfaces/dummy-resource-group-worker-m0exd-z2-b5bdd-qtjm8-nic?api-version" +
-		"=2020-07-01\"}"))
+		"=2021-05-01\"}"))
 
 	if getSubnetError != nil {
 		fakeClients.Subnet.EXPECT().Get(gomock.Any(), resourceGroupName, vnetName, subnetName, "").Return(subnet, *getSubnetError)
@@ -2176,11 +2176,11 @@ func assertVMResourcesForListingMachine(
 	}
 
 	if vmListError != nil {
-		fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName).Return(
+		fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName, "").Return(
 			compute.VirtualMachineListResultPage{}, *vmListError,
 		)
 	} else {
-		fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName).Return(
+		fakeClients.VM.EXPECT().List(gomock.Any(), resourceGroupName, "").Return(
 			vmlr, nil,
 		)
 	}

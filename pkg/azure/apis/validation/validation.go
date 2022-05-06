@@ -66,22 +66,7 @@ func validateSpecProperties(properties api.AzureVirtualMachineProperties) []erro
 		allErrs = append(allErrs, fmt.Errorf("VMSize is required field"))
 	}
 
-	imageRef := properties.StorageProfile.ImageReference
-	if ((imageRef.URN == nil || *imageRef.URN == "") && imageRef.ID == "") ||
-		(imageRef.URN != nil && *imageRef.URN != "" && imageRef.ID != "") {
-		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference"), "must specify either a image id or an urn"))
-	} else if imageRef.URN != nil && *imageRef.URN != "" {
-		splits := strings.Split(*imageRef.URN, ":")
-		if len(splits) != 4 {
-			allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.urn"), "Invalid urn format"))
-		} else {
-			for _, s := range splits {
-				if len(s) == 0 {
-					allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.imageReference.urn"), "Invalid urn format, empty field"))
-				}
-			}
-		}
-	}
+	allErrs = append(allErrs, ValidateImageReference(properties.StorageProfile.ImageReference, fldPath.Child("storageProfile.imageReference"))...)
 
 	if properties.StorageProfile.OsDisk.DiskSizeGB <= 0 {
 		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.osDisk.diskSizeGB"), "OSDisk size must be positive"))
@@ -199,4 +184,62 @@ func validateSecrets(secret *corev1.Secret) []error {
 		allErrs = append(allErrs, fmt.Errorf("secret UserData is required field"))
 	}
 	return allErrs
+}
+
+// ValidateImageReference is validating the image reference config.
+// TODO Do not export this function anymore once proper unit test coverage is established
+// for ValidateAzureSpecNSecret().
+func ValidateImageReference(imageRef api.AzureImageReference, fldPath *field.Path) []error {
+	var allErrs []error
+
+	if isEmptyStringPtr(imageRef.URN) && isEmptyStringPtr(imageRef.CommunityGalleryImageID) && isEmptyString(imageRef.ID) {
+		return append(allErrs, field.Required(fldPath, "must specify either a image id, community gallery image id or an urn"))
+	}
+
+	if !isEmptyStringPtr(imageRef.URN) {
+		if !isEmptyStringPtr(imageRef.CommunityGalleryImageID) || !isEmptyString(imageRef.ID) {
+			return append(allErrs, field.Required(fldPath.Child("urn"), "cannot specify a urn and community gallery image id or image id in parallel"))
+		}
+
+		urnParts := strings.Split(*imageRef.URN, ":")
+		if len(urnParts) != 4 {
+			return append(allErrs, field.Required(fldPath.Child("urn"), "invalid urn format"))
+		}
+
+		for _, s := range urnParts {
+			if isEmptyString(s) {
+				allErrs = append(allErrs, field.Required(fldPath.Child("urn"), "invalid urn format, empty field"))
+			}
+		}
+
+		return allErrs
+	}
+
+	if !isEmptyStringPtr(imageRef.CommunityGalleryImageID) {
+		if !isEmptyString(imageRef.ID) {
+			return append(allErrs, field.Required(fldPath.Child("communityGalleryImageID"), "invalid community gallery image id format, empty field"))
+		}
+
+		return allErrs
+	}
+
+	if isEmptyString(imageRef.ID) {
+		return append(allErrs, field.Required(fldPath.Child("id"), "invalid image id format, empty field"))
+	}
+
+	return allErrs
+}
+
+func isEmptyString(s string) bool {
+	if s == "" {
+		return true
+	}
+	return false
+}
+
+func isEmptyStringPtr(s *string) bool {
+	if s == nil {
+		return true
+	}
+	return isEmptyString(*s)
 }
