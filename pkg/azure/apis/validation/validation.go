@@ -66,7 +66,7 @@ func validateSpecProperties(properties api.AzureVirtualMachineProperties) []erro
 		allErrs = append(allErrs, fmt.Errorf("VMSize is required field"))
 	}
 
-	allErrs = append(allErrs, validateImageReference(properties.StorageProfile.ImageReference, fldPath.Child("storageProfile.imageReference"))...)
+	allErrs = append(allErrs, ValidateImageReference(properties.StorageProfile.ImageReference, fldPath.Child("storageProfile.imageReference"))...)
 
 	if properties.StorageProfile.OsDisk.DiskSizeGB <= 0 {
 		allErrs = append(allErrs, field.Required(fldPath.Child("storageProfile.osDisk.diskSizeGB"), "OSDisk size must be positive"))
@@ -186,7 +186,10 @@ func validateSecrets(secret *corev1.Secret) []error {
 	return allErrs
 }
 
-func validateImageReference(imageRef api.AzureImageReference, fldPath *field.Path) []error {
+// ValidateImageReference is validating the image reference config.
+// TODO Do not export this function anymore once proper unit test coverage is established
+// for ValidateAzureSpecNSecret().
+func ValidateImageReference(imageRef api.AzureImageReference, fldPath *field.Path) []error {
 	var allErrs []error
 
 	if isEmptyStringPtr(imageRef.URN) && isEmptyStringPtr(imageRef.CommunityGalleryImageID) && isEmptyString(imageRef.ID) {

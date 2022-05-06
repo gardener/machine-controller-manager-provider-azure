@@ -75,8 +75,8 @@ type AzureStorageProfile struct {
 }
 
 // AzureImageReference is specifies information about the image to use. You can specify information about platform images,
-// marketplace images, or virtual machine images. This element is required when you want to use a platform image,
-// marketplace image, or virtual machine image, but is not used in other creation operations.
+// marketplace images, community images or virtual machine images. This element is required when you want to use a platform image,
+// marketplace image, community image or virtual machine image, but is not used in other creation operations.
 type AzureImageReference struct {
 	ID string `json:"id,omitempty"`
 	// Uniform Resource Name of the OS image to be used , it has the format 'publisher:offer:sku:version'
