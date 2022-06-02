@@ -26,6 +26,10 @@ type ResourcesTrackerImpl struct {
 }
 
 // InitializeResourcesTracker is the constructor of ResourceTrackerImpl
+// create a cleanup function to delete the list of orphan resources.
+// 1. get list of orphan resources.
+// 2. Mark them for deletion and call cleanup.
+// 3. Print the orphan resources which got error in deletion.
 func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1.MachineClass, secretData map[string][]byte, clusterName string) error {
 
 	r.MachineClass = machineClass
@@ -38,9 +42,16 @@ func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1
 		return err
 	}
 
-	if initialVMs != nil || initialVolumes != nil || initialMachines != nil || initialNICs != nil {
-		fmt.Printf("Orphan resources are available. Clean them up before proceeding with the test.")
-		err := fmt.Errorf("virtual machines: %v\ndisks: %v\nnics: %v\nmcm machines: %v", initialVMs, initialVolumes, initialNICs, initialMachines)
+	clients, err := getAzureClients(r.SecretData)
+	if err != nil {
+		return err
+	}
+
+	delErrOrphanedVms, delErrOrphanedVolumes, delErrOrphanedNICs := cleanUpOrphanedResources(initialVMs, initialVolumes, initialNICs, clients, r.ResourceGroup)
+
+	if delErrOrphanedVms != nil || delErrOrphanedVolumes != nil || initialMachines != nil || delErrOrphanedNICs != nil {
+		fmt.Printf("Error in deleting the following Orphan Resources")
+		err := fmt.Errorf("virtual machines: %v\ndisks: %v\nnics: %v\nmcm machines: %v", delErrOrphanedVms, delErrOrphanedVolumes, delErrOrphanedNICs, initialMachines)
 		return err
 	}
 	return nil
@@ -57,7 +68,7 @@ func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
 	}
 
 	if afterTestExecutionVMs != nil || afterTestExecutionAvailDisks != nil || afterTestExecutionNICs != nil || afterTestExecutionAvailmachines != nil {
-		fmt.Printf("attempting to delete the following resources are orphaned\n")
+		fmt.Printf("Following resources are orphaned\n")
 		fmt.Printf("Virtual Machines: %v\nVolumes: %v\nNICs: %v\nMCM Machines: %v\n", afterTestExecutionVMs, afterTestExecutionAvailDisks, afterTestExecutionNICs, afterTestExecutionAvailmachines)
 		return true
 	}
@@ -65,7 +76,7 @@ func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
 }
 
 // probeResources will look for orphaned resources and returns
-// those resources which could not be deleted in the order
+// those in the order
 // orphanedInstances, orphanedVolumes, orphanedMachines, orphanedNICs
 func (r *ResourcesTrackerImpl) probeResources() ([]string, []string, []string, []string, error) {
 
