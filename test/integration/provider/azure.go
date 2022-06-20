@@ -69,8 +69,8 @@ func deleteVM(clients spi.AzureDriverClientsInterface, resourceGroup, VMName str
 // getAzureClients returns Azure clients.
 func getAzureClients(secretData map[string][]byte) (spi.AzureDriverClientsInterface, error) {
 
-	driver := provider.NewAzureDriver(&spi.PluginSPIImpl{})
-	client, err := driver.SPI.Setup(&v1.Secret{Data: secretData})
+	localDriver := provider.NewAzureDriver(&spi.PluginSPIImpl{})
+	client, err := localDriver.SPI.Setup(&v1.Secret{Data: secretData})
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func getMachines(machineClass *v1alpha1.MachineClass, secretData map[string][]by
 	return machines, nil
 }
 
-// getOrphanedDisks returns the list of orphaned disks which couldn't be deleted.
+// getOrphanedDisks returns the list of orphaned disks.
 func getOrphanedDisks(clients spi.AzureDriverClientsInterface, resourceGroup string) ([]string, error) {
 
 	var orphanedDisks []string
@@ -123,7 +123,7 @@ func getOrphanedDisks(clients spi.AzureDriverClientsInterface, resourceGroup str
 	return orphanedDisks, nil
 }
 
-// getOrphanedNICs returns the list of orphaned NICs which couldn't be deleted.
+// getOrphanedNICs returns the list of orphaned NICs.
 func getOrphanedNICs(clients spi.AzureDriverClientsInterface, resourceGroup string) ([]string, error) {
 	ctx := context.TODO()
 
@@ -143,8 +143,8 @@ func getOrphanedNICs(clients spi.AzureDriverClientsInterface, resourceGroup stri
 	return orphanedNICs, nil
 }
 
-// getOrphanedVMs returns the list of orphaned virtual machines which couldn't be deleted.
-func getOrphanedVMs(clients spi.AzureDriverClientsInterface, resourceGroup string, secretData map[string][]byte) ([]string, error) {
+// getOrphanedVMs returns the list of orphaned virtual machines.
+func getOrphanedVMs(clients spi.AzureDriverClientsInterface, resourceGroup string) ([]string, error) {
 
 	var orphanedVMs []string
 
@@ -169,10 +169,10 @@ func cleanUpOrphanedResources(orphanedVms []string, orphanedVolumes []string, or
 			delErrOrphanedVms = append(delErrOrphanedVms, virtualMachineName)
 		}
 	}
-	for _, volumeId := range orphanedVolumes {
-		err := deleteDisk(clients, resourceGroup, volumeId)
+	for _, volumeID := range orphanedVolumes {
+		err := deleteDisk(clients, resourceGroup, volumeID)
 		if err != nil {
-			delErrOrphanedVolumes = append(delErrOrphanedVolumes, volumeId)
+			delErrOrphanedVolumes = append(delErrOrphanedVolumes, volumeID)
 		}
 	}
 	for _, networkInterfaceName := range orphanedNICs {

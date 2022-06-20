@@ -85,7 +85,7 @@ func (r *ResourcesTrackerImpl) probeResources() ([]string, []string, []string, [
 		return nil, nil, nil, nil, err
 	}
 
-	VMs, err := getOrphanedVMs(clients, r.ResourceGroup, r.SecretData)
+	VMs, err := getOrphanedVMs(clients, r.ResourceGroup)
 	if err != nil {
 		return VMs, nil, nil, nil, err
 	}
