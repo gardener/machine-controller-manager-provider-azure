@@ -14,11 +14,7 @@ import (
 )
 
 // deleteDisk deletes the specified disk on Azure
-func deleteDisk(
-	clients spi.AzureDriverClientsInterface,
-	resourceGroup,
-	diskID string,
-) error {
+func deleteDisk(clients spi.AzureDriverClientsInterface, resourceGroup, diskID string) error {
 	ctx := context.TODO()
 	diskDeleteFuture, err := clients.GetDisk().Delete(ctx, resourceGroup, diskID)
 	if err != nil {
@@ -36,10 +32,7 @@ func deleteDisk(
 }
 
 // deleteNICs deletes the specified NICs on Azure
-func deleteNICs(
-	clients spi.AzureDriverClientsInterface,
-	resourceGroup,
-	networkInterfaceName string) error {
+func deleteNICs(clients spi.AzureDriverClientsInterface, resourceGroup, networkInterfaceName string) error {
 	ctx := context.TODO()
 	nicDeleteFuture, err := clients.GetNic().Delete(ctx, resourceGroup, networkInterfaceName)
 	if err != nil {
@@ -55,10 +48,7 @@ func deleteNICs(
 }
 
 // deleteVM deletes the specified Virtual Machine on Azure
-func deleteVM(
-	clients spi.AzureDriverClientsInterface,
-	resourceGroup,
-	VMName string) error {
+func deleteVM(clients spi.AzureDriverClientsInterface, resourceGroup, VMName string) error {
 
 	ctx := context.TODO()
 	virtualMachineFuture, err := clients.GetVM().Delete(ctx, resourceGroup, VMName, pointer.BoolPtr(false))
@@ -77,12 +67,10 @@ func deleteVM(
 }
 
 // getAzureClients returns Azure clients.
-func getAzureClients(
-	secretData map[string][]byte,
-) (spi.AzureDriverClientsInterface, error) {
+func getAzureClients(secretData map[string][]byte) (spi.AzureDriverClientsInterface, error) {
 
-	driver := provider.NewAzureDriver(&spi.PluginSPIImpl{})
-	client, err := driver.SPI.Setup(&v1.Secret{Data: secretData})
+	localDriver := provider.NewAzureDriver(&spi.PluginSPIImpl{})
+	client, err := localDriver.SPI.Setup(&v1.Secret{Data: secretData})
 	if err != nil {
 		return nil, err
 	}
@@ -90,10 +78,7 @@ func getAzureClients(
 }
 
 // getMachines returns the list of names of the machine objects in the control cluster.
-func getMachines(
-	machineClass *v1alpha1.MachineClass,
-	secretData map[string][]byte,
-) ([]string, error) {
+func getMachines(machineClass *v1alpha1.MachineClass, secretData map[string][]byte) ([]string, error) {
 	var (
 		machines []string
 		SPI      spi.PluginSPIImpl
@@ -119,11 +104,8 @@ func getMachines(
 	return machines, nil
 }
 
-// getOrphanedDisks returns the list of orphaned disks which couldn't be deleted.
-func getOrphanedDisks(
-	clients spi.AzureDriverClientsInterface,
-	resourceGroup string,
-) ([]string, error) {
+// getOrphanedDisks returns the list of orphaned disks.
+func getOrphanedDisks(clients spi.AzureDriverClientsInterface, resourceGroup string) ([]string, error) {
 
 	var orphanedDisks []string
 
@@ -134,21 +116,15 @@ func getOrphanedDisks(
 
 	for _, disk := range disks.Values() {
 		if value, ok := disk.Tags[ITResourceTagKey]; ok && *value == ITResourceTagValue {
-			err := deleteDisk(clients, resourceGroup, *disk.Name)
-			if err != nil {
-				orphanedDisks = append(orphanedDisks, *disk.Name)
-			}
+			orphanedDisks = append(orphanedDisks, *disk.Name)
 		}
 	}
 
 	return orphanedDisks, nil
 }
 
-// getOrphanedNICs returns the list of orphaned NICs which couldn't be deleted.
-func getOrphanedNICs(
-	clients spi.AzureDriverClientsInterface,
-	resourceGroup string,
-) ([]string, error) {
+// getOrphanedNICs returns the list of orphaned NICs.
+func getOrphanedNICs(clients spi.AzureDriverClientsInterface, resourceGroup string) ([]string, error) {
 	ctx := context.TODO()
 
 	var orphanedNICs []string
@@ -161,21 +137,14 @@ func getOrphanedNICs(
 
 	for _, networkInterface := range networkInterfaces.Values() {
 		if value, ok := networkInterface.Tags[ITResourceTagKey]; ok && ITResourceTagValue == *value {
-			err = deleteNICs(clients, resourceGroup, *networkInterface.Name)
-			if err != nil {
-				orphanedNICs = append(orphanedNICs, *networkInterface.Name)
-			}
+			orphanedNICs = append(orphanedNICs, *networkInterface.Name)
 		}
 	}
 	return orphanedNICs, nil
 }
 
-// getOrphanedVMs returns the list of orphaned virtual machines which couldn't be deleted.
-func getOrphanedVMs(
-	clients spi.AzureDriverClientsInterface,
-	resourceGroup string,
-	secretData map[string][]byte,
-) ([]string, error) {
+// getOrphanedVMs returns the list of orphaned virtual machines.
+func getOrphanedVMs(clients spi.AzureDriverClientsInterface, resourceGroup string) ([]string, error) {
 
 	var orphanedVMs []string
 
@@ -186,12 +155,31 @@ func getOrphanedVMs(
 
 	for _, virtualMachine := range virtualMachines.Values() {
 		if value, ok := virtualMachine.Tags[ITResourceTagKey]; ok && *value == ITResourceTagValue {
-			err := deleteVM(clients, resourceGroup, *virtualMachine.Name)
-			if err != nil {
-				orphanedVMs = append(orphanedVMs, *virtualMachine.Name)
-			}
+			orphanedVMs = append(orphanedVMs, *virtualMachine.Name)
 		}
 	}
 
 	return orphanedVMs, nil
+}
+
+func cleanUpOrphanedResources(orphanedVms []string, orphanedVolumes []string, orphanedNICs []string, clients spi.AzureDriverClientsInterface, resourceGroup string) (delErrOrphanedVms []string, delErrOrphanedVolumes []string, delErrOrphanedNICs []string) {
+	for _, virtualMachineName := range orphanedVms {
+		err := deleteVM(clients, resourceGroup, virtualMachineName)
+		if err != nil {
+			delErrOrphanedVms = append(delErrOrphanedVms, virtualMachineName)
+		}
+	}
+	for _, volumeID := range orphanedVolumes {
+		err := deleteDisk(clients, resourceGroup, volumeID)
+		if err != nil {
+			delErrOrphanedVolumes = append(delErrOrphanedVolumes, volumeID)
+		}
+	}
+	for _, networkInterfaceName := range orphanedNICs {
+		err := deleteNICs(clients, resourceGroup, networkInterfaceName)
+		if err != nil {
+			delErrOrphanedNICs = append(delErrOrphanedNICs, networkInterfaceName)
+		}
+	}
+	return
 }
