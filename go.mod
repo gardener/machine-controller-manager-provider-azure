@@ -7,7 +7,7 @@ require (
 	github.com/Azure/go-autorest/autorest v0.11.18
 	github.com/Azure/go-autorest/autorest/adal v0.9.13
 	github.com/Azure/go-autorest/autorest/to v0.3.0
-	github.com/gardener/machine-controller-manager v0.45.0
+	github.com/gardener/machine-controller-manager v0.46.0
 	github.com/golang/mock v1.4.4
 	github.com/onsi/ginkgo v1.16.2
 	github.com/onsi/gomega v1.11.0
