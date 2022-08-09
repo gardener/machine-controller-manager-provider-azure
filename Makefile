@@ -9,12 +9,12 @@ IMAGE_TAG           := $(shell cat VERSION)
 PROVIDER_NAME       := Azure
 PROJECT_NAME        := gardener
 CONTROL_NAMESPACE  := default
-CONTROL_KUBECONFIG := ./dev/control-kubeconfig.yaml
-TARGET_KUBECONFIG  := ./dev/target-kubeconfig.yaml
+CONTROL_KUBECONFIG := dev/control-kubeconfig.yaml
+TARGET_KUBECONFIG  := dev/target-kubeconfig.yaml
 
 
 # Below ones are used in tests
-MACHINECLASS_V1 	:= ./dev/machineclassv1.yaml
+MACHINECLASS_V1 	:= dev/machineclassv1.yaml
 MACHINECLASS_V2 	:= 
 MCM_IMAGE			:=
 MC_IMAGE			:=
