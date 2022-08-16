@@ -142,11 +142,8 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 	}
 
 	// Check if the underlying resource group still exists. If not, skip the deletion, as all resources are gone.
-	if _, err := clients.GetGroup().Get(ctx, resourceGroupName); err != nil {
-		if NotFound(err) {
-			return nil, status.Error(codes.NotFound, err.Error())
-		}
-		return nil, status.Error(codes.Internal, err.Error())
+	if err := inspectResourceGroup(ctx, clients, resourceGroupName); err != nil {
+		return nil, err
 	}
 
 	if providerSpec.Properties.StorageProfile.DataDisks != nil && len(providerSpec.Properties.StorageProfile.DataDisks) > 0 {
@@ -246,6 +243,10 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 	clients, err := d.SPI.Setup(req.Secret)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if err := inspectResourceGroup(ctx, clients, resourceGroupName); err != nil {
+		return nil, err
 	}
 
 	mergeIntoResult := func(source VMs) {

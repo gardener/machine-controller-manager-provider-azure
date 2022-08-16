@@ -1109,6 +1109,7 @@ var _ = Describe("MachineController", func() {
 					resourceGroupName = providerSpec.ResourceGroup
 				)
 
+				fakeClients.Group.EXPECT().Get(gomock.Any(), resourceGroupName).Return(resources.Group{Name: &resourceGroupName}, nil)
 				vmlrp := compute.NewVirtualMachineListResultPage(
 					vmlr,
 					func(context.Context, compute.VirtualMachineListResult) (compute.VirtualMachineListResult, error) {
@@ -2140,6 +2141,8 @@ func assertVMResourcesForListingMachine(
 	nextWithContextError bool,
 	vmListError *autorest.DetailedError,
 ) {
+	fakeClients.Group.EXPECT().Get(gomock.Any(), resourceGroupName).Return(resources.Group{Name: &resourceGroupName}, nil)
+
 	var vmlr compute.VirtualMachineListResultPage
 	if !nextWithContextError {
 		vmlr = compute.NewVirtualMachineListResultPage(

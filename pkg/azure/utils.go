@@ -1133,3 +1133,18 @@ func verifyAzureTags(tags map[string]*string, clusterNameTag, nodeRoleTag string
 
 	return true
 }
+
+// inspectResourceGroup inspects if a given resource group by name is available on Azure.
+// The function will return an error which will be nil if the resource group exists.
+// In case the resource group does not exists on Azure an NotFound error will be returned.
+// If the Azure api call not succeed for other reasons an Internal error will be returned.
+func inspectResourceGroup(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string) error {
+	if _, err := clients.GetGroup().Get(ctx, resourceGroupName); err != nil {
+		if NotFound(err) {
+			return status.Error(codes.NotFound, err.Error())
+		}
+		return status.Error(codes.Internal, err.Error())
+	}
+
+	return nil
+}
