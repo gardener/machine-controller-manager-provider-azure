@@ -290,6 +290,12 @@ func getImageReference(providerSpec *api.AzureProviderSpec) compute.ImageReferen
 		}
 	}
 
+	if imageRefClass.SharedGalleryImageID != nil {
+		return compute.ImageReference{
+			SharedGalleryImageID: imageRefClass.SharedGalleryImageID,
+		}
+	}
+
 	splits := strings.Split(*imageRefClass.URN, ":")
 	publisher := splits[0]
 	offer := splits[1]
@@ -429,7 +435,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	*/
 	startTime := time.Now()
 	imageRefClass := providerSpec.Properties.StorageProfile.ImageReference
-	// if ID and community id are not set the image is referenced using a URN
+	// if ID, shared id and community id are not set the image is referenced using a URN
 	if imageRefClass.URN != nil {
 		imageReference := getImageReference(providerSpec)
 		vmImage, err := clients.GetImages().Get(
@@ -500,7 +506,6 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 
 	// Creating VMParameters for new VM creation request
 	VMParameters := getVMParameters(vmName, vmImageRef, *NIC.ID, providerSpec, req.Secret)
-
 	// VM creation request
 	klog.V(3).Infof("VM creation began for %q", vmName)
 	VMFuture, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
