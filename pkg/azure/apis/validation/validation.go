@@ -198,7 +198,7 @@ func ValidateImageReference(imageRef api.AzureImageReference, fldPath *field.Pat
 
 	if !isEmptyStringPtr(imageRef.URN) {
 		if !isEmptyStringPtr(imageRef.CommunityGalleryImageID) || !isEmptyString(imageRef.ID) || !isEmptyStringPtr(imageRef.SharedGalleryImageID) {
-			return append(allErrs, field.Required(fldPath.Child("urn"), "cannot specify a urn and community gallery image id, shared gallery image id or image id in parallel"))
+			return append(allErrs, field.Required(fldPath.Child("urn"), "cannot specify community gallery image id, shared gallery image id or image id when urn is specified"))
 		}
 
 		urnParts := strings.Split(*imageRef.URN, ":")
@@ -217,7 +217,7 @@ func ValidateImageReference(imageRef api.AzureImageReference, fldPath *field.Pat
 
 	if !isEmptyStringPtr(imageRef.CommunityGalleryImageID) {
 		if !isEmptyString(imageRef.ID) || !isEmptyStringPtr(imageRef.SharedGalleryImageID) {
-			return append(allErrs, field.Required(fldPath.Child("communityGalleryImageID"), "cannot specify a community image gallery id and shared image gallery id or image id in parallel"))
+			return append(allErrs, field.Required(fldPath.Child("communityGalleryImageID"), "cannot specify shared gallery image id or image id when community gallery image id is specified"))
 		}
 
 		return allErrs
