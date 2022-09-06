@@ -39,23 +39,30 @@ var _ = Describe("#Validate", func() {
 			},
 			HaveLen(0),
 		),
+		Entry("should allow to specify shared image id",
+			api.AzureImageReference{
+				SharedGalleryImageID: pointer.StringPtr("test-shared-image-id"),
+			},
+			HaveLen(0),
+		),
 		Entry("should allow to specify image id",
 			api.AzureImageReference{
 				ID: "test-image-id",
 			},
 			HaveLen(0),
 		),
-		Entry("should forbid as no urn, no community image and no image id is specified",
+		Entry("should forbid as no urn, no community image, no shared image and no image id is specified",
 			api.AzureImageReference{},
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
 				"Type":  Equal(field.ErrorTypeRequired),
 				"Field": Equal("storageProfile.imageReference"),
 			}))),
 		),
-		Entry("should forbid to specify community image id or image id when an urn is specified",
+		Entry("should forbid to specify community image id, shared image id or image id when an urn is specified",
 			api.AzureImageReference{
 				URN:                     pointer.StringPtr("abc:def:ghi:jkl"),
 				CommunityGalleryImageID: pointer.StringPtr("test-community-image-id"),
+				SharedGalleryImageID:    pointer.StringPtr("test-shared-image-id"),
 				ID:                      "test-image-id",
 			},
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
@@ -81,14 +88,25 @@ var _ = Describe("#Validate", func() {
 				"Field": Equal("storageProfile.imageReference.urn"),
 			}))),
 		),
-		Entry("should forbid to specify a community image id and an image id",
+		Entry("should forbid to specify a community image id and an image id or shared image id",
 			api.AzureImageReference{
 				CommunityGalleryImageID: pointer.StringPtr("test-community-image-id"),
+				SharedGalleryImageID:    pointer.StringPtr("test-shared-image-id"),
 				ID:                      "test-image-id",
 			},
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
 				"Type":  Equal(field.ErrorTypeRequired),
 				"Field": Equal("storageProfile.imageReference.communityGalleryImageID"),
+			}))),
+		),
+		Entry("should forbid to specify a shared image id and an image id",
+			api.AzureImageReference{
+				SharedGalleryImageID: pointer.StringPtr("test-shared-image-id"),
+				ID:                   "test-image-id",
+			},
+			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{
+				"Type":  Equal(field.ErrorTypeRequired),
+				"Field": Equal("storageProfile.imageReference.sharedGalleryImageID"),
 			}))),
 		),
 	)

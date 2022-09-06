@@ -192,13 +192,13 @@ func validateSecrets(secret *corev1.Secret) []error {
 func ValidateImageReference(imageRef api.AzureImageReference, fldPath *field.Path) []error {
 	var allErrs []error
 
-	if isEmptyStringPtr(imageRef.URN) && isEmptyStringPtr(imageRef.CommunityGalleryImageID) && isEmptyString(imageRef.ID) {
-		return append(allErrs, field.Required(fldPath, "must specify either a image id, community gallery image id or an urn"))
+	if isEmptyStringPtr(imageRef.URN) && isEmptyStringPtr(imageRef.CommunityGalleryImageID) && isEmptyString(imageRef.ID) && isEmptyStringPtr(imageRef.SharedGalleryImageID) {
+		return append(allErrs, field.Required(fldPath, "must specify either a image id, community gallery image id, shared gallery image id or an urn"))
 	}
 
 	if !isEmptyStringPtr(imageRef.URN) {
-		if !isEmptyStringPtr(imageRef.CommunityGalleryImageID) || !isEmptyString(imageRef.ID) {
-			return append(allErrs, field.Required(fldPath.Child("urn"), "cannot specify a urn and community gallery image id or image id in parallel"))
+		if !isEmptyStringPtr(imageRef.CommunityGalleryImageID) || !isEmptyString(imageRef.ID) || !isEmptyStringPtr(imageRef.SharedGalleryImageID) {
+			return append(allErrs, field.Required(fldPath.Child("urn"), "cannot specify community gallery image id, shared gallery image id or image id when urn is specified"))
 		}
 
 		urnParts := strings.Split(*imageRef.URN, ":")
@@ -216,10 +216,17 @@ func ValidateImageReference(imageRef api.AzureImageReference, fldPath *field.Pat
 	}
 
 	if !isEmptyStringPtr(imageRef.CommunityGalleryImageID) {
-		if !isEmptyString(imageRef.ID) {
-			return append(allErrs, field.Required(fldPath.Child("communityGalleryImageID"), "invalid community gallery image id format, empty field"))
+		if !isEmptyString(imageRef.ID) || !isEmptyStringPtr(imageRef.SharedGalleryImageID) {
+			return append(allErrs, field.Required(fldPath.Child("communityGalleryImageID"), "cannot specify shared gallery image id or image id when community gallery image id is specified"))
 		}
 
+		return allErrs
+	}
+
+	if !isEmptyStringPtr(imageRef.SharedGalleryImageID) {
+		if !isEmptyString(imageRef.ID) {
+			return append(allErrs, field.Required(fldPath.Child("sharedGalleryImageID"), "cannot specify a shared image gallery id and image id in parallel"))
+		}
 		return allErrs
 	}
 
