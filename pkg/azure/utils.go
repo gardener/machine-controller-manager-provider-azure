@@ -556,7 +556,9 @@ func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, clients spi.AzureD
 	// We try to fetch the VM, detach its data disks and finally delete it
 	if vm, vmErr := clients.GetVM().Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
 
-		waitForDataDiskDetachment(ctx, clients, resourceGroupName, vm)
+		if detachmentErr := waitForDataDiskDetachment(ctx, clients, resourceGroupName, vm); detachmentErr != nil {
+			return detachmentErr
+		}
 		if deleteErr := DeleteVM(ctx, clients, resourceGroupName, VMName); deleteErr != nil {
 			return deleteErr
 		}
