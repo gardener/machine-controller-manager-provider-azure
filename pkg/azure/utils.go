@@ -8,7 +8,10 @@ SPDX-License-Identifier: Apache-2.0
 package azure
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -16,6 +19,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
@@ -155,6 +160,30 @@ func generateDataDisks(vmName string, azureDataDisks []api.AzureDataDisk) []comp
 		dataDisks = append(dataDisks, dataDisk)
 	}
 	return dataDisks
+}
+
+func generateSSHAuthorizedKeys(privateKey *rsa.PrivateKey) ([]byte, error) {
+	pubKey, err := ssh.NewPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	publicKey := ssh.MarshalAuthorizedKey(pubKey)
+	return bytes.Trim(publicKey, "\x0a"), nil
+}
+
+func generatePublicKey() (string, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return "", err
+	}
+
+	sshPublicKey, err := generateSSHAuthorizedKeys(privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	return string(sshPublicKey), nil
 }
 
 func getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string, providerSpec *api.AzureProviderSpec, secret *corev1.Secret) compute.VirtualMachine {
@@ -502,6 +531,15 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 		}
 
 		vmImageRef = &vmImage
+	}
+
+	if len(providerSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData) == 0 {
+		publicKey, err := generatePublicKey()
+		if err != nil {
+			return nil, err
+		}
+
+		providerSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData = publicKey
 	}
 
 	// Creating VMParameters for new VM creation request
