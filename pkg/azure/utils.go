@@ -650,10 +650,8 @@ func fillUpMachineClass(azureMachineClass *v1alpha1.AzureMachineClass, machineCl
 
 // WaitForDataDiskDetachment is function that ensures all the data disks are detached from the VM
 func waitForDataDiskDetachment(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, vm compute.VirtualMachine) error {
-	klog.V(2).Infof("Data disk detachment began for %q", *vm.Name)
-	defer klog.V(2).Infof("Data disk detached for %q", *vm.Name)
-
 	if len(*vm.StorageProfile.DataDisks) > 0 {
+		klog.V(2).Infof("Data disk detachment began for %q", *vm.Name)
 		// There are disks attached hence need to detach them
 		vm.StorageProfile.DataDisks = &[]compute.DataDisk{}
 
@@ -666,6 +664,9 @@ func waitForDataDiskDetachment(ctx context.Context, clients spi.AzureDriverClien
 			return OnARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
 		}
 		OnARMAPISuccess(prometheusServiceVM, "VM CreateOrUpdate was successful for %s", *vm.Name)
+		klog.V(2).Infof("Data disk detached for %q", *vm.Name)
+	} else {
+		klog.V(2).Infof("No data disk to detach from %q", *vm.Name)
 	}
 
 	return nil
@@ -687,7 +688,6 @@ func FetchAttachedVMfromNIC(ctx context.Context, clients spi.AzureDriverClientsI
 func DeleteNIC(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, nicName string) error {
 
 	klog.V(2).Infof("NIC delete started for %q", nicName)
-	defer klog.V(2).Infof("NIC deleted for %q", nicName)
 
 	nicDeletionCtx, cancel := context.WithTimeout(ctx, nicDeletionTimeout)
 	defer cancel()
@@ -715,13 +715,14 @@ func DeleteNIC(ctx context.Context, clients spi.AzureDriverClientsInterface, res
 	}
 
 	OnARMAPISuccess(prometheusServiceNIC, "NIC deletion was successful for %s", nicName)
+	klog.V(2).Infof("NIC deleted for %q", nicName)
+
 	return nil
 }
 
 // DeleteVM is the helper function to acknowledge the VM deletion
 func DeleteVM(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, vmName string) error {
 	klog.V(2).Infof("VM deletion has began for %q", vmName)
-	defer klog.V(2).Infof("VM deleted for %q", vmName)
 
 	forceDeletion := false
 	future, err := clients.GetVM().Delete(ctx, resourceGroupName, vmName, &forceDeletion)
@@ -733,6 +734,8 @@ func DeleteVM(ctx context.Context, clients spi.AzureDriverClientsInterface, reso
 		return OnARMAPIErrorFail(prometheusServiceVM, err, "vm.Delete")
 	}
 	OnARMAPISuccess(prometheusServiceVM, "VM deletion was successful for %s", vmName)
+	klog.V(2).Infof("VM deleted for %q", vmName)
+
 	return nil
 }
 
@@ -749,7 +752,6 @@ func fetchAttachedVMfromDisk(ctx context.Context, clients spi.AzureDriverClients
 
 func deleteDisk(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, diskName string) error {
 	klog.V(2).Infof("Disk delete started for %q", diskName)
-	defer klog.V(2).Infof("Disk deleted for %q", diskName)
 
 	future, err := clients.GetDisk().Delete(ctx, resourceGroupName, diskName)
 	if err != nil {
@@ -759,6 +761,7 @@ func deleteDisk(ctx context.Context, clients spi.AzureDriverClientsInterface, re
 		return OnARMAPIErrorFail(prometheusServiceDisk, err, "disk.Delete")
 	}
 	OnARMAPISuccess(prometheusServiceDisk, "Disk deletion was successful for %s", diskName)
+	klog.V(2).Infof("Disk deleted for %q", diskName)
 	return nil
 }
 
