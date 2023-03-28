@@ -82,22 +82,20 @@ func NewAzureDriver(spi spi.SessionProviderInterface) *MachinePlugin {
 func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (*driver.CreateMachineResponse, error) {
 	// Log messages to track request
 	klog.V(2).Infof("Machine creation request has been received for %q", req.Machine.Name)
+	defer klog.V(2).Infof("Machine creation request has been processed for %q", req.Machine.Name)
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
 		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
-		klog.V(2).Infof("Machine creation request failed for %q, Error: %v", req.Machine.Name, err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	virtualMachine, err := d.createVMNicDisk(req)
 	if err != nil {
-		klog.V(2).Infof("Machine creation request failed for %q, Error: %v", req.Machine.Name, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	providerID := encodeMachineID(*virtualMachine.Location, *virtualMachine.Name)
-	klog.V(2).Infof("Machine creation request has been processed successfully for %q", req.Machine.Name)
 
 	return &driver.CreateMachineResponse{ProviderID: providerID, NodeName: *virtualMachine.Name}, nil
 }
@@ -116,17 +114,16 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {
 	// Log messages to track delete request
 	klog.V(2).Infof("Machine deletion request has been received for %q", req.Machine.Name)
+	defer klog.V(2).Infof("Machine deletion request has been processed for %q", req.Machine.Name)
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
 		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
-		klog.V(2).Infof("Machine deletion request failed for %q, Error: %v", req.Machine.Name, err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	providerSpec, err := DecodeProviderSpecAndSecret(req.MachineClass, req.Secret)
 	if err != nil {
-		klog.V(2).Infof("Machine deletion request failed for %q, Error: %v", req.Machine.Name, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -140,13 +137,11 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 
 	clients, err := d.SPI.Setup(req.Secret)
 	if err != nil {
-		klog.V(2).Infof("Machine deletion request failed for %q, Error: %v", req.Machine.Name, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	// Check if the underlying resource group still exists. If not, skip the deletion, as all resources are gone.
 	if _, err := clients.GetGroup().Get(ctx, resourceGroupName); err != nil {
-		klog.V(2).Infof("Machine deletion request failed for %q, Error: %v", req.Machine.Name, err)
 		if NotFound(err) {
 			return nil, status.Error(codes.NotFound, err.Error())
 		}
@@ -159,11 +154,9 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 
 	err = d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 	if err != nil {
-		klog.V(2).Infof("Machine deletion request failed for %q, Error: %v", req.Machine.Name, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	klog.V(2).Infof("Machine deletion request has been processed successfully for %q", req.Machine.Name)
 	return &driver.DeleteMachineResponse{}, nil
 }
 
@@ -185,12 +178,12 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 // The request should return a NOT_FOUND (5) status error code if the machine is not existing
 func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (*driver.GetMachineStatusResponse, error) {
 	// Log messages to track start and end of request
-	klog.V(4).Infof("Machine get request has been received for %q", req.Machine.Name)
+	klog.V(2).Infof("Machine get request has been received for %q", req.Machine.Name)
+	defer klog.V(2).Infof("Machine get request has been processed for %q", req.Machine.Name)
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
 		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
-		klog.V(2).Infof("Machine Get request has failed for %q, Error: %v", req.Machine.Name, err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -200,19 +193,16 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 
 	machines, err := d.ListMachines(ctx, listMachineRequest)
 	if err != nil {
-		klog.V(2).Infof("Machine get request has failed for %q, Error: %v", req.Machine.Name, err)
 		return nil, err
 	}
 	for providerID, VMName := range machines.MachineList {
 		if VMName == req.Machine.Name {
 			machineStatusResponse.NodeName = VMName
 			machineStatusResponse.ProviderID = providerID
-			klog.V(2).Infof("Machine get request has been processed successfully for %q", req.Machine.Name)
 			return machineStatusResponse, nil
 		}
 	}
 	err = fmt.Errorf("machine '%s' not found", req.Machine.Name)
-	klog.V(2).Infof("Machine get request has failed for %q, Error: %v", req.Machine.Name, err)
 
 	return nil, status.Error(codes.NotFound, err.Error())
 }
@@ -233,17 +223,16 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachinesRequest) (*driver.ListMachinesResponse, error) {
 	// Log messages to track start and end of request
 	klog.V(2).Infof("List machines request has been received for %q", req.MachineClass.Name)
+	defer klog.V(2).Infof("List machines request has been processed for %q", req.MachineClass.Name)
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
 		err := fmt.Errorf("requested for Provider '%s', we only support '%s'", req.MachineClass.Provider, ProviderAzure)
-		klog.V(2).Infof("List machines request has failed for %q, Error: %v", req.MachineClass.Name, err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	providerSpec, err := DecodeProviderSpecAndSecret(req.MachineClass, req.Secret)
 	if err != nil {
-		klog.V(2).Infof("List machines request has failed for %q, Error: %v", req.MachineClass.Name, err)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
@@ -256,7 +245,6 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 
 	clients, err := d.SPI.Setup(req.Secret)
 	if err != nil {
-		klog.V(2).Infof("List machines request has failed for %q, Error: %v", req.MachineClass.Name, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -265,7 +253,6 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 			klog.V(2).Infof("resource group %q does not exists thus no machines can be listed", resourceGroupName)
 			return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
 		}
-		klog.V(2).Infof("List machines request has failed for %q, Error: %v", req.MachineClass.Name, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -277,27 +264,24 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 
 	listOfVMs, err = getRelevantVMs(ctx, clients, resourceGroupName, location, tags)
 	if err != nil {
-		klog.V(2).Infof("List machines request has failed for %q, Error: %v", req.MachineClass.Name, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	mergeIntoResult(listOfVMs)
 
 	listOfVMsByNIC, err := getRelevantNICs(ctx, clients, resourceGroupName, location, tags)
 	if err != nil {
-		klog.V(2).Infof("List machines request has failed for %q, Error: %v", req.MachineClass.Name, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	mergeIntoResult(listOfVMsByNIC)
 
 	listOfVMsByDisk, err := getRelevantDisks(ctx, clients, resourceGroupName, location, tags)
 	if err != nil {
-		klog.V(2).Infof("List machines request has failed for %q, Error: %v", req.MachineClass.Name, err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	mergeIntoResult(listOfVMsByDisk)
 
 	OnARMAPISuccess(prometheusServiceVM, "VM.List")
-	klog.V(2).Infof("List machines request has been processed successfully for %q", req.MachineClass.Name)
+
 	return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
 }
 
@@ -310,7 +294,8 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 // VolumeIDs             []string                             VolumeIDs is a repeated list of VolumeIDs.
 func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
 	// Log messages to track start and end of request
-	klog.V(2).Infof("GetVolumeIDs request recieved for %q", req.PVSpecs)
+	klog.V(2).Infof("GetVolumeIDs request received for %q", req.PVSpecs)
+	defer klog.V(2).Infof("GetVolumeIDs request processed successfully for %q", req.PVSpecs)
 
 	names := []string{}
 	specs := req.PVSpecs
@@ -326,7 +311,6 @@ func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeI
 		}
 	}
 
-	klog.V(2).Infof("GetVolumeIDs request processed successfully for %q", req.PVSpecs)
 	return &driver.GetVolumeIDsResponse{VolumeIDs: names}, nil
 }
 
@@ -351,6 +335,7 @@ func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeI
 func (d *MachinePlugin) GenerateMachineClassForMigration(ctx context.Context, req *driver.GenerateMachineClassForMigrationRequest) (*driver.GenerateMachineClassForMigrationResponse, error) {
 	// Log messages to track start and end of request
 	klog.V(2).Infof("MigrateMachineClass request has been recieved for %q", req.ClassSpec)
+	defer klog.V(2).Infof("MigrateMachineClass request has been processed for %q", req.ClassSpec)
 
 	azureMachineClass := req.ProviderSpecificMachineClass.(*v1alpha1.AzureMachineClass)
 
@@ -360,12 +345,5 @@ func (d *MachinePlugin) GenerateMachineClassForMigration(ctx context.Context, re
 		return nil, status.Error(codes.Internal, "Migration cannot be done for this machineClass kind")
 	}
 
-	err := fillUpMachineClass(azureMachineClass, req.MachineClass)
-	if err == nil {
-		klog.V(2).Infof("MigrateMachineClass request has been processed successfully for %q", req.ClassSpec)
-	} else {
-		klog.V(2).Infof("MigrateMachineClass request has failed for %q, Error: %v", req.ClassSpec, err)
-	}
-
-	return &driver.GenerateMachineClassForMigrationResponse{}, err
+	return &driver.GenerateMachineClassForMigrationResponse{}, fillUpMachineClass(azureMachineClass, req.MachineClass)
 }
