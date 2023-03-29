@@ -79,10 +79,9 @@ func NewAzureDriver(spi spi.SessionProviderInterface) *MachinePlugin {
 // It is optionally expected by the safety controller to use an identification mechanisms to map the VM Created by a providerSpec.
 // These could be done using tag(s)/resource-groups etc.
 // This logic is used by safety controller to delete orphan VMs which are not backed by any machine CRD
-//
 func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (*driver.CreateMachineResponse, error) {
 	// Log messages to track request
-	klog.V(2).Infof("Machine creation request has been recieved for %q", req.Machine.Name)
+	klog.V(2).Infof("Machine creation request has been received for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine creation request has been processed for %q", req.Machine.Name)
 
 	// Check if provider in the MachineClass is the provider we support
@@ -114,7 +113,7 @@ func (d *MachinePlugin) CreateMachine(ctx context.Context, req *driver.CreateMac
 //
 func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {
 	// Log messages to track delete request
-	klog.V(2).Infof("Machine deletion request has been recieved for %q", req.Machine.Name)
+	klog.V(2).Infof("Machine deletion request has been received for %q", req.Machine.Name)
 	defer klog.V(2).Infof("Machine deletion request has been processed for %q", req.Machine.Name)
 
 	// Check if provider in the MachineClass is the provider we support
@@ -179,8 +178,8 @@ func (d *MachinePlugin) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 // The request should return a NOT_FOUND (5) status error code if the machine is not existing
 func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (*driver.GetMachineStatusResponse, error) {
 	// Log messages to track start and end of request
-	klog.V(4).Infof("Get request has been recieved for %q", req.Machine.Name)
-	defer klog.V(2).Infof("Machine get request has been processed successfully for %q", req.Machine.Name)
+	klog.V(4).Infof("Machine get request has been received for %q", req.Machine.Name)
+	defer klog.V(2).Infof("Machine get request has been processed for %q", req.Machine.Name)
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
@@ -204,6 +203,7 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 		}
 	}
 	err = fmt.Errorf("machine '%s' not found", req.Machine.Name)
+
 	return nil, status.Error(codes.NotFound, err.Error())
 }
 
@@ -222,8 +222,8 @@ func (d *MachinePlugin) GetMachineStatus(ctx context.Context, req *driver.GetMac
 //
 func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachinesRequest) (*driver.ListMachinesResponse, error) {
 	// Log messages to track start and end of request
-	klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
-	defer klog.V(2).Infof("List machines request has been recieved for %q", req.MachineClass.Name)
+	klog.V(2).Infof("List machines request has been received for %q", req.MachineClass.Name)
+	defer klog.V(2).Infof("List machines request has been processed for %q", req.MachineClass.Name)
 
 	// Check if provider in the MachineClass is the provider we support
 	if req.MachineClass.Provider != ProviderAzure {
@@ -281,6 +281,7 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 	mergeIntoResult(listOfVMsByDisk)
 
 	OnARMAPISuccess(prometheusServiceVM, "VM.List")
+
 	return &driver.ListMachinesResponse{MachineList: listOfVMs}, nil
 }
 
@@ -291,10 +292,9 @@ func (d *MachinePlugin) ListMachines(ctx context.Context, req *driver.ListMachin
 //
 // RESPONSE PARAMETERS (driver.GetVolumeIDsResponse)
 // VolumeIDs             []string                             VolumeIDs is a repeated list of VolumeIDs.
-//
 func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
 	// Log messages to track start and end of request
-	klog.V(2).Infof("GetVolumeIDs request recieved for %q", req.PVSpecs)
+	klog.V(2).Infof("GetVolumeIDs request received for %q", req.PVSpecs)
 	defer klog.V(2).Infof("GetVolumeIDs request processed successfully for %q", req.PVSpecs)
 
 	names := []string{}
@@ -332,11 +332,10 @@ func (d *MachinePlugin) GetVolumeIDs(ctx context.Context, req *driver.GetVolumeI
 //
 // RESPONSE PARAMETERS (driver.GenerateMachineClassForMigration)
 // NONE
-//
 func (d *MachinePlugin) GenerateMachineClassForMigration(ctx context.Context, req *driver.GenerateMachineClassForMigrationRequest) (*driver.GenerateMachineClassForMigrationResponse, error) {
 	// Log messages to track start and end of request
 	klog.V(2).Infof("MigrateMachineClass request has been recieved for %q", req.ClassSpec)
-	defer klog.V(2).Infof("MigrateMachineClass request has been processed successfully for %q", req.ClassSpec)
+	defer klog.V(2).Infof("MigrateMachineClass request has been processed for %q", req.ClassSpec)
 
 	azureMachineClass := req.ProviderSpecificMachineClass.(*v1alpha1.AzureMachineClass)
 
