@@ -315,6 +315,7 @@ func getVMParameters(vmName string, image *compute.VirtualMachineImage, networkI
 				KeyData: &publicKey,
 			},
 		}
+		klog.V(3).Info("Fake SSH Public key has been set to allow VM creation")
 	}
 
 	return VMParameters, nil
