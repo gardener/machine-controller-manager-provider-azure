@@ -172,7 +172,7 @@ func generateSSHAuthorizedKeys(privateKey *rsa.PrivateKey) ([]byte, error) {
 	return bytes.Trim(publicKey, "\x0a"), nil
 }
 
-func generatePublicKey() (string, error) {
+func generateDummyPublicKey() (string, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
 		return "", err
@@ -186,7 +186,7 @@ func generatePublicKey() (string, error) {
 	return string(sshPublicKey), nil
 }
 
-func getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string, providerSpec *api.AzureProviderSpec, secret *corev1.Secret) compute.VirtualMachine {
+func getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string, providerSpec *api.AzureProviderSpec, secret *corev1.Secret) (compute.VirtualMachine, error) {
 
 	var (
 		diskName    = dependencyNameFromVMName(vmName, diskSuffix)
@@ -302,7 +302,22 @@ func getVMParameters(vmName string, image *compute.VirtualMachineImage, networkI
 		}
 	}
 
-	return VMParameters
+	if len(providerSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData) == 0 {
+		// We create a dummy SSH Public key, since it is required for VM creation to have a public key
+		publicKey, err := generateDummyPublicKey()
+		if err != nil {
+			return compute.VirtualMachine{}, err
+		}
+
+		VMParameters.VirtualMachineProperties.OsProfile.LinuxConfiguration.SSH.PublicKeys = &[]compute.SSHPublicKey{
+			{
+				Path:    &providerSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.Path,
+				KeyData: &publicKey,
+			},
+		}
+	}
+
+	return VMParameters, nil
 }
 
 func getImageReference(providerSpec *api.AzureProviderSpec) compute.ImageReference {
@@ -533,17 +548,11 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 		vmImageRef = &vmImage
 	}
 
-	if len(providerSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData) == 0 {
-		publicKey, err := generatePublicKey()
-		if err != nil {
-			return nil, err
-		}
-
-		providerSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData = publicKey
-	}
-
 	// Creating VMParameters for new VM creation request
-	VMParameters := getVMParameters(vmName, vmImageRef, *NIC.ID, providerSpec, req.Secret)
+	VMParameters, err := getVMParameters(vmName, vmImageRef, *NIC.ID, providerSpec, req.Secret)
+	if err != nil {
+		return nil, err
+	}
 	// VM creation request
 	klog.V(3).Infof("VM creation began for %q", vmName)
 	VMFuture, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
