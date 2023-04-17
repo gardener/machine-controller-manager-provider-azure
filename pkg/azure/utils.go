@@ -8,7 +8,10 @@ SPDX-License-Identifier: Apache-2.0
 package azure
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -16,6 +19,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
@@ -157,7 +162,31 @@ func generateDataDisks(vmName string, azureDataDisks []api.AzureDataDisk) []comp
 	return dataDisks
 }
 
-func getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string, providerSpec *api.AzureProviderSpec, secret *corev1.Secret) compute.VirtualMachine {
+func generateSSHAuthorizedKeys(privateKey *rsa.PrivateKey) ([]byte, error) {
+	pubKey, err := ssh.NewPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	publicKey := ssh.MarshalAuthorizedKey(pubKey)
+	return bytes.Trim(publicKey, "\x0a"), nil
+}
+
+func generateDummyPublicKey() (string, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return "", err
+	}
+
+	sshPublicKey, err := generateSSHAuthorizedKeys(privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	return string(sshPublicKey), nil
+}
+
+func getVMParameters(vmName string, image *compute.VirtualMachineImage, networkInterfaceReferenceID string, providerSpec *api.AzureProviderSpec, secret *corev1.Secret) (compute.VirtualMachine, error) {
 
 	var (
 		diskName    = dependencyNameFromVMName(vmName, diskSuffix)
@@ -273,7 +302,23 @@ func getVMParameters(vmName string, image *compute.VirtualMachineImage, networkI
 		}
 	}
 
-	return VMParameters
+	if len(providerSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.KeyData) == 0 {
+		// We create a dummy SSH Public key, since it is required for VM creation to have a public key
+		publicKey, err := generateDummyPublicKey()
+		if err != nil {
+			return compute.VirtualMachine{}, err
+		}
+
+		VMParameters.VirtualMachineProperties.OsProfile.LinuxConfiguration.SSH.PublicKeys = &[]compute.SSHPublicKey{
+			{
+				Path:    &providerSpec.Properties.OsProfile.LinuxConfiguration.SSH.PublicKeys.Path,
+				KeyData: &publicKey,
+			},
+		}
+		klog.V(3).Info("Fake SSH Public key has been set to allow VM creation")
+	}
+
+	return VMParameters, nil
 }
 
 func getImageReference(providerSpec *api.AzureProviderSpec) compute.ImageReference {
@@ -505,7 +550,10 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	}
 
 	// Creating VMParameters for new VM creation request
-	VMParameters := getVMParameters(vmName, vmImageRef, *NIC.ID, providerSpec, req.Secret)
+	VMParameters, err := getVMParameters(vmName, vmImageRef, *NIC.ID, providerSpec, req.Secret)
+	if err != nil {
+		return nil, err
+	}
 	// VM creation request
 	klog.V(3).Infof("VM creation began for %q", vmName)
 	VMFuture, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)

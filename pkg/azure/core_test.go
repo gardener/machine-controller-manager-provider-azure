@@ -1949,7 +1949,7 @@ func assertVMResourcesForMachineCreation(
 			},
 			StatusCode: 404,
 		})
-		VMParameters := getVMParameters(vmName, vmImageRef, NICId, providerSpec, machineRequest.Secret)
+		VMParameters, _ := getVMParameters(vmName, vmImageRef, NICId, providerSpec, machineRequest.Secret)
 		fakeClients.VM.EXPECT().CreateOrUpdate(gomock.Any(), resourceGroupName, *VMParameters.Name, VMParameters).Return(compute.VirtualMachinesCreateOrUpdateFuture{}, *vmCreateOrUpdateError)
 	} else {
 
@@ -1959,7 +1959,7 @@ func assertVMResourcesForMachineCreation(
 			},
 			StatusCode: 404,
 		})
-		VMParameters := getVMParameters(vmName, vmImageRef, NICId, providerSpec, machineRequest.Secret)
+		VMParameters, _ := getVMParameters(vmName, vmImageRef, NICId, providerSpec, machineRequest.Secret)
 		fakeClients.VM.EXPECT().CreateOrUpdate(gomock.Any(), resourceGroupName, *VMParameters.Name, VMParameters).Return(VMFutureAPI, nil)
 	}
 }
