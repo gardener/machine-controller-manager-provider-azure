@@ -20,25 +20,25 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/crypto/ssh"
-
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/to"
-	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
-	spi "github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	backoff "github.com/gardener/machine-controller-manager/pkg/util/backoff"
+	"github.com/gardener/machine-controller-manager/pkg/util/backoff"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
-	metrics "github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
+
+	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 )
 
 // constant suffixes
@@ -492,7 +492,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 			*imageReference.Version)
 
 		if err != nil {
-			//Since machine creation failed, delete any infra resources created
+			// Since machine creation failed, delete any infra resources created
 			deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 			if deleteErr != nil {
 				klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
@@ -512,7 +512,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 			)
 
 			if err != nil {
-				//Since machine creation failed, delete any infra resources created
+				// Since machine creation failed, delete any infra resources created
 				deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 				if deleteErr != nil {
 					klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
@@ -535,7 +535,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 				)
 
 				if err != nil {
-					//Since machine creation failed, delete any infra resources created
+					// Since machine creation failed, delete any infra resources created
 					deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 					if deleteErr != nil {
 						klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
@@ -558,7 +558,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	klog.V(3).Infof("VM creation began for %q", vmName)
 	VMFuture, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
 	if err != nil {
-		//Since machine creation failed, delete any infra resources created
+		// Since machine creation failed, delete any infra resources created
 		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
@@ -601,21 +601,10 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 // deleteVMNicDisks deletes the VM and associated Disks and NIC
 func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, VMName string, nicName string, diskName string, dataDiskNames []string) error {
 
-	// We try to fetch the VM, detach its data disks and finally delete it
-	if vm, vmErr := clients.GetVM().Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
-
-		if detachmentErr := waitForDataDiskDetachment(ctx, clients, resourceGroupName, vm); detachmentErr != nil {
-			return detachmentErr
-		}
-		if deleteErr := DeleteVM(ctx, clients, resourceGroupName, VMName); deleteErr != nil {
-			return deleteErr
-		}
-
-		OnARMAPISuccess(prometheusServiceVM, "VM Get was successful for %s", *vm.Name)
-	} else if !NotFound(vmErr) {
-		// If some other error occurred, which is not 404 Not Found (the VM doesn't exist) then bubble up
-		return OnARMAPIErrorFail(prometheusServiceVM, vmErr, "vm.Get")
+	if deleteErr := DeleteVM(ctx, clients, resourceGroupName, VMName); deleteErr != nil && !NotFound(deleteErr) {
+		return deleteErr
 	}
+	OnARMAPISuccess(prometheusServiceVM, "VM Delete was successful for %s", VMName)
 
 	// Fetch the NIC and deleted it
 	nicDeleter := func() error {
@@ -694,30 +683,6 @@ func fillUpMachineClass(azureMachineClass *v1alpha1.AzureMachineClass, machineCl
 	}
 
 	return err
-}
-
-// WaitForDataDiskDetachment is function that ensures all the data disks are detached from the VM
-func waitForDataDiskDetachment(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, vm compute.VirtualMachine) error {
-	if len(*vm.StorageProfile.DataDisks) > 0 {
-		klog.V(2).Infof("Data disk detachment began for %q", *vm.Name)
-		// There are disks attached hence need to detach them
-		vm.StorageProfile.DataDisks = &[]compute.DataDisk{}
-
-		future, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *vm.Name, vm)
-		if err != nil {
-			return OnARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
-		}
-		err = future.WaitForCompletionRef(ctx, clients.GetClient())
-		if err != nil {
-			return OnARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
-		}
-		OnARMAPISuccess(prometheusServiceVM, "VM CreateOrUpdate was successful for %s", *vm.Name)
-		klog.V(2).Infof("Data disk detached for %q", *vm.Name)
-	} else {
-		klog.V(2).Infof("No data disk to detach from %q", *vm.Name)
-	}
-
-	return nil
 }
 
 // FetchAttachedVMfromNIC is a helper function to fetch the attached VM for a particular NIC

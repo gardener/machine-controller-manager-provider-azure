@@ -99,7 +99,7 @@ func (clients *AzureDriverClients) GetClient() autorest.Client {
 // 	return clients.deployments
 // }
 
-//PluginSPIImpl is the mock implementation of PluginSPIImpl
+// PluginSPIImpl is the mock implementation of PluginSPIImpl
 type PluginSPIImpl struct {
 	AzureProviderSpec          *api.AzureProviderSpec
 	Secret                     *corev1.Secret
@@ -114,7 +114,7 @@ func NewMockPluginSPIImpl(controller *gomock.Controller) spi.SessionProviderInte
 	return &PluginSPIImpl{Controller: controller}
 }
 
-//Setup creates a compute service instance using the mock
+// Setup creates a compute service instance using the mock
 func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (spi.AzureDriverClientsInterface, error) {
 
 	if ms.azureDriverClients != nil {
