@@ -8,16 +8,15 @@ SPDX-License-Identifier: Apache-2.0
 package azure
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-
-	"context"
-	"encoding/json"
-	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/network/mgmt/network"
@@ -27,12 +26,13 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	apis "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
-	mock "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock"
-	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
-	gomock "github.com/golang/mock/gomock"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/golang/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	apis "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock"
 )
 
 func getStringPointer(s string) *string {
@@ -2003,21 +2003,9 @@ func assertVMResourcesForMachineDeletion(
 	fakeClients *mock.AzureDriverClients,
 	providerSpec *apis.AzureProviderSpec,
 	machineRequest *driver.DeleteMachineRequest,
-	getVMError *autorest.DetailedError,
+	deleteVMError *autorest.DetailedError,
 ) {
 	resourceGroupName := providerSpec.ResourceGroup
-	if getVMError != nil {
-		fakeClients.VM.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{}, *getVMError)
-	} else {
-		fakeClients.VM.EXPECT().Get(gomock.Any(), resourceGroupName, machineRequest.Machine.Name, compute.InstanceViewTypes("")).Return(compute.VirtualMachine{
-			Name: getStringPointer(machineRequest.Machine.Name),
-			VirtualMachineProperties: &compute.VirtualMachineProperties{
-				StorageProfile: &compute.StorageProfile{
-					DataDisks: &[]compute.DataDisk{},
-				},
-			},
-		}, nil)
-	}
 
 	VMFutureAPI := UnmarshalVMDeleteFuture([]byte("{\"method\":\"DELETE\",\"pollingMethod\":\"AsyncOperation\",\"pollingURI\"" +
 		":\"https://management.azure.com/subscriptions/c222a292-7836-42da-836e-984c6e269ef0/providers/Microsoft.Compute/locat" +
@@ -2026,6 +2014,9 @@ func assertVMResourcesForMachineDeletion(
 		"-resource-group/providers/Microsoft.Compute/virtualMachines/dummy-resource-group-worker-m0exd-z2-b5bdd-nnjnn?api-ver" +
 		"sion=2020-06-01\"}"))
 
+	if deleteVMError != nil {
+		fakeClients.VM.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name, getBoolPointer(false)).Return(VMFutureAPI, *deleteVMError)
+	}
 	fakeClients.VM.EXPECT().Delete(gomock.Any(), resourceGroupName, machineRequest.Machine.Name, getBoolPointer(false)).Return(VMFutureAPI, nil)
 
 }
