@@ -13,7 +13,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -28,16 +27,11 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	api "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/apis"
 	spi "github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	backoff "github.com/gardener/machine-controller-manager/pkg/util/backoff"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	metrics "github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 )
 
@@ -282,11 +276,11 @@ func getVMParameters(vmName string, image *compute.VirtualMachineImage, networkI
 
 	if providerSpec.Properties.MachineSet != nil {
 		switch providerSpec.Properties.MachineSet.Kind {
-		case machine.MachineSetKindVMO:
+		case api.MachineSetKindVMO:
 			VMParameters.VirtualMachineProperties.VirtualMachineScaleSet = &compute.SubResource{
 				ID: &providerSpec.Properties.MachineSet.ID,
 			}
-		case machine.MachineSetKindAvailabilitySet:
+		case api.MachineSetKindAvailabilitySet:
 			VMParameters.VirtualMachineProperties.AvailabilitySet = &compute.SubResource{
 				ID: &providerSpec.Properties.MachineSet.ID,
 			}
@@ -492,7 +486,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 			*imageReference.Version)
 
 		if err != nil {
-			//Since machine creation failed, delete any infra resources created
+			// Since machine creation failed, delete any infra resources created
 			deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 			if deleteErr != nil {
 				klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
@@ -512,7 +506,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 			)
 
 			if err != nil {
-				//Since machine creation failed, delete any infra resources created
+				// Since machine creation failed, delete any infra resources created
 				deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 				if deleteErr != nil {
 					klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
@@ -535,7 +529,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 				)
 
 				if err != nil {
-					//Since machine creation failed, delete any infra resources created
+					// Since machine creation failed, delete any infra resources created
 					deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 					if deleteErr != nil {
 						klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
@@ -558,7 +552,7 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 	klog.V(3).Infof("VM creation began for %q", vmName)
 	VMFuture, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *VMParameters.Name, VMParameters)
 	if err != nil {
-		//Since machine creation failed, delete any infra resources created
+		// Since machine creation failed, delete any infra resources created
 		deleteErr := d.deleteVMNicDisks(ctx, clients, resourceGroupName, vmName, nicName, diskName, dataDiskNames)
 		if deleteErr != nil {
 			klog.Errorf("Error occurred during resource clean up: %s", deleteErr)
@@ -643,57 +637,6 @@ func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, clients spi.AzureD
 	}
 
 	return RunInParallel(deleters)
-}
-
-func fillUpMachineClass(azureMachineClass *v1alpha1.AzureMachineClass, machineClass *v1alpha1.MachineClass) error {
-	var (
-		err        error
-		properties api.AzureVirtualMachineProperties
-		subnetInfo api.AzureSubnetInfo
-	)
-
-	// Extract the Properties object from the AzureMachineClass
-	// to fill it up in the MachineClass
-	data, _ := json.Marshal(azureMachineClass.Spec.Properties)
-	err = json.Unmarshal(data, &properties)
-	if err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-
-	// Extract the Subnet Info object form the AzureMachineClass
-	// to fill it up in the MachineClass
-	data, _ = json.Marshal(azureMachineClass.Spec.SubnetInfo)
-	err = json.Unmarshal(data, &subnetInfo)
-	if err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-
-	providerSpec := &api.AzureProviderSpec{
-		Location:      azureMachineClass.Spec.Location,
-		Tags:          azureMachineClass.Spec.Tags,
-		Properties:    properties,
-		ResourceGroup: azureMachineClass.Spec.ResourceGroup,
-		SubnetInfo:    subnetInfo,
-	}
-
-	// Marshal providerSpec into Raw Bytes
-	providerSpecMarshal, err := json.Marshal(providerSpec)
-	if err != nil {
-		return status.Error(codes.Internal, err.Error())
-	}
-
-	machineClass.Provider = ProviderAzure
-	machineClass.SecretRef = azureMachineClass.Spec.SecretRef
-	machineClass.CredentialsSecretRef = azureMachineClass.Spec.CredentialsSecretRef
-	machineClass.Name = azureMachineClass.Name
-	machineClass.Labels = azureMachineClass.Labels
-	machineClass.Annotations = azureMachineClass.Annotations
-	machineClass.Finalizers = azureMachineClass.Finalizers
-	machineClass.ProviderSpec = runtime.RawExtension{
-		Raw: providerSpecMarshal,
-	}
-
-	return err
 }
 
 // WaitForDataDiskDetachment is function that ensures all the data disks are detached from the VM
