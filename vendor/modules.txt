@@ -101,7 +101,7 @@ github.com/form3tech-oss/jwt-go
 # github.com/fsnotify/fsnotify v1.6.0
 ## explicit; go 1.16
 github.com/fsnotify/fsnotify
-# github.com/gardener/machine-controller-manager v0.49.0
+# github.com/gardener/machine-controller-manager v0.49.1
 ## explicit; go 1.19
 github.com/gardener/machine-controller-manager/pkg/apis/machine
 github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1
