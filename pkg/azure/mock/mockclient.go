@@ -26,7 +26,6 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock/mock_networkapi"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/mock/mock_resourcesapi"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi/resourcesapi"
-	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	gomock "github.com/golang/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -99,7 +98,7 @@ func (clients *AzureDriverClients) GetClient() autorest.Client {
 // 	return clients.deployments
 // }
 
-//PluginSPIImpl is the mock implementation of PluginSPIImpl
+// PluginSPIImpl is the mock implementation of PluginSPIImpl
 type PluginSPIImpl struct {
 	AzureProviderSpec          *api.AzureProviderSpec
 	Secret                     *corev1.Secret
@@ -114,7 +113,7 @@ func NewMockPluginSPIImpl(controller *gomock.Controller) spi.SessionProviderInte
 	return &PluginSPIImpl{Controller: controller}
 }
 
-//Setup creates a compute service instance using the mock
+// Setup creates a compute service instance using the mock
 func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (spi.AzureDriverClientsInterface, error) {
 
 	if ms.azureDriverClients != nil {
@@ -122,10 +121,10 @@ func (ms *PluginSPIImpl) Setup(secret *corev1.Secret) (spi.AzureDriverClientsInt
 	}
 
 	var (
-		subscriptionID = strings.TrimSpace(string(secret.Data[v1alpha1.AzureSubscriptionID]))
-		tenantID       = strings.TrimSpace(string(secret.Data[v1alpha1.AzureTenantID]))
-		clientID       = strings.TrimSpace(string(secret.Data[v1alpha1.AzureClientID]))
-		clientSecret   = strings.TrimSpace(string(secret.Data[v1alpha1.AzureClientSecret]))
+		subscriptionID = strings.TrimSpace(string(secret.Data[api.AzureSubscriptionID]))
+		tenantID       = strings.TrimSpace(string(secret.Data[api.AzureTenantID]))
+		clientID       = strings.TrimSpace(string(secret.Data[api.AzureClientID]))
+		clientSecret   = strings.TrimSpace(string(secret.Data[api.AzureClientSecret]))
 		env            = azure.PublicCloud
 	)
 

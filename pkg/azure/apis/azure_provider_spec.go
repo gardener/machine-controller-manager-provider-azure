@@ -88,7 +88,7 @@ type AzureImageReference struct {
 }
 
 // AzureOSDisk specifies information about the operating system disk used by the virtual machine. <br><br> For more
-// information about disks, see [Introduction to Azure Managed 
+// information about disks, see [Introduction to Azure Managed
 // Disks](https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disks-overview).
 type AzureOSDisk struct {
 	Name         string                     `json:"name,omitempty"`
