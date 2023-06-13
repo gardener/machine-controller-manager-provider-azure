@@ -13,13 +13,7 @@ SPDX-FileCopyrightText: 2017 SAP SE or an SAP affiliate company and Gardener con
 package main
 
 import (
-	"fmt"
-	"os"
-
-	cp "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/spi"
 	_ "github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheus" // for client metric registration
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/app"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/app/options"
 	_ "github.com/gardener/machine-controller-manager/pkg/util/reflector/prometheus" // for reflector metric registration
 	_ "github.com/gardener/machine-controller-manager/pkg/util/workqueue/prometheus" // for workqueue metric registration
@@ -37,11 +31,11 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	driver := cp.NewAzureDriver(&spi.PluginSPIImpl{})
-
-	if err := app.Run(s, driver); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
-	}
+	//driver := cp.NewAzureDriver(&spi.PluginSPIImpl{})
+	//
+	//if err := app.Run(s, driver); err != nil {
+	//	fmt.Fprintf(os.Stderr, "%v\n", err)
+	//	os.Exit(1)
+	//}
 
 }

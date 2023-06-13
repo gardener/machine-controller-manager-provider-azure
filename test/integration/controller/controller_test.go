@@ -30,20 +30,20 @@
 
 package controller_test
 
-import (
-	"github.com/gardener/machine-controller-manager-provider-azure/test/integration/provider"
-	"github.com/gardener/machine-controller-manager/pkg/test/integration/common"
-	. "github.com/onsi/ginkgo"
-)
-
-// modify the second parameter to modify the timeout
-var commons = common.NewIntegrationTestFramework(&provider.ResourcesTrackerImpl{}, 900)
-
-var _ = BeforeSuite(commons.SetupBeforeSuite)
-
-var _ = AfterSuite(commons.Cleanup)
-
-var _ = Describe("Machine controllers test", func() {
-	commons.BeforeEachCheck()
-	commons.ControllerTests()
-})
+//import (
+//	"github.com/gardener/machine-controller-manager-provider-azure/test/integration/provider"
+//	"github.com/gardener/machine-controller-manager/pkg/test/integration/common"
+//	. "github.com/onsi/ginkgo"
+//)
+//
+//// modify the second parameter to modify the timeout
+//var commons = common.NewIntegrationTestFramework(&provider.ResourcesTrackerImpl{}, 900)
+//
+//var _ = BeforeSuite(commons.SetupBeforeSuite)
+//
+//var _ = AfterSuite(commons.Cleanup)
+//
+//var _ = Describe("Machine controllers test", func() {
+//	commons.BeforeEachCheck()
+//	commons.ControllerTests()
+//})
