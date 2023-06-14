@@ -3,17 +3,18 @@ package azure
 import (
 	"context"
 
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/types"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 )
 
 // reqProcessor implements driver.Driver interface
 type reqProcessor struct {
-	clientProvider ClientProvider
+	clientProvider types.ClientProvider
 }
 
 // NewRequestProcessor creates a new instance of an implementation of driver.Driver
-func NewRequestProcessor(clientProvider ClientProvider) driver.Driver {
+func NewRequestProcessor(clientProvider types.ClientProvider) driver.Driver {
 	return reqProcessor{clientProvider: clientProvider}
 }
 

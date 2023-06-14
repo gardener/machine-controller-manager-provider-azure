@@ -1,4 +1,4 @@
-package azure
+package types
 
 import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"

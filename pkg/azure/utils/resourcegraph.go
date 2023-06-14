@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph"
@@ -31,11 +32,16 @@ const (
 	| where bag_keys(tags) hasprefix "kubernetes.io-role-"
 	| project name
 	`
+	nicSuffix = "-nic"
 )
 
+// vmNameExtractorFn is a function which takes a name of a resource and extracts a VM name from it.
+type vmNameExtractorFn func(string) (string, bool)
+
+// ExtractVMNamesFromVirtualMachinesAndNICs extracts VM names from virtual machines and NIC names and returns a slice of unique vm names.
 func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, client *armresourcegraph.Client, subscriptionID, resourceGroup string) ([]string, error) {
 	vmNames := sets.New[string]()
-	vmNamesFromVirtualMachines, err := doExtractVMNamesFromResource(ctx, client, subscriptionID, resourceGroup, listVMsQueryTemplate)
+	vmNamesFromVirtualMachines, err := doExtractVMNamesFromResource(ctx, client, subscriptionID, resourceGroup, listVMsQueryTemplate, nil)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get VM names from VirtualMachines for resourceGroup :%s: error: %v", resourceGroup, err))
 	}
@@ -49,7 +55,7 @@ func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, client *armre
 	// In order to get any orphaned VM or NIC, its currently essential that a VM name which serves as a unique machine name should be collected
 	// by introspecting VMs and NICs. Ideally you would change the response struct to separately capture VM name(s) and NIC name(s) under MachineInfo
 	// and have a slice of such MachineInfo returned as part of this driver method.
-	vmNamesFromNICs, err := doExtractVMNamesFromResource(ctx, client, subscriptionID, resourceGroup, listNICsQueryTemplate)
+	vmNamesFromNICs, err := doExtractVMNamesFromResource(ctx, client, subscriptionID, resourceGroup, listNICsQueryTemplate, vmNameExtractorFromNIC)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get VM names from NICs for resourceGroup :%s: error: %v", resourceGroup, err))
 	}
@@ -57,7 +63,8 @@ func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, client *armre
 	return vmNames.UnsortedList(), nil
 }
 
-func doExtractVMNamesFromResource(ctx context.Context, client *armresourcegraph.Client, subscriptionID, resourceGroup, queryTemplate string) ([]string, error) {
+// doExtractVMNamesFromResource queries for resources using the given queryTemplate and extracts VM names from the list of resources retrieved.
+func doExtractVMNamesFromResource(ctx context.Context, client *armresourcegraph.Client, subscriptionID, resourceGroup, queryTemplate string, extractorFn vmNameExtractorFn) ([]string, error) {
 	// azure resource graph uses KUSTO as their queryTemplate language.
 	// For additional information on KUSTO start here: [https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/]
 	resources, err := client.Resources(ctx,
@@ -70,9 +77,9 @@ func doExtractVMNamesFromResource(ctx context.Context, client *armresourcegraph.
 	if err != nil {
 		return nil, err
 	}
-	var vmNames []string
+	var resourceNames []string
 	if resources.TotalRecords == pointer.Int64(0) {
-		return vmNames, nil
+		return resourceNames, nil
 	}
 
 	// resourceResponse.Data is a []interface{}
@@ -80,11 +87,25 @@ func doExtractVMNamesFromResource(ctx context.Context, client *armresourcegraph.
 		for _, obj := range objSlice {
 			// Each obj in resourceResponse.Data is a map[string]Interface{}
 			rowElements := obj.(map[string]interface{})
-			if vmNameVal, keyFound := rowElements["name"]; keyFound {
-				vmName := vmNameVal.(string)
-				vmNames = append(vmNames, vmName)
+			if resourceNameVal, keyFound := rowElements["name"]; keyFound {
+				resourceName := resourceNameVal.(string)
+				if extractorFn != nil {
+					if extractedName, extracted := extractorFn(resourceName); extracted {
+						resourceNames = append(resourceNames, extractedName)
+					}
+				} else {
+					resourceNames = append(resourceNames, resourceName)
+				}
 			}
 		}
 	}
-	return vmNames, nil
+	return resourceNames, nil
+}
+
+// vmNameExtractorFromNIC extracts VM name from NIC name.
+func vmNameExtractorFromNIC(nicName string) (string, bool) {
+	if strings.HasSuffix(nicName, nicSuffix) {
+		return nicName[:len(nicName)-len(nicSuffix)], true
+	}
+	return "", false
 }
