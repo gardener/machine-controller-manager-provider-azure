@@ -1,18 +1,19 @@
-package utils
+package helpers
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/api"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/types"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/validation"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret) (*types.ConnectConfig, error) {
+// ValidateSecretAndCreateConnectConfig validates the secret and creates an instance of azure.ConnectConfig out of it.
+func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret) (*client.ConnectConfig, error) {
 	if err := validation.ValidateProviderSecret(secret); err != nil {
 		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("error in validating secret: %v", err))
 	}
@@ -23,7 +24,7 @@ func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret) (*types.Connect
 		clientID       = extractCredentialsFromData(secret.Data, api.ClientID, api.AzureClientID)
 		clientSecret   = extractCredentialsFromData(secret.Data, api.ClientSecret, api.AzureClientSecret)
 	)
-	return &types.ConnectConfig{
+	return &client.ConnectConfig{
 		SubscriptionID: subscriptionID,
 		TenantID:       tenantID,
 		ClientID:       clientID,

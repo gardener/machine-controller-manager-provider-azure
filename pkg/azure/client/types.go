@@ -1,4 +1,4 @@
-package types
+package client
 
 import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -27,6 +27,7 @@ func (c ConnectConfig) CreateTokenCredential() (azcore.TokenCredential, error) {
 type ClientProvider interface {
 	CreateVirtualMachinesClient(connectConfig ConnectConfig) (*armcompute.VirtualMachinesClient, error)
 	CreateNetworkInterfacesClient(connectConfig ConnectConfig) (*armnetwork.InterfacesClient, error)
+	CreateSubnetClient(connectConfig ConnectConfig) (*armnetwork.SubnetsClient, error)
 	CreateResourceGraphClient(connectConfig ConnectConfig) (*armresourcegraph.Client, error)
 	CreateImagesClient(connectConfig ConnectConfig) (*armcompute.ImagesClient, error)
 	CreateMarketPlaceAgreementsClient(connectConfig ConnectConfig) (*armmarketplaceordering.MarketplaceAgreementsClient, error)

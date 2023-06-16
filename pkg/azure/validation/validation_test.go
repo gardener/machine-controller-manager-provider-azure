@@ -4,7 +4,8 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	gomegatypes "github.com/onsi/gomega/types"
@@ -339,16 +340,16 @@ func TestValidateStorageImageRef(t *testing.T) {
 
 func createSecret(clientID, clientSecret, subscriptionID, tenantID string) *corev1.Secret {
 	data := make(map[string][]byte, 4)
-	if !isEmptyString(clientID) {
+	if !utils.IsEmptyString(clientID) {
 		data["clientID"] = encodeAndConvertToBytes(clientID)
 	}
-	if !isEmptyString(clientSecret) {
+	if !utils.IsEmptyString(clientSecret) {
 		data["clientSecret"] = encodeAndConvertToBytes(clientSecret)
 	}
-	if !isEmptyString(subscriptionID) {
+	if !utils.IsEmptyString(subscriptionID) {
 		data["subscriptionID"] = encodeAndConvertToBytes(subscriptionID)
 	}
-	if !isEmptyString(tenantID) {
+	if !utils.IsEmptyString(tenantID) {
 		data["tenantID"] = encodeAndConvertToBytes(tenantID)
 	}
 

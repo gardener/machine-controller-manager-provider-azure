@@ -1,4 +1,4 @@
-package utils
+package helpers
 
 import (
 	"context"
@@ -14,22 +14,20 @@ import (
 )
 
 const (
-	// ideally we should not be using tags whose keys have fixed prefix but a dynamic suffix. Keys should always be fixed and their values should be dynamic.
-	// due to this we now have to complicate the KUSTO query by using `mv-expand` which gives access to keys and values for tags separately and then one can use `startswith` to apply the tag filters.
 	listVMsQueryTemplate = `
 	Resources
 	| where type =~ 'Microsoft.Compute/virtualMachines'
 	| where resourceGroup =~ '%s'
-	| where bag_keys(tags) hasprefix "kubernetes.io-cluster-"
-	| where bag_keys(tags) hasprefix "kubernetes.io-role-"
+	| extend tagKeys = bag_keys(tags)
+	| where tagKeys hasprefix "kubernetes.io-cluster-" and tagKeys hasprefix "kubernetes.io-role-"
 	| project name
 	`
 	listNICsQueryTemplate = `
 	Resources
 	| where type =~ 'microsoft.network/networkinterfaces'
 	| where resourceGroup =~ '%s'
-	| where bag_keys(tags) hasprefix "kubernetes.io-cluster-"
-	| where bag_keys(tags) hasprefix "kubernetes.io-role-"
+	| extend tagKeys = bag_keys(tags)
+	| where tagKeys hasprefix "kubernetes.io-cluster-" and tagKeys hasprefix "kubernetes.io-role-"
 	| project name
 	`
 	nicSuffix = "-nic"
@@ -54,13 +52,33 @@ func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, client *armre
 	// machines (a collective resource) and a machine is uniquely identified by a VM name (again not so ideal).
 	// In order to get any orphaned VM or NIC, its currently essential that a VM name which serves as a unique machine name should be collected
 	// by introspecting VMs and NICs. Ideally you would change the response struct to separately capture VM name(s) and NIC name(s) under MachineInfo
-	// and have a slice of such MachineInfo returned as part of this driver method.
+	// and have a slice of such MachineInfo returned as part of this processor method.
 	vmNamesFromNICs, err := doExtractVMNamesFromResource(ctx, client, subscriptionID, resourceGroup, listNICsQueryTemplate, vmNameExtractorFromNIC)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get VM names from NICs for resourceGroup :%s: error: %v", resourceGroup, err))
 	}
 	vmNames.Insert(vmNamesFromNICs...)
 	return vmNames.UnsortedList(), nil
+}
+
+//type GraphQueryExecutor[T any] struct {
+//	Client         *armresourcegraph.Client
+//	SubscriptionID string
+//}
+//
+//
+//func (g *GraphQueryExecutor[T]) Execute(ctx context.Context, query string, mapperFn MapperFn[T]) T {
+//
+//}
+
+type MapperFn[T any] func(map[string]interface{}) T
+
+func QueryAndMap[T any](ctx context.Context, client *armresourcegraph.Client, subscriptionID, query string, mapperFn MapperFn[T]) *T {
+	return nil
+}
+
+type ResourceGraphQueryExecutor interface {
+	Execute(ctx context.Context, subscriptionID, query string) ([]interface{}, error)
 }
 
 // doExtractVMNamesFromResource queries for resources using the given queryTemplate and extracts VM names from the list of resources retrieved.

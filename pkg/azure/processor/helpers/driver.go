@@ -1,23 +1,25 @@
-package utils
+package helpers
 
 import (
 	"fmt"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/api"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/types"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client/helpers"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/validation"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *corev1.Secret) (*api.AzureProviderSpec, *types.ConnectConfig, error) {
+func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *corev1.Secret) (*api.AzureProviderSpec, *client.ConnectConfig, error) {
 	var (
 		err           error
 		providerSpec  *api.AzureProviderSpec
-		connectConfig *types.ConnectConfig
+		connectConfig *client.ConnectConfig
 	)
 	// validate provider Spec provider. Exit early if it is not azure.
-	if err = ValidateMachineClassProvider(mcc); err != nil {
+	if err = validation.ValidateMachineClassProvider(mcc); err != nil {
 		return nil, nil, err
 	}
 	// unmarshall raw provider Spec from MachineClass and validate it. If validation fails return an error else return decoded spec.
@@ -25,7 +27,7 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 		return nil, nil, err
 	}
 	// validate secret and extract connect config required to create clients.
-	if connectConfig, err = ValidateSecretAndCreateConnectConfig(secret); err != nil {
+	if connectConfig, err = helpers.ValidateSecretAndCreateConnectConfig(secret); err != nil {
 		return nil, nil, err
 	}
 	return providerSpec, connectConfig, nil

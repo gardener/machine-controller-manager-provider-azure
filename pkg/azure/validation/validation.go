@@ -11,11 +11,26 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
+
+const providerAzure = "Azure"
+
+// ValidateMachineClassProvider checks if the Provider in MachineClass is Azure.
+// If it is not then it will return an error indicating that this provider implementation cannot fulfill the request.
+func ValidateMachineClassProvider(mcc *v1alpha1.MachineClass) error {
+	if mcc.Provider != providerAzure {
+		return status.Error(codes.InvalidArgument, fmt.Sprintf("Request for provider %s cannot be fulfilled. Only %s provider is supported.", mcc.Provider, providerAzure))
+	}
+	return nil
+}
 
 // ValidateProviderSpec validates the api.AzureProviderSpec.
 func ValidateProviderSpec(spec *api.AzureProviderSpec) field.ErrorList {
@@ -40,19 +55,19 @@ func ValidateProviderSpec(spec *api.AzureProviderSpec) field.ErrorList {
 func ValidateProviderSecret(secret *corev1.Secret) field.ErrorList {
 	allErrs := field.ErrorList{}
 	secretDataPath := field.NewPath("data")
-	if isEmptyString(string(secret.Data[api.ClientID])) && isEmptyString(string(secret.Data[api.AzureClientID])) && isEmptyString(string(secret.Data[api.AzureAlternativeClientID])) {
+	if utils.IsEmptyString(string(secret.Data[api.ClientID])) && utils.IsEmptyString(string(secret.Data[api.AzureClientID])) && utils.IsEmptyString(string(secret.Data[api.AzureAlternativeClientID])) {
 		allErrs = append(allErrs, field.Required(secretDataPath.Child("clientID"), "must provide clientID"))
 	}
 
-	if isEmptyString(string(secret.Data[api.ClientSecret])) && isEmptyString(string(secret.Data[api.AzureClientSecret])) && isEmptyString(string(secret.Data[api.AzureAlternativeClientSecret])) {
+	if utils.IsEmptyString(string(secret.Data[api.ClientSecret])) && utils.IsEmptyString(string(secret.Data[api.AzureClientSecret])) && utils.IsEmptyString(string(secret.Data[api.AzureAlternativeClientSecret])) {
 		allErrs = append(allErrs, field.Required(secretDataPath.Child("clientSecret"), "must provide clientSecret"))
 	}
 
-	if isEmptyString(string(secret.Data[api.SubscriptionID])) && isEmptyString(string(secret.Data[api.AzureSubscriptionID])) && isEmptyString(string(secret.Data[api.AzureAlternativeSubscriptionID])) {
+	if utils.IsEmptyString(string(secret.Data[api.SubscriptionID])) && utils.IsEmptyString(string(secret.Data[api.AzureSubscriptionID])) && utils.IsEmptyString(string(secret.Data[api.AzureAlternativeSubscriptionID])) {
 		allErrs = append(allErrs, field.Required(secretDataPath.Child("subscriptionID"), "must provide subscriptionID"))
 	}
 
-	if isEmptyString(string(secret.Data[api.TenantID])) && isEmptyString(string(secret.Data[api.AzureTenantID])) && isEmptyString(string(secret.Data[api.AzureAlternativeTenantID])) {
+	if utils.IsEmptyString(string(secret.Data[api.TenantID])) && utils.IsEmptyString(string(secret.Data[api.AzureTenantID])) && utils.IsEmptyString(string(secret.Data[api.AzureAlternativeTenantID])) {
 		allErrs = append(allErrs, field.Required(secretDataPath.Child("tenantID"), "must provide tenantID"))
 	}
 
@@ -75,10 +90,10 @@ func ValidateMachineSetConfig(machineSetConfig *api.AzureMachineSetConfig) field
 func validateSubnetInfo(subnetInfo api.AzureSubnetInfo, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	if isEmptyString(subnetInfo.VnetName) {
+	if utils.IsEmptyString(subnetInfo.VnetName) {
 		allErrs = append(allErrs, field.Required(fldPath.Child("vnetName"), "must provide vnetName"))
 	}
-	if isEmptyString(subnetInfo.SubnetName) {
+	if utils.IsEmptyString(subnetInfo.SubnetName) {
 		allErrs = append(allErrs, field.Required(fldPath.Child("subnetName"), "must provide subnetName"))
 	}
 
@@ -89,13 +104,13 @@ func validateProperties(properties api.AzureVirtualMachineProperties, fldPath *f
 	allErrs := field.ErrorList{}
 
 	// validate HardwareProfile
-	if isEmptyString(properties.HardwareProfile.VMSize) {
+	if utils.IsEmptyString(properties.HardwareProfile.VMSize) {
 		allErrs = append(allErrs, field.Required(fldPath.Child("vmSize"), "must provide vmSize"))
 	}
 	// validate StorageProfile
 	allErrs = append(allErrs, validateStorageProfile(properties.StorageProfile, fldPath.Child("storageProfile"))...)
 	// validate OSProfile
-	if isEmptyString(properties.OsProfile.AdminUsername) {
+	if utils.IsEmptyString(properties.OsProfile.AdminUsername) {
 		allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.adminUsername"), "adminUsername must be provided"))
 	}
 	allErrs = append(allErrs, validateAvailabilityAndScalingConfig(properties, fldPath)...)
@@ -114,10 +129,10 @@ func validateStorageProfile(storageProfile api.AzureStorageProfile, fldPath *fie
 func validateStorageImageRef(imageRef api.AzureImageReference, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	urnIsSet := !isNilAndEmptyStringPtr(imageRef.URN)
-	communityGalleryImageIDIsSet := !isNilAndEmptyStringPtr(imageRef.CommunityGalleryImageID)
-	idIsSet := !isEmptyString(imageRef.ID)
-	sharedGalleryImageIDIsSet := !isNilAndEmptyStringPtr(imageRef.SharedGalleryImageID)
+	urnIsSet := !utils.IsNilAndEmptyStringPtr(imageRef.URN)
+	communityGalleryImageIDIsSet := !utils.IsNilAndEmptyStringPtr(imageRef.CommunityGalleryImageID)
+	idIsSet := !utils.IsEmptyString(imageRef.ID)
+	sharedGalleryImageIDIsSet := !utils.IsNilAndEmptyStringPtr(imageRef.SharedGalleryImageID)
 
 	atMostOnceIdentifierSet := atMostOneShouldBeTrue(urnIsSet, communityGalleryImageIDIsSet, idIsSet, sharedGalleryImageIDIsSet)
 	if !atMostOnceIdentifierSet {
@@ -134,7 +149,7 @@ func validateStorageImageRef(imageRef api.AzureImageReference, fldPath *field.Pa
 
 func validateOSDisk(osDisk api.AzureOSDisk, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
-	if isEmptyString(osDisk.CreateOption) {
+	if utils.IsEmptyString(osDisk.CreateOption) {
 		allErrs = append(allErrs, field.Required(fldPath.Child("createOption"), "must provide createOption"))
 	}
 	if osDisk.DiskSizeGB <= 0 {
@@ -163,7 +178,7 @@ func validateDataDisks(disks []api.AzureDataDisk, fldPath *field.Path) field.Err
 		if disk.DiskSizeGB <= 0 {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("diskSizeGB"), disk.DiskSizeGB, "DataDisk size must be positive and greater than 0"))
 		}
-		if isEmptyString(disk.StorageAccountType) {
+		if utils.IsEmptyString(disk.StorageAccountType) {
 			allErrs = append(allErrs, field.Required(fldPath.Child("storageAccountType"), "must provide storageAccountType"))
 		}
 	}
@@ -181,8 +196,8 @@ func validateAvailabilityAndScalingConfig(properties api.AzureVirtualMachineProp
 	allErrs := field.ErrorList{}
 
 	isZoneConfigured := properties.Zone != nil
-	isAvailabilitySetConfigured := properties.AvailabilitySet != nil && !isEmptyString(properties.AvailabilitySet.ID)
-	isVirtualMachineScaleSetConfigured := properties.VirtualMachineScaleSet != nil && !isEmptyString(properties.VirtualMachineScaleSet.ID)
+	isAvailabilitySetConfigured := properties.AvailabilitySet != nil && !utils.IsEmptyString(properties.AvailabilitySet.ID)
+	isVirtualMachineScaleSetConfigured := properties.VirtualMachineScaleSet != nil && !utils.IsEmptyString(properties.VirtualMachineScaleSet.ID)
 
 	// check if both zone is configured and one or both of [availabilitySet, virtualMachineScaleSet] is configured
 	if !atMostOneShouldBeTrue(isZoneConfigured, isAvailabilitySetConfigured || isVirtualMachineScaleSetConfigured) {
@@ -241,26 +256,12 @@ func validateURN(urn string, fldPath *field.Path) field.ErrorList {
 	}
 	urnPartLabels := []string{"publisher", "offer", "sku", "version"}
 	for index, urnPart := range urnParts {
-		if isEmptyString(urnPart) {
+		if utils.IsEmptyString(urnPart) {
 			allErrs = append(allErrs, field.Required(fldPath, fmt.Sprintf("urn must have %s", urnPartLabels[index])))
 		}
 	}
 
 	return allErrs
-}
-
-func isEmptyString(s string) bool {
-	if len(strings.TrimSpace(s)) == 0 {
-		return true
-	}
-	return false
-}
-
-func isNilAndEmptyStringPtr(s *string) bool {
-	if s == nil {
-		return true
-	}
-	return isEmptyString(*s)
 }
 
 func atMostOneShouldBeTrue(conditions ...bool) bool {

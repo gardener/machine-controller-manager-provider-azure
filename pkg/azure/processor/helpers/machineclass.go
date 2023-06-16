@@ -1,10 +1,10 @@
-package utils
+package helpers
 
 import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/validation"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
@@ -42,13 +42,4 @@ func DecodeAndValidateMachineClassProviderSpec(mcc *v1alpha1.MachineClass) (*api
 	}
 
 	return providerSpec, nil
-}
-
-const providerAzure = "Azure"
-
-func ValidateMachineClassProvider(mcc *v1alpha1.MachineClass) error {
-	if mcc.Provider != providerAzure {
-		return status.Error(codes.InvalidArgument, fmt.Sprintf("Request for provider %s cannot be fulfilled. Only %s provider is supported.", mcc.Provider, providerAzure))
-	}
-	return nil
 }

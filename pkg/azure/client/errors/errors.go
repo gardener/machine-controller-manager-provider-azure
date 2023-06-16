@@ -1,0 +1,56 @@
+package errors
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
+)
+
+var (
+	lookupResponseHeaderKeys = sets.New(
+		"X-Ms-Correlation-Request-Id",
+		"X-Ms-Request-Id",
+	)
+)
+
+// IsNotFoundAzAPIError checks if error is an AZ API error and if it is a 404 response code.
+func IsNotFoundAzAPIError(err error) bool {
+	var respErr *azcore.ResponseError
+	if errors.As(err, &respErr) {
+		return respErr.StatusCode == http.StatusNotFound
+	}
+	return false
+}
+
+// LogAzAPIError collects additional information from AZ response and logs it as part of the error log message.
+func LogAzAPIError(err error, format string, v ...any) {
+	if err == nil {
+		return
+	}
+	respHeaders := traceResponseHeaders(err)
+	errMsg := fmt.Sprintf(format, v)
+	if len(respHeaders) == 0 {
+		klog.Errorf("%s: %v\n", errMsg, err)
+	}
+	klog.Errorf("%s : Azure API Response-Headers: %+v Err: %v\n", errMsg, respHeaders, err)
+}
+
+func traceResponseHeaders(err error) map[string]string {
+	var respErr *azcore.ResponseError
+	headers := make(map[string]string)
+	if errors.As(err, &respErr) {
+		respHeader := respErr.RawResponse.Header
+		for headerKey := range lookupResponseHeaderKeys {
+			headerValue := respHeader.Get(headerKey)
+			if !utils.IsEmptyString(headerValue) {
+				headers[headerKey] = headerValue
+			}
+		}
+	}
+	return headers
+}

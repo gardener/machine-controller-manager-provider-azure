@@ -1,4 +1,4 @@
-# github.com/Azure/azure-sdk-for-go/sdk/azcore v1.5.0
+# github.com/Azure/azure-sdk-for-go/sdk/azcore v1.7.0-beta.2
 ## explicit; go 1.18
 github.com/Azure/azure-sdk-for-go/sdk/azcore
 github.com/Azure/azure-sdk-for-go/sdk/azcore/arm
@@ -11,6 +11,7 @@ github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/log
 github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers
 github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/async
 github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/body
+github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/fake
 github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/loc
 github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/op
 github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/shared
@@ -41,7 +42,7 @@ github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmar
 # github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2 v2.2.1
 ## explicit; go 1.18
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2
-# github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph v0.7.1
+# github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph v0.8.0
 ## explicit; go 1.18
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph
 # github.com/AzureAD/microsoft-authentication-library-for-go v0.9.0
@@ -112,6 +113,7 @@ github.com/gardener/machine-controller-manager/pkg/util/provider/drain
 github.com/gardener/machine-controller-manager/pkg/util/provider/driver
 github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes
 github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status
+github.com/gardener/machine-controller-manager/pkg/util/provider/metrics
 github.com/gardener/machine-controller-manager/pkg/util/provider/options
 github.com/gardener/machine-controller-manager/pkg/util/reflector/prometheus
 github.com/gardener/machine-controller-manager/pkg/util/workqueue/prometheus
@@ -246,6 +248,7 @@ github.com/pkg/errors
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/collectors
 github.com/prometheus/client_golang/prometheus/internal
+github.com/prometheus/client_golang/prometheus/promauto
 github.com/prometheus/client_golang/prometheus/promhttp
 # github.com/prometheus/client_model v0.3.0
 ## explicit; go 1.9
