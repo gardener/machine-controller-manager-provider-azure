@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	subnetGETServiceLabel = "subnet-get"
+	subnetGETServiceLabel = "subnet_get"
 )
 
 func getSubnet(ctx context.Context, client *armnetwork.SubnetsClient, resourceGroup, virtualNetworkName, subnetName string) (subnet *armnetwork.Subnet, err error) {

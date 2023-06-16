@@ -4,14 +4,9 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	prometheusProviderLabelKey   = "provider"
-	prometheusProviderLabelValue = "azure"
-	prometheusServiceLabelKey    = "service"
-)
+const prometheusProviderLabelValue = "azure"
 
 // RecordAzAPIMetric records a prometheus metric for Azure API calls.
 // * If there is an error then it will increment the APIFailedRequestCount counter vec metric.
@@ -23,24 +18,23 @@ const (
 // So if you have an error that is computed later in the function then ensure that you use named return parameters.
 func RecordAzAPIMetric(err error, azServiceName string, invocationTime time.Time) {
 	if err != nil {
-		metrics.APIFailedRequestCount.With(
-			prometheus.Labels{
-				prometheusProviderLabelKey: prometheusProviderLabelValue,
-				prometheusServiceLabelKey:  azServiceName,
-			},
-		).Inc()
+		metrics.APIFailedRequestCount.
+			WithLabelValues(prometheusProviderLabelValue, azServiceName).
+			Inc()
 		return
 	}
 
 	// No error, record metrics for successful API call.
-	metrics.APIRequestCount.With(
-		prometheus.Labels{
-			prometheusProviderLabelKey: prometheusProviderLabelValue,
-			prometheusServiceLabelKey:  azServiceName,
-		},
-	)
-	// compute the time taken to complete the AZ service call
-	//elapsed := time.Since(invocationTime)
-	// introduce a new metric in MCM provider that will capture API call duration. Once that is
-	// introduced then uncomment the above line and use it as a value for that metric.
+	metrics.APIRequestCount.
+		WithLabelValues(
+			prometheusProviderLabelValue,
+			azServiceName,
+		).Inc()
+
+	// compute the time taken to complete the AZ service call and record it as a metric
+	elapsed := time.Since(invocationTime)
+	metrics.APISuccessfulInvocationDuration.WithLabelValues(
+		prometheusProviderLabelValue,
+		azServiceName,
+	).Observe(elapsed.Seconds())
 }

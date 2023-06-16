@@ -73,13 +73,39 @@ func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, client *armre
 
 type MapperFn[T any] func(map[string]interface{}) T
 
-func QueryAndMap[T any](ctx context.Context, client *armresourcegraph.Client, subscriptionID, query string, mapperFn MapperFn[T]) *T {
-	return nil
+func QueryAndMap[T any](ctx context.Context, client *armresourcegraph.Client, subscriptionID string, mapperFn MapperFn[T], queryTemplate string, templateArgs ...any) ([]T, error) {
+	resources, err := client.Resources(ctx,
+		armresourcegraph.QueryRequest{
+			Query:         to.Ptr(fmt.Sprintf(queryTemplate, templateArgs)),
+			Options:       nil,
+			Subscriptions: []*string{to.Ptr(subscriptionID)},
+		}, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var results []T
+	if resources.TotalRecords == pointer.Int64(0) {
+		return results, nil
+	}
+
+	// resourceResponse.Data is a []interface{}
+	if objSlice, ok := resources.Data.([]interface{}); ok {
+		for _, obj := range objSlice {
+			// Each obj in resourceResponse.Data is a map[string]Interface{}
+			rowElements := obj.(map[string]interface{})
+			result := mapperFn(rowElements)
+			results = append(results, result)
+		}
+	}
+
+	return results, nil
 }
 
-type ResourceGraphQueryExecutor interface {
-	Execute(ctx context.Context, subscriptionID, query string) ([]interface{}, error)
-}
+//type ResourceGraphQueryExecutor interface {
+//	Execute(ctx context.Context, subscriptionID, query string) ([]interface{}, error)
+//}
 
 // doExtractVMNamesFromResource queries for resources using the given queryTemplate and extracts VM names from the list of resources retrieved.
 func doExtractVMNamesFromResource(ctx context.Context, client *armresourcegraph.Client, subscriptionID, resourceGroup, queryTemplate string, extractorFn vmNameExtractorFn) ([]string, error) {
