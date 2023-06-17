@@ -7,6 +7,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 )
 
 // ConnectConfig is the configuration required for a client to connect to azure.
@@ -25,9 +26,11 @@ func (c ConnectConfig) CreateTokenCredential() (azcore.TokenCredential, error) {
 
 // ClientProvider is a factory providing methods to get clients for different resources.
 type ClientProvider interface {
+	CreateResourceGroupsClient(connectConfig ConnectConfig) (*armresources.ResourceGroupsClient, error)
 	CreateVirtualMachinesClient(connectConfig ConnectConfig) (*armcompute.VirtualMachinesClient, error)
 	CreateNetworkInterfacesClient(connectConfig ConnectConfig) (*armnetwork.InterfacesClient, error)
 	CreateSubnetClient(connectConfig ConnectConfig) (*armnetwork.SubnetsClient, error)
+	CreateDisksClient(connectConfig ConnectConfig) (*armcompute.DisksClient, error)
 	CreateResourceGraphClient(connectConfig ConnectConfig) (*armresourcegraph.Client, error)
 	CreateImagesClient(connectConfig ConnectConfig) (*armcompute.ImagesClient, error)
 	CreateMarketPlaceAgreementsClient(connectConfig ConnectConfig) (*armmarketplaceordering.MarketplaceAgreementsClient, error)

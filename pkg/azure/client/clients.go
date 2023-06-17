@@ -5,6 +5,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 )
 
 // clientFactory implements ClientProvider interface.
@@ -14,6 +15,18 @@ type clientFactory struct {
 // NewClientsProvider creates a new instance of ClientProvider.
 func NewClientsProvider() ClientProvider {
 	return clientFactory{}
+}
+
+func (c clientFactory) CreateResourceGroupsClient(connectConfig ConnectConfig) (*armresources.ResourceGroupsClient, error) {
+	tokenCredential, err := connectConfig.CreateTokenCredential()
+	if err != nil {
+		return nil, err
+	}
+	factory, err := armresources.NewClientFactory(connectConfig.SubscriptionID, tokenCredential, nil)
+	if err != nil {
+		return nil, err
+	}
+	return factory.NewResourceGroupsClient(), nil
 }
 
 func (c clientFactory) CreateVirtualMachinesClient(connectConfig ConnectConfig) (*armcompute.VirtualMachinesClient, error) {
@@ -50,6 +63,15 @@ func (c clientFactory) CreateSubnetClient(connectConfig ConnectConfig) (*armnetw
 		return nil, err
 	}
 	return factory.NewSubnetsClient(), nil
+}
+
+func (c clientFactory) CreateDisksClient(connectConfig ConnectConfig) (*armcompute.DisksClient, error) {
+	tokenCredential, err := connectConfig.CreateTokenCredential()
+	if err != nil {
+		return nil, err
+	}
+	factory, err := armcompute.NewClientFactory(connectConfig.SubscriptionID, tokenCredential, nil)
+	return factory.NewDisksClient(), nil
 }
 
 func (c clientFactory) CreateResourceGraphClient(connectConfig ConnectConfig) (*armresourcegraph.Client, error) {
