@@ -19,42 +19,54 @@ type Task struct {
 	Fn func(ctx context.Context) error
 }
 
+type runGroup struct {
+	wg        sync.WaitGroup
+	semaphore chan struct{}
+}
+
 // RunConcurrently runs tasks concurrently with number of goroutines bounded by bound.
 // If there is a panic executing a single Task then it will capture the panic and capture it as an error
 // which will then subsequently be returned from this function. It will not propagate the panic causing the app to exit.
 func RunConcurrently(ctx context.Context, tasks []Task, bound int) error {
-	semaphore := make(chan struct{}, bound)
-	errCh := make(chan error, len(tasks))
-	defer func() {
-		close(semaphore)
-		close(errCh)
-	}()
-	wg := sync.WaitGroup{}
-	for _, task := range tasks {
-		if err := waitTillTokenAvailable(ctx, semaphore); err != nil {
-			klog.Errorf("error while waiting for token to run task. Err: %v", err)
-			break
-		}
-		wg.Add(1)
-		klog.Infof("Starting async execution of task %s", task.Name)
-		go func(task Task) {
-			defer capturePanicAsError(task.Name, errCh)
-			defer wg.Done()
-			err := task.Fn(ctx)
-			if err != nil {
-				errCh <- err
-			}
-			<-semaphore
-		}(task)
+	runGrp := runGroup{
+		wg:        sync.WaitGroup{},
+		semaphore: make(chan struct{}, bound),
 	}
-
-	wg.Wait()
+	defer runGrp.Close()
+	errCh := runGrp.triggerTasks(ctx, tasks)
+	runGrp.wg.Wait()
 
 	errs := make([]error, 0, len(tasks))
 	for err := range errCh {
 		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
+}
+
+func (g *runGroup) triggerTasks(ctx context.Context, tasks []Task) <-chan error {
+	errCh := make(chan error, len(tasks))
+	defer close(errCh)
+	for _, task := range tasks {
+		if err := g.waitTillTokenAvailable(ctx); err != nil {
+			klog.Errorf("error while waiting for token to run task. Err: %v", err)
+			break
+		}
+		g.wg.Add(1)
+		go func(task Task) {
+			defer capturePanicAsError(task.Name, errCh)
+			defer g.wg.Done()
+			err := task.Fn(ctx)
+			if err != nil {
+				errCh <- err
+			}
+			<-g.semaphore
+		}(task)
+	}
+	return errCh
+}
+
+func (g *runGroup) Close() {
+	close(g.semaphore)
 }
 
 func capturePanicAsError(name string, errCh chan<- error) {
@@ -65,12 +77,12 @@ func capturePanicAsError(name string, errCh chan<- error) {
 	}
 }
 
-func waitTillTokenAvailable(ctx context.Context, semaphore chan<- struct{}) error {
+func (g *runGroup) waitTillTokenAvailable(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case semaphore <- struct{}{}:
+		case g.semaphore <- struct{}{}:
 			return nil
 		}
 	}
