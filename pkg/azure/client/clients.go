@@ -8,12 +8,12 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 )
 
-// clientFactory implements ClientProvider interface.
+// clientFactory implements ARMClientProvider interface.
 type clientFactory struct {
 }
 
-// NewClientsProvider creates a new instance of ClientProvider.
-func NewClientsProvider() ClientProvider {
+// NewClientsProvider creates a new instance of ARMClientProvider.
+func NewClientsProvider() ARMClientProvider {
 	return clientFactory{}
 }
 

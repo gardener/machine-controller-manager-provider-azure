@@ -11,10 +11,14 @@ func IsEmptyString(s string) bool {
 	return false
 }
 
-// IsNilAndEmptyStringPtr returns true if the string pointer is nil or the return value of IsEmptyString(s).
-func IsNilAndEmptyStringPtr(s *string) bool {
+// IsNilOrEmptyStringPtr returns true if the string pointer is nil or the return value of IsEmptyString(s).
+func IsNilOrEmptyStringPtr(s *string) bool {
 	if s == nil {
 		return true
 	}
 	return IsEmptyString(*s)
+}
+
+func IsSliceNilOrEmpty[T any](s []T) bool {
+	return s == nil || len(s) == 0
 }

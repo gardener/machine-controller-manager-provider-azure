@@ -13,9 +13,9 @@ import (
 )
 
 // ValidateSecretAndCreateConnectConfig validates the secret and creates an instance of azure.ConnectConfig out of it.
-func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret) (*client.ConnectConfig, error) {
+func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret) (client.ConnectConfig, error) {
 	if err := validation.ValidateProviderSecret(secret); err != nil {
-		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("error in validating secret: %v", err))
+		return client.ConnectConfig{}, status.Error(codes.InvalidArgument, fmt.Sprintf("error in validating secret: %v", err))
 	}
 
 	var (
@@ -24,7 +24,7 @@ func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret) (*client.Connec
 		clientID       = extractCredentialsFromData(secret.Data, api.ClientID, api.AzureClientID)
 		clientSecret   = extractCredentialsFromData(secret.Data, api.ClientSecret, api.AzureClientSecret)
 	)
-	return &client.ConnectConfig{
+	return client.ConnectConfig{
 		SubscriptionID: subscriptionID,
 		TenantID:       tenantID,
 		ClientID:       clientID,

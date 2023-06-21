@@ -33,7 +33,7 @@ func ValidateMachineClassProvider(mcc *v1alpha1.MachineClass) error {
 }
 
 // ValidateProviderSpec validates the api.AzureProviderSpec.
-func ValidateProviderSpec(spec *api.AzureProviderSpec) field.ErrorList {
+func ValidateProviderSpec(spec api.AzureProviderSpec) field.ErrorList {
 	allErrs := field.ErrorList{}
 	specPath := field.NewPath("providerSpec")
 
@@ -129,10 +129,10 @@ func validateStorageProfile(storageProfile api.AzureStorageProfile, fldPath *fie
 func validateStorageImageRef(imageRef api.AzureImageReference, fldPath *field.Path) field.ErrorList {
 	allErrs := field.ErrorList{}
 
-	urnIsSet := !utils.IsNilAndEmptyStringPtr(imageRef.URN)
-	communityGalleryImageIDIsSet := !utils.IsNilAndEmptyStringPtr(imageRef.CommunityGalleryImageID)
+	urnIsSet := !utils.IsNilOrEmptyStringPtr(imageRef.URN)
+	communityGalleryImageIDIsSet := !utils.IsNilOrEmptyStringPtr(imageRef.CommunityGalleryImageID)
 	idIsSet := !utils.IsEmptyString(imageRef.ID)
-	sharedGalleryImageIDIsSet := !utils.IsNilAndEmptyStringPtr(imageRef.SharedGalleryImageID)
+	sharedGalleryImageIDIsSet := !utils.IsNilOrEmptyStringPtr(imageRef.SharedGalleryImageID)
 
 	atMostOnceIdentifierSet := atMostOneShouldBeTrue(urnIsSet, communityGalleryImageIDIsSet, idIsSet, sharedGalleryImageIDIsSet)
 	if !atMostOnceIdentifierSet {

@@ -24,8 +24,8 @@ func (c ConnectConfig) CreateTokenCredential() (azcore.TokenCredential, error) {
 	return azidentity.NewClientSecretCredential(c.TenantID, c.ClientID, c.ClientSecret, nil)
 }
 
-// ClientProvider is a factory providing methods to get clients for different resources.
-type ClientProvider interface {
+// ARMClientProvider is a factory providing methods to get clients for different resources.
+type ARMClientProvider interface {
 	CreateResourceGroupsClient(connectConfig ConnectConfig) (*armresources.ResourceGroupsClient, error)
 	CreateVirtualMachinesClient(connectConfig ConnectConfig) (*armcompute.VirtualMachinesClient, error)
 	CreateNetworkInterfacesClient(connectConfig ConnectConfig) (*armnetwork.InterfacesClient, error)

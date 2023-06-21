@@ -14,20 +14,21 @@ const (
 	diskDeleteServiceLabel = "disk_delete"
 )
 
-func DeleteDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string, pollInterval time.Duration) (err error) {
-	defer instrument.RecordAzAPIMetric(err, subnetGETServiceLabel, time.Now())
+func DeleteDiskIfExists(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string) (err error) {
+	return
+}
 
+func deleteDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string, pollInterval time.Duration) (err error) {
+	defer instrument.RecordAzAPIMetric(err, diskDeleteServiceLabel, time.Now())
 	var poller *runtime.Poller[armcompute.DisksClientDeleteResponse]
 	poller, err = client.BeginDelete(ctx, resourceGroup, diskName, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Failed to trigger Delete of Disk for [resourceGroup: %s, diskName: %s]", resourceGroup, diskName)
-		return err
+		return
 	}
 	_, err = poller.PollUntilDone(ctx, &runtime.PollUntilDoneOptions{Frequency: pollInterval})
 	if err != nil {
 		errors.LogAzAPIError(err, "Polling failed while waiting for Deleting of Disk: %s for ResourceGroup: %s", diskName, resourceGroup)
-		return err
 	}
-
 	return
 }
