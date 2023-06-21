@@ -10,12 +10,13 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// Task is a function which accepts a context returns an error if any.
-// It is expected that the function handles the context cancellation appropriately.
-
+// Task is a holder for a named function.
 type Task struct {
+	// Name is the name of the task
 	Name string
-	Fn   func(ctx context.Context) error
+	// Fn is the function which accepts a context and returns an error if there is one.
+	// Implementations of Fn should handle context cancellation properly.
+	Fn func(ctx context.Context) error
 }
 
 // RunConcurrently runs tasks concurrently with number of goroutines bounded by bound.
