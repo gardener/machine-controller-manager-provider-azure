@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 	"sync"
@@ -19,65 +18,73 @@ type Task struct {
 	Fn func(ctx context.Context) error
 }
 
-type runGroup struct {
+// RunGroup is a runner for concurrently spawning multiple asynchronous tasks. If any task
+// errors or panics then these are captured as errors.
+type RunGroup struct {
 	wg        sync.WaitGroup
 	semaphore chan struct{}
+	errCh     chan error
+}
+
+// NewRunGroup creates a new RunGroup.
+func NewRunGroup(numTasks, bound int) *RunGroup {
+	return &RunGroup{
+		wg:        sync.WaitGroup{},
+		semaphore: make(chan struct{}, bound),
+		errCh:     make(chan error, numTasks),
+	}
 }
 
 // RunConcurrently runs tasks concurrently with number of goroutines bounded by bound.
 // If there is a panic executing a single Task then it will capture the panic and capture it as an error
 // which will then subsequently be returned from this function. It will not propagate the panic causing the app to exit.
-func RunConcurrently(ctx context.Context, tasks []Task, bound int) error {
-	runGrp := runGroup{
-		wg:        sync.WaitGroup{},
-		semaphore: make(chan struct{}, bound),
-	}
-	defer runGrp.Close()
-	errCh := runGrp.triggerTasks(ctx, tasks)
-	runGrp.wg.Wait()
+func RunConcurrently(ctx context.Context, tasks []Task, bound int) []error {
+	rg := NewRunGroup(len(tasks), bound)
+	defer rg.Close()
 
-	errs := make([]error, 0, len(tasks))
-	for err := range errCh {
+	for _, task := range tasks {
+		rg.Trigger(ctx, task)
+	}
+	return rg.WaitAndCollectErrors()
+}
+
+// Trigger executes the task in a go-routine.
+func (g *RunGroup) Trigger(ctx context.Context, task Task) {
+	if err := g.waitTillTokenAvailable(ctx); err != nil {
+		klog.Errorf("error while waiting for token to run task. Err: %v", err)
+		g.errCh <- fmt.Errorf("context cancelled, could not schedule task %s : %w", task.Name, err)
+		return
+	}
+	g.wg.Add(1)
+	go func(task Task) {
+		defer g.wg.Done()
+		defer capturePanicAsError(task.Name, g.errCh)
+		err := task.Fn(ctx)
+		if err != nil {
+			g.errCh <- err
+		}
+		<-g.semaphore
+	}(task)
+}
+
+// WaitAndCollectErrors waits for all tasks to finish, collects and returns any errors.
+func (g *RunGroup) WaitAndCollectErrors() []error {
+	g.wg.Wait()
+	close(g.errCh)
+
+	var errs []error
+	for err := range g.errCh {
 		errs = append(errs, err)
 	}
-	return errors.Join(errs...)
+	return errs
 }
 
-func (g *runGroup) triggerTasks(ctx context.Context, tasks []Task) <-chan error {
-	errCh := make(chan error, len(tasks))
-	defer close(errCh)
-	for _, task := range tasks {
-		if err := g.waitTillTokenAvailable(ctx); err != nil {
-			klog.Errorf("error while waiting for token to run task. Err: %v", err)
-			break
-		}
-		g.wg.Add(1)
-		go func(task Task) {
-			defer capturePanicAsError(task.Name, errCh)
-			defer g.wg.Done()
-			err := task.Fn(ctx)
-			if err != nil {
-				errCh <- err
-			}
-			<-g.semaphore
-		}(task)
-	}
-	return errCh
-}
-
-func (g *runGroup) Close() {
+// Close closes the RunGroup
+func (g *RunGroup) Close() {
 	close(g.semaphore)
 }
 
-func capturePanicAsError(name string, errCh chan<- error) {
-	if v := recover(); v != nil {
-		stack := debug.Stack()
-		panicErr := fmt.Errorf("Task: %s execution panicked: %v\n, stack-trace: %s\n", name, v, stack)
-		errCh <- panicErr
-	}
-}
-
-func (g *runGroup) waitTillTokenAvailable(ctx context.Context) error {
+func (g *RunGroup) waitTillTokenAvailable(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -85,5 +92,15 @@ func (g *runGroup) waitTillTokenAvailable(ctx context.Context) error {
 		case g.semaphore <- struct{}{}:
 			return nil
 		}
+	}
+}
+
+// capturePanicAsError recovers from a panic if there is one. Creates an error from it which contains the debug stack
+// trace as well and pushes the error to the provided error channel.
+func capturePanicAsError(name string, errCh chan<- error) {
+	if v := recover(); v != nil {
+		stack := debug.Stack()
+		panicErr := fmt.Errorf("Task: %s execution panicked: %v\n, stack-trace: %s\n", name, v, stack)
+		errCh <- panicErr
 	}
 }

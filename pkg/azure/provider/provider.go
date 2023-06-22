@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -142,7 +143,7 @@ func (d driverProvider) checkAndDeleteLeftoverNICsAndDisks(ctx context.Context, 
 	tasks := make([]utils.Task, 0, len(diskNames)+1)
 	tasks = append(tasks, d.createNICDeleteTask(resourceGroup, nicName, nicClient))
 	tasks = append(tasks, d.createDiskDeletionTasks(resourceGroup, diskNames, disksClient)...)
-	return utils.RunConcurrently(ctx, tasks, len(tasks))
+	return errors.Join(utils.RunConcurrently(ctx, tasks, len(tasks))...)
 }
 
 func (d driverProvider) createNICDeleteTask(resourceGroup, nicName string, nicClient *armnetwork.InterfacesClient) utils.Task {

@@ -16,7 +16,28 @@ func TestRunConcurrentlyWithAllSuccessfulTasks(t *testing.T) {
 		createSuccessfulTaskWithDelay("task-3", 10*time.Millisecond),
 	}
 	g := NewWithT(t)
-	g.Expect(RunConcurrently(context.Background(), tasks, len(tasks))).To(Succeed())
+	g.Expect(RunConcurrently(context.Background(), tasks, len(tasks))).To(HaveLen(0))
+}
+
+func TestRunConcurrentlyWithOnePanickyTask(t *testing.T) {
+	tasks := []Task{
+		createSuccessfulTaskWithDelay("task-1", 5*time.Millisecond),
+		createPanickyTaskWithDelay("panicky-task-2", 15*time.Millisecond),
+		createSuccessfulTaskWithDelay("task-3", 10*time.Millisecond),
+	}
+	g := NewWithT(t)
+	g.Expect(RunConcurrently(context.Background(), tasks, len(tasks))).To(HaveLen(1))
+}
+
+func TestRunConcurrentlyWithPanickyAndErringTasks(t *testing.T) {
+	tasks := []Task{
+		createSuccessfulTaskWithDelay("task-1", 5*time.Millisecond),
+		createPanickyTaskWithDelay("panicky-task-2", 15*time.Millisecond),
+		createSuccessfulTaskWithDelay("task-3", 10*time.Millisecond),
+		createErringTaskWithDelay("erring-task-4", 50*time.Millisecond),
+	}
+	g := NewWithT(t)
+	g.Expect(RunConcurrently(context.Background(), tasks, len(tasks))).To(HaveLen(2))
 }
 
 func createSuccessfulTaskWithDelay(name string, delay time.Duration) Task {
