@@ -16,28 +16,41 @@ import (
 
 const (
 	subnetGetServiceLabel = "subnet_get"
+	nicGetServiceLabel    = "nic_get"
 	nicDeleteServiceLabel = "nic_delete"
 )
 
 func DeleteNICIfExists(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) error {
-	nicExists, err := doesNICExist(ctx, client, nicName)
+	nic, err := getNIC(ctx, client, resourceGroup, nicName)
 	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("Call to check if NIC [ResourceGroup: %s, NICName: %s] exists failed with Err: %v", resourceGroup, nicName, err))
+		return err
 	}
-	if !nicExists {
+	if nic == nil {
 		klog.Infof("NIC: [ResourceGraph: %s, NICName: %s] does not exist. Skipping deletion.", resourceGroup, nicName)
 		return nil
+	}
+	if nic.Properties != nil && nic.Properties.VirtualMachine != nil && nic.Properties.VirtualMachine.ID != nil {
+		return fmt.Errorf("cannot delete NIC [ResourceGroup: %s, Name: %s] as its still attached to VM: %s", resourceGroup, nicName, *nic.Properties.VirtualMachine.ID)
 	}
 	err = deleteNIC(ctx, client, resourceGroup, nicName)
 	if err != nil {
 		return status.Error(codes.Internal, fmt.Sprintf("failed to delete NIC: [ResourceGroup: %s, NICName: %s] Err: %v", resourceGroup, nicName, err))
 	}
-	klog.Infof("Successfully delete NIC: [ResourceGroup: %s, NICName: %s]", resourceGroup, nicName)
+	klog.Infof("Successfully delete NIC: [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
 	return nil
 }
 
-func doesNICExist(ctx context.Context, client *armnetwork.InterfacesClient, nicName string) (bool, error) {
-	return false, nil
+func getNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) (nic *armnetwork.Interface, err error) {
+	defer instrument.RecordAzAPIMetric(err, nicGetServiceLabel, time.Now())
+	resp, err := client.Get(ctx, resourceGroup, nicName, nil)
+	if err != nil {
+		if errors.IsNotFoundAzAPIError(err) {
+			return nil, nil
+		}
+		errors.LogAzAPIError(err, "Failed to get NIC [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
+		return nil, err
+	}
+	return &resp.Interface, nil
 }
 
 func deleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) (err error) {
@@ -45,7 +58,7 @@ func deleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourc
 	var poller *runtime.Poller[armnetwork.InterfacesClientDeleteResponse]
 	poller, err = client.BeginDelete(ctx, resourceGroup, nicName, nil)
 	if err != nil {
-		errors.LogAzAPIError(err, "Failed to trigger delete of NIC [ResourceGroup: %s, NICName: %s]", resourceGroup, nicName)
+		errors.LogAzAPIError(err, "Failed to trigger delete of NIC [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
 		return
 	}
 	_, err = poller.PollUntilDone(ctx, nil)
