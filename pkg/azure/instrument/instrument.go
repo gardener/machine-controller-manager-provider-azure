@@ -33,7 +33,7 @@ func RecordAzAPIMetric(err error, azServiceName string, invocationTime time.Time
 
 	// compute the time taken to complete the AZ service call and record it as a metric
 	elapsed := time.Since(invocationTime)
-	metrics.APISuccessfulInvocationDuration.WithLabelValues(
+	metrics.APIRequestDuration.WithLabelValues(
 		prometheusProviderLabelValue,
 		azServiceName,
 	).Observe(elapsed.Seconds())
