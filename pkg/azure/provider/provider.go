@@ -47,7 +47,7 @@ func (d driverProvider) ListMachines(ctx context.Context, req *driver.ListMachin
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to extract VM names from VMs and NICs for resourceGroup: %s, Err: %v", providerSpec.ResourceGroup, err))
 	}
-	return helpers.CreateMachineListResponse(providerSpec.Location, vmNames)
+	return helpers.CreateMachineListResponse(providerSpec.Location, vmNames), nil
 }
 
 func (d driverProvider) CreateMachine(ctx context.Context, request *driver.CreateMachineRequest) (*driver.CreateMachineResponse, error) {
@@ -89,7 +89,7 @@ func (d driverProvider) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 			return nil, err
 		}
 	} else {
-		// update the VM and set cascade delete on NIC and Disks (OSDisk and DataDisks)	and the trigger VM deletion.
+		// update the VM and set cascade delete on NIC and Disks (OSDisk and DataDisks) if not already set and then trigger VM deletion.
 		err = clienthelpers.SetCascadeDeleteForNICsAndDisks(ctx, vmClient, resourceGroup, vm)
 		if err != nil {
 			return nil, err
@@ -101,6 +101,47 @@ func (d driverProvider) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 	}
 
 	return &driver.DeleteMachineResponse{}, nil
+}
+
+func (d driverProvider) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (*driver.GetMachineStatusResponse, error) {
+	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceGroup := providerSpec.ResourceGroup
+	vmName := req.Machine.Name
+	vmClient, err := d.clientProvider.CreateVirtualMachinesClient(connectConfig)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine client to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
+	}
+
+	// After getting response for Query: [https://github.com/Azure/azure-sdk-for-go/issues/21031] replace this call with a more optimized variant to check if a VM exists.
+	vm, err := clienthelpers.GetVirtualMachine(ctx, vmClient, resourceGroup, vmName)
+	if err != nil {
+		return nil, err
+	}
+	if vm == nil {
+		return nil, status.Error(codes.NotFound, fmt.Sprintf("virtual machine [ResourceGroup: %s, Name: %s] is not found", resourceGroup, vmName))
+	}
+	return helpers.CreateMachineStatusResponse(providerSpec.Location, vmName), nil
+}
+
+func (d driverProvider) GetVolumeIDs(_ context.Context, request *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
+	const csiDriverName = "disk.csi.azure.com"
+	var volumeIDs []string
+
+	if request.PVSpecs != nil {
+		for _, pvSpec := range request.PVSpecs {
+			if pvSpec.AzureDisk != nil {
+				volumeIDs = append(volumeIDs, pvSpec.AzureDisk.DiskName)
+			} else if pvSpec.CSI != nil && pvSpec.CSI.Driver == csiDriverName && !utils.IsEmptyString(pvSpec.CSI.VolumeHandle) {
+				volumeIDs = append(volumeIDs, pvSpec.CSI.VolumeHandle)
+			}
+		}
+	}
+
+	return &driver.GetVolumeIDsResponse{VolumeIDs: volumeIDs}, nil
 }
 
 // skipDeleteMachine checks if ResourceGroup exists. If it does not exist then there is no need to delete any resource as it is assumed that none would exist.
@@ -168,26 +209,4 @@ func (d driverProvider) createDiskDeletionTasks(resourceGroup string, diskNames 
 		tasks = append(tasks, task)
 	}
 	return tasks
-}
-
-func (d driverProvider) GetMachineStatus(ctx context.Context, request *driver.GetMachineStatusRequest) (*driver.GetMachineStatusResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (d driverProvider) GetVolumeIDs(_ context.Context, request *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
-	const csiDriverName = "disk.csi.azure.com"
-	var volumeIDs []string
-
-	if request.PVSpecs != nil {
-		for _, pvSpec := range request.PVSpecs {
-			if pvSpec.AzureDisk != nil {
-				volumeIDs = append(volumeIDs, pvSpec.AzureDisk.DiskName)
-			} else if pvSpec.CSI != nil && pvSpec.CSI.Driver == csiDriverName && !utils.IsEmptyString(pvSpec.CSI.VolumeHandle) {
-				volumeIDs = append(volumeIDs, pvSpec.CSI.VolumeHandle)
-			}
-		}
-	}
-
-	return &driver.GetVolumeIDsResponse{VolumeIDs: volumeIDs}, nil
 }

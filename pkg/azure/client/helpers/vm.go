@@ -18,6 +18,7 @@ const (
 	vmDeleteServiceLabel = "virtual_machine_delete"
 )
 
+// GetVirtualMachine gets a VirtualMachine for the given vm name and resource group.
 func GetVirtualMachine(ctx context.Context, vmClient *armcompute.VirtualMachinesClient, resourceGroup, vmName string) (vm *armcompute.VirtualMachine, err error) {
 	var getResp armcompute.VirtualMachinesClientGetResponse
 	defer instrument.RecordAzAPIMetric(err, vmGetServiceLabel, time.Now())
@@ -32,6 +33,8 @@ func GetVirtualMachine(ctx context.Context, vmClient *armcompute.VirtualMachines
 	return
 }
 
+// DeleteVirtualMachine deletes the Virtual Machine with the give name and belonging to the passed in resource group.
+// If cascade delete is set for associated NICs and Disks then these resources will also be deleted along with the VM.
 func DeleteVirtualMachine(ctx context.Context, vmClient *armcompute.VirtualMachinesClient, resourceGroup, vmName string) (err error) {
 	defer instrument.RecordAzAPIMetric(err, vmDeleteServiceLabel, time.Now())
 	poller, err := vmClient.BeginDelete(ctx, resourceGroup, vmName, nil)
@@ -47,10 +50,14 @@ func DeleteVirtualMachine(ctx context.Context, vmClient *armcompute.VirtualMachi
 	return
 }
 
+// SetCascadeDeleteForNICsAndDisks sets cascade deletion for NICs and Disks (OSDisk and DataDisks) associated to passed virtual machine.
 func SetCascadeDeleteForNICsAndDisks(ctx context.Context, vmClient *armcompute.VirtualMachinesClient, resourceGroup string, vm *armcompute.VirtualMachine) (err error) {
 	defer instrument.RecordAzAPIMetric(err, vmUpdateServiceLabel, time.Now())
-	vmUpdateParams := createVMUpdateParams(vm)
-	poller, err := vmClient.BeginUpdate(ctx, resourceGroup, *vm.Name, vmUpdateParams, nil)
+	vmUpdateParams := createVMUpdateParamsForCascadeDeleteOptions(vm)
+	if vmUpdateParams == nil {
+		klog.Infof("All configured NICs, OSDisk and DataDisks have cascade delete already set. Skipping update of VM: [ResourceGroup: %s, Name: %s]", resourceGroup, *vm.Name)
+	}
+	poller, err := vmClient.BeginUpdate(ctx, resourceGroup, *vm.Name, *vmUpdateParams, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Failed to trigger update of VM [ResourceGroup: %s, VMName: %s]", resourceGroup, *vm.Name)
 		return
@@ -69,11 +76,17 @@ func SetCascadeDeleteForNICsAndDisks(ctx context.Context, vmClient *armcompute.V
 	return
 }
 
-func createVMUpdateParams(vm *armcompute.VirtualMachine) armcompute.VirtualMachineUpdate {
-	vmUpdateParams := armcompute.VirtualMachineUpdate{Properties: &armcompute.VirtualMachineProperties{}}
+// createVMUpdateParamsForCascadeDeleteOptions creates armcompute.VirtualMachineUpdate with delta changes to
+// delete option for associated NICs and Disks of a given virtual machine.
+func createVMUpdateParamsForCascadeDeleteOptions(vm *armcompute.VirtualMachine) *armcompute.VirtualMachineUpdate {
+	var (
+		vmUpdateParams              = armcompute.VirtualMachineUpdate{Properties: &armcompute.VirtualMachineProperties{}}
+		cascadeDeleteChangesPending bool
+	)
 
 	updatedNicRefs := getNetworkInterfaceReferencesToUpdate(vm.Properties.NetworkProfile)
 	if !utils.IsSliceNilOrEmpty(updatedNicRefs) {
+		cascadeDeleteChangesPending = true
 		vmUpdateParams.Properties.NetworkProfile = &armcompute.NetworkProfile{
 			NetworkInterfaces: updatedNicRefs,
 		}
@@ -82,15 +95,20 @@ func createVMUpdateParams(vm *armcompute.VirtualMachine) armcompute.VirtualMachi
 	vmUpdateParams.Properties.StorageProfile = &armcompute.StorageProfile{}
 	updatedOSDisk := getOSDiskToUpdate(vm.Properties.StorageProfile)
 	if updatedOSDisk != nil {
+		cascadeDeleteChangesPending = true
 		vmUpdateParams.Properties.StorageProfile.OSDisk = updatedOSDisk
 	}
 
 	updatedDataDisks := getDataDisksToUpdate(vm.Properties.StorageProfile)
 	if !utils.IsSliceNilOrEmpty(updatedDataDisks) {
+		cascadeDeleteChangesPending = true
 		vmUpdateParams.Properties.StorageProfile.DataDisks = updatedDataDisks
 	}
 
-	return vmUpdateParams
+	if !cascadeDeleteChangesPending {
+		return nil
+	}
+	return &vmUpdateParams
 }
 
 func getNetworkInterfaceReferencesToUpdate(networkProfile *armcompute.NetworkProfile) []*armcompute.NetworkInterfaceReference {
@@ -120,75 +138,34 @@ func isNicCascadeDeleteSet(nicRef *armcompute.NetworkInterfaceReference) bool {
 }
 
 func getOSDiskToUpdate(storageProfile *armcompute.StorageProfile) *armcompute.OSDisk {
+	var updatedOSDisk *armcompute.OSDisk
 	if storageProfile != nil && storageProfile.OSDisk != nil {
-		osDisk := storageProfile.OSDisk
-		deleteOption := osDisk.DeleteOption
-		if deleteOption == nil || *deleteOption != armcompute.DiskDeleteOptionTypesDelete {
-			updatedOsDisk := osDisk
-			updatedOsDisk.DeleteOption = to.Ptr(armcompute.DiskDeleteOptionTypesDelete)
-			return updatedOsDisk
+		existingOSDisk := storageProfile.OSDisk
+		existingDeleteOption := existingOSDisk.DeleteOption
+		if existingDeleteOption == nil || *existingDeleteOption != armcompute.DiskDeleteOptionTypesDelete {
+			updatedOSDisk = &armcompute.OSDisk{
+				Name:         existingOSDisk.Name,
+				DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
+			}
 		}
 	}
-	return nil
+	return updatedOSDisk
 }
 
 func getDataDisksToUpdate(storageProfile *armcompute.StorageProfile) []*armcompute.DataDisk {
+	var updatedDataDisks []*armcompute.DataDisk
 	if storageProfile != nil && !utils.IsSliceNilOrEmpty(storageProfile.DataDisks) {
-		updatedDataDisks := make([]*armcompute.DataDisk, 0, len(storageProfile.DataDisks))
+		updatedDataDisks = make([]*armcompute.DataDisk, 0, len(storageProfile.DataDisks))
 		for _, dataDisk := range storageProfile.DataDisks {
 			if dataDisk.DeleteOption == nil || *dataDisk.DeleteOption != armcompute.DiskDeleteOptionTypesDelete {
-				updatedDataDisk := dataDisk
-				updatedDataDisk.DeleteOption = to.Ptr(armcompute.DiskDeleteOptionTypesDelete)
+				updatedDataDisk := &armcompute.DataDisk{
+					Lun:          dataDisk.Lun,
+					DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
+					Name:         dataDisk.Name,
+				}
 				updatedDataDisks = append(updatedDataDisks, updatedDataDisk)
 			}
 		}
-		return updatedDataDisks
 	}
-	return nil
+	return updatedDataDisks
 }
-
-func IsVMCascadeDeleteSetForNICs(vm *armcompute.VirtualMachine) bool {
-	var result bool
-	if vm != nil && vm.Properties != nil {
-		nwProfile := vm.Properties.NetworkProfile
-		if nwProfile != nil && len(nwProfile.NetworkInterfaces) > 0 {
-			result = true // this is set to true here so that we can apply a conjunction
-			for _, nicRef := range nwProfile.NetworkInterfaces {
-				var cascadeDeleteSet bool
-				if nicRef.Properties != nil {
-					deleteOption := nicRef.Properties.DeleteOption
-					cascadeDeleteSet = deleteOption != nil && *deleteOption == armcompute.DeleteOptionsDelete
-				}
-				result = result && cascadeDeleteSet
-			}
-		}
-	}
-	return result
-}
-
-//func IsVMCascadeDeleteSetForOSDisk(vm *armcompute.VirtualMachine) bool {
-//	if vm != nil && vm.Properties != nil {
-//		storageProfile := vm.Properties.StorageProfile
-//		if storageProfile != nil && storageProfile.OSDisk != nil {
-//			deleteOption := storageProfile.OSDisk.DeleteOption
-//			return deleteOption != nil && *deleteOption == armcompute.DiskDeleteOptionTypesDelete
-//		}
-//	}
-//	return false
-//}
-
-//func IsVMCascadeDeleteSetForDataDisks(vm *armcompute.VirtualMachine) bool {
-//	var result bool
-//	if vm != nil && vm.Properties != nil {
-//		storageProfile := vm.Properties.StorageProfile
-//		if storageProfile != nil && storageProfile.DataDisks != nil && len(storageProfile.DataDisks) > 0 {
-//			result = true
-//			var cascadeDeleteSet bool
-//			for _, disk := range storageProfile.DataDisks {
-//				cascadeDeleteSet = disk != nil && disk.DeleteOption != nil && *disk.DeleteOption == armcompute.DiskDeleteOptionTypesDelete
-//			}
-//			result = result && cascadeDeleteSet
-//		}
-//	}
-//	return result
-//}

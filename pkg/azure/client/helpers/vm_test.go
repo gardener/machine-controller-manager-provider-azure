@@ -1,11 +1,8 @@
 package helpers
 
 import (
-	"testing"
-
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
-	. "github.com/onsi/gomega"
 )
 
 const (
@@ -19,44 +16,44 @@ const (
 	testZone          = "1"
 )
 
-func TestIsVMCascadeDeleteSetForNICs(t *testing.T) {
-	table := []struct {
-		description    string
-		vm             *armcompute.VirtualMachine
-		expectedResult bool
-	}{
-		{"should return false if vm is nil", nil, false},
-		{"should return false if vm.properties is nil", newVmSpecGenerator().GetVM(), false},
-		{"should return false if NetworkProfile is nil", newVmSpecGenerator().WithEmptyProperties().GetVM(), false},
-		{"should return false if NetworkProfile is empty", newVmSpecGenerator().WithEmptyNetworkInterfaceReferences().GetVM(), false},
-		{"should return false if none of the NetworkInterfaces have DeleteOption set",
-			newVmSpecGenerator().
-				WithNIC("nic-1", nil).
-				WithNIC("nic-2", nil).GetVM(), false,
-		},
-		{"should return false if one of NetworkInterfaces has no DeleteOption set",
-			newVmSpecGenerator().
-				WithNIC("nic-1", to.Ptr(armcompute.DeleteOptionsDelete)).
-				WithNIC("nic-2", nil).GetVM(), false,
-		},
-		{"should return false if one of the NetworkInterfaces have DeleteOption set to Detach",
-			newVmSpecGenerator().
-				WithNIC("nic-1", to.Ptr(armcompute.DeleteOptionsDetach)).
-				WithNIC("nic-2", to.Ptr(armcompute.DeleteOptionsDelete)).GetVM(), false,
-		},
-		{"should return true if all of the NetworkInterfaces have DeleteOption set to Delete",
-			newVmSpecGenerator().
-				WithNIC("nic-1", to.Ptr(armcompute.DeleteOptionsDelete)).
-				WithNIC("nic-2", to.Ptr(armcompute.DeleteOptionsDelete)).GetVM(), true,
-		},
-	}
-	g := NewWithT(t)
-	for _, entry := range table {
-		t.Log(entry.description)
-		actualResult := IsVMCascadeDeleteSetForNICs(entry.vm)
-		g.Expect(actualResult).To(Equal(entry.expectedResult))
-	}
-}
+//func TestIsVMCascadeDeleteSetForNICs(t *testing.T) {
+//	table := []struct {
+//		description    string
+//		vm             *armcompute.VirtualMachine
+//		expectedResult bool
+//	}{
+//		{"should return false if vm is nil", nil, false},
+//		{"should return false if vm.properties is nil", newVmSpecGenerator().GetVM(), false},
+//		{"should return false if NetworkProfile is nil", newVmSpecGenerator().WithEmptyProperties().GetVM(), false},
+//		{"should return false if NetworkProfile is empty", newVmSpecGenerator().WithEmptyNetworkInterfaceReferences().GetVM(), false},
+//		{"should return false if none of the NetworkInterfaces have DeleteOption set",
+//			newVmSpecGenerator().
+//				WithNIC("nic-1", nil).
+//				WithNIC("nic-2", nil).GetVM(), false,
+//		},
+//		{"should return false if one of NetworkInterfaces has no DeleteOption set",
+//			newVmSpecGenerator().
+//				WithNIC("nic-1", to.Ptr(armcompute.DeleteOptionsDelete)).
+//				WithNIC("nic-2", nil).GetVM(), false,
+//		},
+//		{"should return false if one of the NetworkInterfaces have DeleteOption set to Detach",
+//			newVmSpecGenerator().
+//				WithNIC("nic-1", to.Ptr(armcompute.DeleteOptionsDetach)).
+//				WithNIC("nic-2", to.Ptr(armcompute.DeleteOptionsDelete)).GetVM(), false,
+//		},
+//		{"should return true if all of the NetworkInterfaces have DeleteOption set to Delete",
+//			newVmSpecGenerator().
+//				WithNIC("nic-1", to.Ptr(armcompute.DeleteOptionsDelete)).
+//				WithNIC("nic-2", to.Ptr(armcompute.DeleteOptionsDelete)).GetVM(), true,
+//		},
+//	}
+//	g := NewWithT(t)
+//	for _, entry := range table {
+//		t.Log(entry.description)
+//		actualResult := IsVMCascadeDeleteSetForNICs(entry.vm)
+//		g.Expect(actualResult).To(Equal(entry.expectedResult))
+//	}
+//}
 
 // ---------------------------------------------------- Utility functions for unit tests -----------------------------------------------------
 

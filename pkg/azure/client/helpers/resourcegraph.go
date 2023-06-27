@@ -37,9 +37,6 @@ const (
 	resourceGraphQueryServiceLabel = "resource_graph_query"
 )
 
-//// vmNameExtractorFn is a function which takes a name of a resource and extracts a VM name from it.
-//type vmNameExtractorFn func(string) (string, bool)
-
 // ExtractVMNamesFromVirtualMachinesAndNICs extracts VM names from virtual machines and NIC names and returns a slice of unique vm names.
 func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, client *armresourcegraph.Client, subscriptionID, resourceGroup string) ([]string, error) {
 	vmNames := sets.New[string]()
@@ -115,50 +112,3 @@ func createVMNameMapperFn(suffix *string) MapperFn[string] {
 		return nil
 	}
 }
-
-//// doExtractVMNamesFromResource queries for resources using the given queryTemplate and extracts VM names from the list of resources retrieved.
-//func doExtractVMNamesFromResource(ctx context.Context, client *armresourcegraph.Client, subscriptionID, resourceGroup, queryTemplate string, extractorFn vmNameExtractorFn) ([]string, error) {
-//	// azure resource graph uses KUSTO as their queryTemplate language.
-//	// For additional information on KUSTO start here: [https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/]
-//	resources, err := client.Resources(ctx,
-//		armresourcegraph.QueryRequest{
-//			Query:         to.Ptr(fmt.Sprintf(queryTemplate, resourceGroup)),
-//			Options:       nil,
-//			Subscriptions: []*string{to.Ptr(subscriptionID)},
-//		}, nil)
-//
-//	if err != nil {
-//		return nil, err
-//	}
-//	var resourceNames []string
-//	if resources.TotalRecords == pointer.Int64(0) {
-//		return resourceNames, nil
-//	}
-//
-//	// resourceResponse.Data is a []interface{}
-//	if objSlice, ok := resources.Data.([]interface{}); ok {
-//		for _, obj := range objSlice {
-//			// Each obj in resourceResponse.Data is a map[string]Interface{}
-//			rowElements := obj.(map[string]interface{})
-//			if resourceNameVal, keyFound := rowElements["name"]; keyFound {
-//				resourceName := resourceNameVal.(string)
-//				if extractorFn != nil {
-//					if extractedName, extracted := extractorFn(resourceName); extracted {
-//						resourceNames = append(resourceNames, extractedName)
-//					}
-//				} else {
-//					resourceNames = append(resourceNames, resourceName)
-//				}
-//			}
-//		}
-//	}
-//	return resourceNames, nil
-//}
-
-//// vmNameExtractorFromNIC extracts VM name from NIC name.
-//func vmNameExtractorFromNIC(nicName string) (string, bool) {
-//	if strings.HasSuffix(nicName, nicSuffix) {
-//		return nicName[:len(nicName)-len(nicSuffix)], true
-//	}
-//	return "", false
-//}

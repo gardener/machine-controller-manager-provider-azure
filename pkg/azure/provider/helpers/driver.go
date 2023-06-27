@@ -34,17 +34,25 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 	return providerSpec, connectConfig, nil
 }
 
-func CreateMachineListResponse(location string, vmNames []string) (*driver.ListMachinesResponse, error) {
+func CreateMachineListResponse(location string, vmNames []string) *driver.ListMachinesResponse {
 	listMachineRes := driver.ListMachinesResponse{}
 	instanceIdToVMNameMap := make(map[string]string, len(vmNames))
 	if len(vmNames) == 0 {
-		return &listMachineRes, nil
+		return &listMachineRes
 	}
 	for _, vmName := range vmNames {
 		instanceIdToVMNameMap[DeriveInstanceID(location, vmName)] = vmName
 	}
 	listMachineRes.MachineList = instanceIdToVMNameMap
-	return &listMachineRes, nil
+	return &listMachineRes
+}
+
+func CreateMachineStatusResponse(location string, vmName string) *driver.GetMachineStatusResponse {
+	instanceID := DeriveInstanceID(location, vmName)
+	return &driver.GetMachineStatusResponse{
+		ProviderID: instanceID,
+		NodeName:   vmName,
+	}
 }
 
 func DeriveInstanceID(location, vmName string) string {
