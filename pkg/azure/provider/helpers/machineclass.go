@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/validation"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/validation"
 )
 
 // DecodeAndValidateMachineClassProviderSpec decodes v1alpha1.MachineClass.ProviderSpec.Raw into api.AzureProviderSpec.

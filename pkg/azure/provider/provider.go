@@ -22,13 +22,26 @@ import (
 
 // driverProvider implements provider.Driver interface
 type driverProvider struct {
-	clientProvider client.ARMClientProvider
+	clientProvider   client.ARMClientProvider
+	behaviourOptions BehaviorOptions
+}
+
+type BehaviorOptions struct {
+	SkipResourceGroupClientAccess bool
 }
 
 // NewDriver creates a new instance of an implementation of provider.Driver. This can be mostly used by tests where we also wish to have our own polling intervals.
 func NewDriver(clientProvider client.ARMClientProvider) driver.Driver {
 	return driverProvider{
-		clientProvider: clientProvider,
+		clientProvider:   clientProvider,
+		behaviourOptions: BehaviorOptions{},
+	}
+}
+
+func NewDriverWithBehavior(clientProvider client.ARMClientProvider, behaviourOptions BehaviorOptions) driver.Driver {
+	return driverProvider{
+		clientProvider:   clientProvider,
+		behaviourOptions: behaviourOptions,
 	}
 }
 
@@ -146,6 +159,9 @@ func (d driverProvider) GetVolumeIDs(_ context.Context, request *driver.GetVolum
 
 // skipDeleteMachine checks if ResourceGroup exists. If it does not exist then there is no need to delete any resource as it is assumed that none would exist.
 func (d driverProvider) skipDeleteMachine(ctx context.Context, connectConfig client.ConnectConfig, resourceGroup string) (bool, error) {
+	if d.behaviourOptions.SkipResourceGroupClientAccess {
+		return false, nil
+	}
 	resGroupCli, err := d.clientProvider.CreateResourceGroupsClient(connectConfig)
 	if err != nil {
 		return false, status.Error(codes.Internal, fmt.Sprintf("failed to create resource group client to process request: [resourceGroup: %s]", resourceGroup))
