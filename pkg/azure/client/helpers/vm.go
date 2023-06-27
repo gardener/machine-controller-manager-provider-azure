@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
+	"k8s.io/klog/v2"
+
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client/errors"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -53,9 +54,10 @@ func DeleteVirtualMachine(ctx context.Context, vmClient *armcompute.VirtualMachi
 // SetCascadeDeleteForNICsAndDisks sets cascade deletion for NICs and Disks (OSDisk and DataDisks) associated to passed virtual machine.
 func SetCascadeDeleteForNICsAndDisks(ctx context.Context, vmClient *armcompute.VirtualMachinesClient, resourceGroup string, vm *armcompute.VirtualMachine) (err error) {
 	defer instrument.RecordAzAPIMetric(err, vmUpdateServiceLabel, time.Now())
-	vmUpdateParams := createVMUpdateParamsForCascadeDeleteOptions(vm)
+	vmUpdateParams := createVMUpdateParamsForCascadeDeleteOptions(vm) // TODO: Rename this method it returns a VM not "params"
 	if vmUpdateParams == nil {
 		klog.Infof("All configured NICs, OSDisk and DataDisks have cascade delete already set. Skipping update of VM: [ResourceGroup: %s, Name: %s]", resourceGroup, *vm.Name)
+		return
 	}
 	poller, err := vmClient.BeginUpdate(ctx, resourceGroup, *vm.Name, *vmUpdateParams, nil)
 	if err != nil {

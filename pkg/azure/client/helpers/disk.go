@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
+
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client/errors"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 )

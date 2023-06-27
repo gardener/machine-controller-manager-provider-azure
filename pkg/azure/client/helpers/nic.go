@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client/errors"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"k8s.io/klog/v2"
+
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client/errors"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 )
 
 const (

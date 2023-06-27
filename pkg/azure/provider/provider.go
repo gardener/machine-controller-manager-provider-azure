@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
@@ -21,6 +21,7 @@ import (
 )
 
 // driverProvider implements provider.Driver interface
+// TODO: change this to defaultDriver (follows golang convention)
 type driverProvider struct {
 	clientProvider   client.ARMClientProvider
 	behaviourOptions BehaviorOptions
@@ -31,6 +32,7 @@ type BehaviorOptions struct {
 }
 
 // NewDriver creates a new instance of an implementation of provider.Driver. This can be mostly used by tests where we also wish to have our own polling intervals.
+// TODO: change this to NewDefaultDriver
 func NewDriver(clientProvider client.ARMClientProvider) driver.Driver {
 	return driverProvider{
 		clientProvider:   clientProvider,
@@ -38,7 +40,7 @@ func NewDriver(clientProvider client.ARMClientProvider) driver.Driver {
 	}
 }
 
-func NewDriverWithBehavior(clientProvider client.ARMClientProvider, behaviourOptions BehaviorOptions) driver.Driver {
+func NewDefaultDriverWithBehavior(clientProvider client.ARMClientProvider, behaviourOptions BehaviorOptions) driver.Driver {
 	return driverProvider{
 		clientProvider:   clientProvider,
 		behaviourOptions: behaviourOptions,

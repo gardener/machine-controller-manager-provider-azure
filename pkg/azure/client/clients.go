@@ -3,9 +3,9 @@ package client
 import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 )
@@ -47,11 +47,12 @@ func (c clientFactory) CreateVirtualMachinesClient(connectConfig ConnectConfig) 
 	if err != nil {
 		return nil, err
 	}
-	factory, err := armcompute.NewClientFactory(connectConfig.SubscriptionID, tokenCredential, c.clientOptions)
-	if err != nil {
-		return nil, err
-	}
-	return factory.NewVirtualMachinesClient(), nil
+	return armcompute.NewVirtualMachinesClient(connectConfig.SubscriptionID, tokenCredential, c.clientOptions)
+	//factory, err := armcompute.NewClientFactory(connectConfig.SubscriptionID, tokenCredential, c.clientOptions)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return factory.NewVirtualMachinesClient(), nil
 }
 
 func (c clientFactory) CreateNetworkInterfacesClient(connectConfig ConnectConfig) (*armnetwork.InterfacesClient, error) {
