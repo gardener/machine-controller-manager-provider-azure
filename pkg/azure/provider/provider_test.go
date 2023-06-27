@@ -35,7 +35,7 @@ func TestDriverProviderDeleteMachineSimple(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("(TestDriverProviderDeleteMachineSimple) resp.ID: %v", *resp.ID)
+	t.Logf("(TestDriverProviderDeleteMachineSimple) VM exists with ID: %v", *resp.ID)
 	clientProvider := client.NewClientsProviderWithOptions(vmClientOptions, azfake.NewTokenCredential())
 	driverProvider := NewDefaultDriverWithBehavior(clientProvider, BehaviorOptions{SkipResourceGroupClientAccess: true})
 
