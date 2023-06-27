@@ -8,15 +8,16 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v2"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	"k8s.io/klog/v2"
+
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client"
 	clienthelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/provider/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
-	"k8s.io/klog/v2"
 )
 
 // driverProvider implements provider.Driver interface
@@ -106,7 +107,7 @@ func (d driverProvider) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 func (d driverProvider) skipDeleteMachine(ctx context.Context, connectConfig client.ConnectConfig, resourceGroup string) (bool, error) {
 	resGroupCli, err := d.clientProvider.CreateResourceGroupsClient(connectConfig)
 	if err != nil {
-		return false, status.Error(codes.Internal, fmt.Sprintf("failed to create resource group client to process request: [resourceGroup: %s]"))
+		return false, status.Error(codes.Internal, fmt.Sprintf("failed to create resource group client to process request: [resourceGroup: %s]", resourceGroup))
 	}
 	resGroupExists, err := clienthelpers.ResourceGroupExists(ctx, resGroupCli, resourceGroup)
 	if err != nil {
