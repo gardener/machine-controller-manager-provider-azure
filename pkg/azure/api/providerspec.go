@@ -21,10 +21,10 @@ const (
 	// Deprecated: Use TenantID instead
 	AzureTenantID string = "azureTenantId"
 
-	// AzureAlternativeClientID is a constant for a key name of a secret containing the Azure credentials (client id).
+	// AzureAlternativeClientID is a constant for a key name of a secret containing the Azure credentials (access id).
 	// Deprecated: Use ClientID instead.
 	AzureAlternativeClientID = "clientID"
-	// AzureAlternativeClientSecret is a constant for a key name of a secret containing the Azure credentials (client
+	// AzureAlternativeClientSecret is a constant for a key name of a secret containing the Azure credentials (access
 	// secret).
 	// Deprecated: Use ClientSecret instead
 	AzureAlternativeClientSecret = "clientSecret"

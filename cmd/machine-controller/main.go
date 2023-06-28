@@ -15,9 +15,9 @@ package main
 import (
 	"os"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/provider"
-	_ "github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheus" // for client metric registration
+	_ "github.com/gardener/machine-controller-manager/pkg/util/client/metrics/prometheus" // for access metric registration
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/app"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/app/options"
 	_ "github.com/gardener/machine-controller-manager/pkg/util/reflector/prometheus" // for reflector metric registration
@@ -36,7 +36,7 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	driver := provider.NewDriver(client.NewClientsProvider())
+	driver := provider.NewDefaultDriver(access.NewDefaultClientsProvider())
 	if err := app.Run(s, driver); err != nil {
 		os.Exit(1)
 	}

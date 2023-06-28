@@ -11,7 +11,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"k8s.io/klog/v2"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client/errors"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 )
 

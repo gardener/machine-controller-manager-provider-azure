@@ -13,17 +13,16 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"k8s.io/klog/v2"
 
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
+	clienthelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client"
-	clienthelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/client/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/provider/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
-// driverProvider implements provider.Driver interface
-// TODO: change this to defaultDriver (follows golang convention)
-type driverProvider struct {
-	clientProvider   client.ARMClientProvider
+// defaultDriver implements provider.Driver interface
+type defaultDriver struct {
+	accessFactory    access.Factory
 	behaviourOptions BehaviorOptions
 }
 
@@ -31,46 +30,56 @@ type BehaviorOptions struct {
 	SkipResourceGroupClientAccess bool
 }
 
-// NewDriver creates a new instance of an implementation of provider.Driver. This can be mostly used by tests where we also wish to have our own polling intervals.
-// TODO: change this to NewDefaultDriver
-func NewDriver(clientProvider client.ARMClientProvider) driver.Driver {
-	return driverProvider{
-		clientProvider:   clientProvider,
+// NewDefaultDriver creates a new instance of an implementation of provider.Driver. This can be mostly used by tests where we also wish to have our own polling intervals.
+func NewDefaultDriver(accessFactory access.Factory) driver.Driver {
+	return defaultDriver{
+		accessFactory:    accessFactory,
 		behaviourOptions: BehaviorOptions{},
 	}
 }
 
-func NewDefaultDriverWithBehavior(clientProvider client.ARMClientProvider, behaviourOptions BehaviorOptions) driver.Driver {
-	return driverProvider{
-		clientProvider:   clientProvider,
+func NewDefaultDriverWithBehavior(clientProvider access.Factory, behaviourOptions BehaviorOptions) driver.Driver {
+	return defaultDriver{
+		accessFactory:    clientProvider,
 		behaviourOptions: behaviourOptions,
 	}
 }
 
-func (d driverProvider) ListMachines(ctx context.Context, req *driver.ListMachinesRequest) (*driver.ListMachinesResponse, error) {
+func (d defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachinesRequest) (*driver.ListMachinesResponse, error) {
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
 	if err != nil {
 		return nil, err
 	}
 	// azure resource graph uses KUSTO as their query language.
 	// For additional information on KUSTO start here: [https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/]
-	resGraphClient, err := d.clientProvider.CreateResourceGraphClient(connectConfig)
+	resGraphClient, err := d.accessFactory.GetResourceGraphAccess(connectConfig)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create resource graph client, Err: %v", err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create resource graph access, Err: %v", err))
 	}
 	vmNames, err := clienthelpers.ExtractVMNamesFromVirtualMachinesAndNICs(ctx, resGraphClient, connectConfig.SubscriptionID, providerSpec.ResourceGroup)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to extract VM names from VMs and NICs for resourceGroup: %s, Err: %v", providerSpec.ResourceGroup, err))
 	}
-	return helpers.CreateMachineListResponse(providerSpec.Location, vmNames), nil
+	return helpers.ConstructMachineListResponse(providerSpec.Location, vmNames), nil
 }
 
-func (d driverProvider) CreateMachine(ctx context.Context, request *driver.CreateMachineRequest) (*driver.CreateMachineResponse, error) {
-	//TODO implement me
-	panic("implement me")
+func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (*driver.CreateMachineResponse, error) {
+	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceGroup := providerSpec.ResourceGroup
+
+	_, err = d.accessFactory.GetVirtualMachinesAccess(connectConfig)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, req.Machine.Name, err))
+	}
+
+	return helpers.ConstructCreateMachineResponse(providerSpec.Location, ""), nil
 }
 
-func (d driverProvider) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {
+func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
 	if err != nil {
 		return nil, err
@@ -89,9 +98,9 @@ func (d driverProvider) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 		return &driver.DeleteMachineResponse{}, nil
 	}
 
-	vmClient, err := d.clientProvider.CreateVirtualMachinesClient(connectConfig)
+	vmClient, err := d.accessFactory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine client to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
 	}
 	vm, err := clienthelpers.GetVirtualMachine(ctx, vmClient, resourceGroup, vmName)
 	if err != nil {
@@ -118,7 +127,7 @@ func (d driverProvider) DeleteMachine(ctx context.Context, req *driver.DeleteMac
 	return &driver.DeleteMachineResponse{}, nil
 }
 
-func (d driverProvider) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (*driver.GetMachineStatusResponse, error) {
+func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (*driver.GetMachineStatusResponse, error) {
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
 	if err != nil {
 		return nil, err
@@ -126,9 +135,9 @@ func (d driverProvider) GetMachineStatus(ctx context.Context, req *driver.GetMac
 
 	resourceGroup := providerSpec.ResourceGroup
 	vmName := req.Machine.Name
-	vmClient, err := d.clientProvider.CreateVirtualMachinesClient(connectConfig)
+	vmClient, err := d.accessFactory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine client to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
 	}
 
 	// After getting response for Query: [https://github.com/Azure/azure-sdk-for-go/issues/21031] replace this call with a more optimized variant to check if a VM exists.
@@ -139,10 +148,12 @@ func (d driverProvider) GetMachineStatus(ctx context.Context, req *driver.GetMac
 	if vm == nil {
 		return nil, status.Error(codes.NotFound, fmt.Sprintf("virtual machine [ResourceGroup: %s, Name: %s] is not found", resourceGroup, vmName))
 	}
-	return helpers.CreateMachineStatusResponse(providerSpec.Location, vmName), nil
+
+	// Enhance the response as proposed in [https://github.com/gardener/machine-controller-manager-provider-azure/issues/88] once that is taken up.
+	return helpers.ConstructGetMachineStatusResponse(providerSpec.Location, vmName), nil
 }
 
-func (d driverProvider) GetVolumeIDs(_ context.Context, request *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
+func (d defaultDriver) GetVolumeIDs(_ context.Context, request *driver.GetVolumeIDsRequest) (*driver.GetVolumeIDsResponse, error) {
 	const csiDriverName = "disk.csi.azure.com"
 	var volumeIDs []string
 
@@ -160,13 +171,13 @@ func (d driverProvider) GetVolumeIDs(_ context.Context, request *driver.GetVolum
 }
 
 // skipDeleteMachine checks if ResourceGroup exists. If it does not exist then there is no need to delete any resource as it is assumed that none would exist.
-func (d driverProvider) skipDeleteMachine(ctx context.Context, connectConfig client.ConnectConfig, resourceGroup string) (bool, error) {
+func (d defaultDriver) skipDeleteMachine(ctx context.Context, connectConfig access.ConnectConfig, resourceGroup string) (bool, error) {
 	if d.behaviourOptions.SkipResourceGroupClientAccess {
 		return false, nil
 	}
-	resGroupCli, err := d.clientProvider.CreateResourceGroupsClient(connectConfig)
+	resGroupCli, err := d.accessFactory.GetResourceGroupsAccess(connectConfig)
 	if err != nil {
-		return false, status.Error(codes.Internal, fmt.Sprintf("failed to create resource group client to process request: [resourceGroup: %s]", resourceGroup))
+		return false, status.Error(codes.Internal, fmt.Sprintf("failed to create resource group access to process request: [resourceGroup: %s]", resourceGroup))
 	}
 	resGroupExists, err := clienthelpers.ResourceGroupExists(ctx, resGroupCli, resourceGroup)
 	if err != nil {
@@ -175,26 +186,26 @@ func (d driverProvider) skipDeleteMachine(ctx context.Context, connectConfig cli
 	return !resGroupExists, nil
 }
 
-func (d driverProvider) getVirtualMachine(ctx context.Context, connectConfig client.ConnectConfig, resourceGroup, vmName string) (*armcompute.VirtualMachine, error) {
-	vmClient, err := d.clientProvider.CreateVirtualMachinesClient(connectConfig)
+func (d defaultDriver) getVirtualMachine(ctx context.Context, connectConfig access.ConnectConfig, resourceGroup, vmName string) (*armcompute.VirtualMachine, error) {
+	vmClient, err := d.accessFactory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine client to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
 	}
 	return clienthelpers.GetVirtualMachine(ctx, vmClient, resourceGroup, vmName)
 }
 
-func (d driverProvider) checkAndDeleteLeftoverNICsAndDisks(ctx context.Context, vmName string, connectConfig client.ConnectConfig, providerSpec api.AzureProviderSpec) error {
+func (d defaultDriver) checkAndDeleteLeftoverNICsAndDisks(ctx context.Context, vmName string, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) error {
 	// Gather the names for NIC, OSDisk and Data Disks that needs to be checked for existence and then deleted if they exist.
 	resourceGroup := providerSpec.ResourceGroup
 	nicName := helpers.CreateNICName(vmName)
 	diskNames := helpers.GetDiskNames(providerSpec, vmName)
 
 	// create NIC and Disks clients
-	nicClient, err := d.clientProvider.CreateNetworkInterfacesClient(connectConfig)
+	nicClient, err := d.accessFactory.GetNetworkInterfacesAccess(connectConfig)
 	if err != nil {
 		return err
 	}
-	disksClient, err := d.clientProvider.CreateDisksClient(connectConfig)
+	disksClient, err := d.accessFactory.GetDisksAccess(connectConfig)
 	if err != nil {
 		return err
 	}
@@ -206,7 +217,7 @@ func (d driverProvider) checkAndDeleteLeftoverNICsAndDisks(ctx context.Context, 
 	return errors.Join(utils.RunConcurrently(ctx, tasks, len(tasks))...)
 }
 
-func (d driverProvider) createNICDeleteTask(resourceGroup, nicName string, nicClient *armnetwork.InterfacesClient) utils.Task {
+func (d defaultDriver) createNICDeleteTask(resourceGroup, nicName string, nicClient *armnetwork.InterfacesClient) utils.Task {
 	return utils.Task{
 		Name: fmt.Sprintf("delete-nic-[resourceGroup: %s name: %s]", resourceGroup, nicName),
 		Fn: func(ctx context.Context) error {
@@ -215,7 +226,7 @@ func (d driverProvider) createNICDeleteTask(resourceGroup, nicName string, nicCl
 	}
 }
 
-func (d driverProvider) createDiskDeletionTasks(resourceGroup string, diskNames []string, diskClient *armcompute.DisksClient) []utils.Task {
+func (d defaultDriver) createDiskDeletionTasks(resourceGroup string, diskNames []string, diskClient *armcompute.DisksClient) []utils.Task {
 	tasks := make([]utils.Task, 0, len(diskNames))
 	for _, diskName := range diskNames {
 		task := utils.Task{
