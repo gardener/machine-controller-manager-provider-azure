@@ -21,14 +21,14 @@ type defaultFactory struct {
 	tokenCredentialProvider TokenCredentialProvider
 }
 
-// NewDefaultClientsProvider creates a new instance of Factory.
-func NewDefaultClientsProvider() Factory {
-	return NewClientsProviderWithOptions(nil, GetDefaultTokenCredentials)
+// NewDefaultAccessFactory creates a new instance of Factory.
+func NewDefaultAccessFactory() Factory {
+	return NewAccessFactoryWithOptions(nil, GetDefaultTokenCredentials)
 }
 
-// NewClientsProviderWithOptions creates an instance of Factory which uses a fixed tokenCredential
+// NewAccessFactoryWithOptions creates an instance of Factory which uses a fixed tokenCredential
 // passed as an argument and also takes custom arm.ClientOptions.
-func NewClientsProviderWithOptions(clientOptions *arm.ClientOptions, tokenCredentialProvider TokenCredentialProvider) Factory {
+func NewAccessFactoryWithOptions(clientOptions *arm.ClientOptions, tokenCredentialProvider TokenCredentialProvider) Factory {
 	return defaultFactory{
 		clientOptions:           clientOptions,
 		tokenCredentialProvider: tokenCredentialProvider,

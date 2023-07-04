@@ -12,9 +12,13 @@ import (
 )
 
 var (
+	// Raised https://github.com/Azure/azure-sdk-for-go/issues/21094 to prevent hard coding these here and instead
+	// use well-maintained constants defined in the Azure SDK.
 	lookupResponseHeaderKeys = sets.New(
-		"X-Ms-Correlation-Request-Id",
-		"X-Ms-Request-Id",
+		"x-ms-correlation-request-id",
+		"x-ms-request-id",
+		"x-ms-error-code",
+		"x-ms-client-request-id",
 	)
 )
 

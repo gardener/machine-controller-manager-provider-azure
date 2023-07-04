@@ -22,26 +22,13 @@ import (
 
 // defaultDriver implements provider.Driver interface
 type defaultDriver struct {
-	accessFactory    access.Factory
-	behaviourOptions BehaviorOptions
-}
-
-type BehaviorOptions struct {
-	SkipResourceGroupClientAccess bool
+	factory access.Factory
 }
 
 // NewDefaultDriver creates a new instance of an implementation of provider.Driver. This can be mostly used by tests where we also wish to have our own polling intervals.
 func NewDefaultDriver(accessFactory access.Factory) driver.Driver {
 	return defaultDriver{
-		accessFactory:    accessFactory,
-		behaviourOptions: BehaviorOptions{},
-	}
-}
-
-func NewDefaultDriverWithBehavior(clientProvider access.Factory, behaviourOptions BehaviorOptions) driver.Driver {
-	return defaultDriver{
-		accessFactory:    clientProvider,
-		behaviourOptions: behaviourOptions,
+		factory: accessFactory,
 	}
 }
 
@@ -52,7 +39,7 @@ func (d defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachine
 	}
 	// azure resource graph uses KUSTO as their query language.
 	// For additional information on KUSTO start here: [https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/]
-	resGraphClient, err := d.accessFactory.GetResourceGraphAccess(connectConfig)
+	resGraphClient, err := d.factory.GetResourceGraphAccess(connectConfig)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create resource graph access, Err: %v", err))
 	}
@@ -71,7 +58,7 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 
 	resourceGroup := providerSpec.ResourceGroup
 
-	_, err = d.accessFactory.GetVirtualMachinesAccess(connectConfig)
+	_, err = d.factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, req.Machine.Name, err))
 	}
@@ -98,7 +85,7 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 		return &driver.DeleteMachineResponse{}, nil
 	}
 
-	vmClient, err := d.accessFactory.GetVirtualMachinesAccess(connectConfig)
+	vmClient, err := d.factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
 	}
@@ -135,7 +122,7 @@ func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMach
 
 	resourceGroup := providerSpec.ResourceGroup
 	vmName := req.Machine.Name
-	vmClient, err := d.accessFactory.GetVirtualMachinesAccess(connectConfig)
+	vmClient, err := d.factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
 	}
@@ -172,10 +159,7 @@ func (d defaultDriver) GetVolumeIDs(_ context.Context, request *driver.GetVolume
 
 // skipDeleteMachine checks if ResourceGroup exists. If it does not exist then there is no need to delete any resource as it is assumed that none would exist.
 func (d defaultDriver) skipDeleteMachine(ctx context.Context, connectConfig access.ConnectConfig, resourceGroup string) (bool, error) {
-	if d.behaviourOptions.SkipResourceGroupClientAccess {
-		return false, nil
-	}
-	resGroupCli, err := d.accessFactory.GetResourceGroupsAccess(connectConfig)
+	resGroupCli, err := d.factory.GetResourceGroupsAccess(connectConfig)
 	if err != nil {
 		return false, status.Error(codes.Internal, fmt.Sprintf("failed to create resource group access to process request: [resourceGroup: %s]", resourceGroup))
 	}
@@ -187,7 +171,7 @@ func (d defaultDriver) skipDeleteMachine(ctx context.Context, connectConfig acce
 }
 
 func (d defaultDriver) getVirtualMachine(ctx context.Context, connectConfig access.ConnectConfig, resourceGroup, vmName string) (*armcompute.VirtualMachine, error) {
-	vmClient, err := d.accessFactory.GetVirtualMachinesAccess(connectConfig)
+	vmClient, err := d.factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
 	}
@@ -201,11 +185,11 @@ func (d defaultDriver) checkAndDeleteLeftoverNICsAndDisks(ctx context.Context, v
 	diskNames := helpers.GetDiskNames(providerSpec, vmName)
 
 	// create NIC and Disks clients
-	nicClient, err := d.accessFactory.GetNetworkInterfacesAccess(connectConfig)
+	nicClient, err := d.factory.GetNetworkInterfacesAccess(connectConfig)
 	if err != nil {
 		return err
 	}
-	disksClient, err := d.accessFactory.GetDisksAccess(connectConfig)
+	disksClient, err := d.factory.GetDisksAccess(connectConfig)
 	if err != nil {
 		return err
 	}

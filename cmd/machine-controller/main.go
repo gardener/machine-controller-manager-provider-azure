@@ -36,7 +36,7 @@ func main() {
 	logs.InitLogs()
 	defer logs.FlushLogs()
 
-	driver := provider.NewDefaultDriver(access.NewDefaultClientsProvider())
+	driver := provider.NewDefaultDriver(access.NewDefaultAccessFactory())
 	if err := app.Run(s, driver); err != nil {
 		os.Exit(1)
 	}

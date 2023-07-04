@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 )
 
-// ConnectConfig is the configuration required for a access to connect to azure.
+// ConnectConfig is the configuration required to connect to azure provider.
 type ConnectConfig struct {
 	// SubscriptionID
 	SubscriptionID string
@@ -17,7 +17,8 @@ type ConnectConfig struct {
 	ClientSecret   string
 }
 
-// Factory is a factory providing methods to get clients for different resources.
+// Factory is an access factory providing methods to get facade/access for different resources.
+// Azure SDK provides clients for resources, these clients are actually just facades which internally uses another client.
 type Factory interface {
 	GetResourceGroupsAccess(connectConfig ConnectConfig) (*armresources.ResourceGroupsClient, error)
 	GetVirtualMachinesAccess(connectConfig ConnectConfig) (*armcompute.VirtualMachinesClient, error)
