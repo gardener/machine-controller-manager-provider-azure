@@ -27,10 +27,10 @@ func (b *VMAccessBuilder) WithExistingVMs(vms []armcompute.VirtualMachine) *VMAc
 	return b
 }
 
-func (b *VMAccessBuilder) WithGet(apiBehavior *APIBehaviorOptions) *VMAccessBuilder {
+func (b *VMAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *VMAccessBuilder {
 	b.vmServer.Get = func(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachinesClientGetResponse], errResp azfake.ErrorResponder) {
-		if apiBehavior != nil && apiBehavior.TimeoutAfter != nil {
-			errResp.SetError(ContextTimeoutError(ctx, *apiBehavior.TimeoutAfter))
+		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
+			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
 			return
 		}
 		if b.resourceGroup != resourceGroupName {
@@ -49,19 +49,36 @@ func (b *VMAccessBuilder) WithGet(apiBehavior *APIBehaviorOptions) *VMAccessBuil
 	return b
 }
 
-func (b *VMAccessBuilder) WithBeginDelete(apiBehavior *APIBehaviorOptions) *VMAccessBuilder {
+func (b *VMAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions) *VMAccessBuilder {
 	b.vmServer.BeginDelete = func(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientDeleteResponse], errResp azfake.ErrorResponder) {
-		if apiBehavior != nil && apiBehavior.TimeoutAfter != nil {
-			errResp.SetError(ContextTimeoutError(ctx, *apiBehavior.TimeoutAfter))
+		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
+			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
 			return
 		}
 		if b.resourceGroup != resourceGroupName {
 			errResp.SetError(ResourceNotFoundErr(ErrorCodeResourceGroupNotFound))
 			return
 		}
+
+		// Azure API VM deletion does not fail if the VM does not exist. It still returns 200 Ok.
 		delete(b.existingVms, vmName)
 		resp.SetTerminalResponse(200, armcompute.VirtualMachinesClientDeleteResponse{}, nil)
 		return
+	}
+	return b
+}
+
+func (b *VMAccessBuilder) WithBeginUpdate(apiBehaviorOpts *APIBehaviorOptions) *VMAccessBuilder {
+	b.vmServer.BeginUpdate = func(ctx context.Context, resourceGroupName string, vmName string, parameters armcompute.VirtualMachineUpdate, options *armcompute.VirtualMachinesClientBeginUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientUpdateResponse], errResp azfake.ErrorResponder) {
+		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
+			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
+			return
+		}
+		if b.resourceGroup != resourceGroupName {
+			errResp.SetError(ResourceNotFoundErr(ErrorCodePatchResourceNotFound))
+			return
+		}
+
 	}
 	return b
 }

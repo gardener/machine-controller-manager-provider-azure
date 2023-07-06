@@ -28,7 +28,7 @@ const (
 	testWorkerPool0Name   = "test-worker-pool-0"
 )
 
-func TestDriverProviderDeleteMachineSimple(t *testing.T) {
+func TestDeleteMachine(t *testing.T) {
 	g := NewWithT(t)
 	ctx := context.Background()
 	testMachine, testVM := createTestMachineAndVM(0)

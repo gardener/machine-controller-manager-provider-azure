@@ -56,6 +56,7 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 		return nil, err
 	}
 
+	vmName := req.Machine.Name
 	resourceGroup := providerSpec.ResourceGroup
 
 	_, err = d.factory.GetVirtualMachinesAccess(connectConfig)
@@ -63,7 +64,21 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, req.Machine.Name, err))
 	}
 
+	d.createNICIfNotExists(ctx, providerSpec, connectConfig, vmName)
+
 	return helpers.ConstructCreateMachineResponse(providerSpec.Location, ""), nil
+}
+
+func (d defaultDriver) createNICIfNotExists(ctx context.Context, providerSpec api.AzureProviderSpec, connectConfig access.ConnectConfig, vmName string) (string, error) {
+	nicAccess, err := d.factory.GetNetworkInterfacesAccess(connectConfig)
+	if err != nil {
+		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create nic access, Err: %v", err))
+	}
+	subnetAccess, err := d.factory.GetSubnetAccess(connectConfig)
+	if err != nil {
+		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create subnet access, Err: %v", err))
+	}
+	return clienthelpers.CreateNICIfNotExists(ctx, nicAccess, subnetAccess, providerSpec, helpers.CreateNICName(vmName))
 }
 
 func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {

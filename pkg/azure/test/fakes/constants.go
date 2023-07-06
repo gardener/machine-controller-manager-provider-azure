@@ -4,6 +4,7 @@ package fakes
 const (
 	ErrorCodeResourceNotFound      = "ResourceNotFound"
 	ErrorCodeResourceGroupNotFound = "ResourceGroupNotFound"
+	ErrorCodePatchResourceNotFound = "PatchResourceNotFound"
 )
 
 const (

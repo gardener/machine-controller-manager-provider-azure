@@ -7,8 +7,10 @@ import (
 	fakecompute "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5/fake"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
+	fakenetwork "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3/fake"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
+	fakearmresources "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources/fake"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 )
 
@@ -75,7 +77,24 @@ func (f *Factory) NewVirtualMachineAccessBuilder() *VMAccessBuilder {
 }
 
 func (f *Factory) NewResourceGroupsAccessBuilder() *ResourceGroupsAccessBuilder {
-	return &ResourceGroupsAccessBuilder{rg: f.resourceGroup}
+	return &ResourceGroupsAccessBuilder{
+		rg:       f.resourceGroup,
+		rgServer: fakearmresources.ResourceGroupsServer{},
+	}
+}
+
+func (f *Factory) NewNICAccessBuilder() *NICAccessBuilder {
+	return &NICAccessBuilder{
+		resourceGroup: f.resourceGroup,
+		nicServer:     fakenetwork.InterfacesServer{},
+	}
+}
+
+func (f *Factory) NewDiskAccessBuilder() *DiskAccessBuilder {
+	return &DiskAccessBuilder{
+		resourceGroup: f.resourceGroup,
+		diskServer:    fakecompute.DisksServer{},
+	}
 }
 
 func (f *Factory) WithVirtualMachineAccess(vmAccess *armcompute.VirtualMachinesClient) *Factory {
