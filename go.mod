@@ -23,9 +23,7 @@ require (
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4 v4.2.1
-	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3 v3.0.0
-	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
+	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3 v3.1.0-beta.1
 )
 
 require (
@@ -90,4 +88,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/gardener/machine-controller-manager => /Users/I034796/go/src/github.com/gardener/machine-controller-manager
+replace github.com/gardener/machine-controller-manager => /Users/i062009/src/github.com/unmarshall/machine-controller-manager

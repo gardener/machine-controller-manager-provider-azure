@@ -2,7 +2,10 @@ package helpers
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
@@ -78,4 +81,37 @@ func GetDiskNames(providerSpec api.AzureProviderSpec, vmName string) []string {
 		}
 	}
 	return diskNames
+}
+
+func GetImageReference(providerSpec api.AzureProviderSpec) armcompute.ImageReference {
+	imgRefInfo := providerSpec.Properties.StorageProfile.ImageReference
+
+	if !utils.IsEmptyString(imgRefInfo.ID) {
+		return armcompute.ImageReference{
+			ID: &imgRefInfo.ID,
+		}
+	}
+
+	if !utils.IsNilOrEmptyStringPtr(imgRefInfo.CommunityGalleryImageID) {
+		return armcompute.ImageReference{
+			CommunityGalleryImageID: imgRefInfo.CommunityGalleryImageID,
+		}
+	}
+
+	if !utils.IsNilOrEmptyStringPtr(imgRefInfo.SharedGalleryImageID) {
+		return armcompute.ImageReference{
+			SharedGalleryImageID: imgRefInfo.SharedGalleryImageID,
+		}
+	}
+
+	// None of ID, CommunityGalleryImageID, SharedGalleryImageID is set.
+	// Since the AzureProviderSpec has passed validation its safe to assume that URN is set.
+
+	urnParts := strings.Split(*imgRefInfo.URN, ":")
+	return armcompute.ImageReference{
+		Publisher: to.Ptr(urnParts[0]),
+		Offer:     to.Ptr(urnParts[1]),
+		SKU:       to.Ptr(urnParts[2]),
+		Version:   to.Ptr(urnParts[3]),
+	}
 }

@@ -17,11 +17,17 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 )
 
+// labels used for recording prometheus metrics
 const (
 	subnetGetServiceLabel = "subnet_get"
 	nicGetServiceLabel    = "nic_get"
 	nicDeleteServiceLabel = "nic_delete"
 	nicCreateServiceLabel = "nic_create"
+)
+
+const (
+	defaultDeleteNICTimeout = 10 * time.Minute
+	defaultCreateNICTimeout = 15 * time.Minute
 )
 
 func DeleteNICIfExists(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) error {
@@ -126,12 +132,14 @@ func getNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGr
 func deleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) (err error) {
 	defer instrument.RecordAzAPIMetric(err, nicDeleteServiceLabel, time.Now())
 	var poller *runtime.Poller[armnetwork.InterfacesClientDeleteResponse]
-	poller, err = client.BeginDelete(ctx, resourceGroup, nicName, nil)
+	delCtx, cancelFn := context.WithTimeout(ctx, defaultDeleteNICTimeout)
+	defer cancelFn()
+	poller, err = client.BeginDelete(delCtx, resourceGroup, nicName, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Failed to trigger delete of NIC [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
 		return
 	}
-	_, err = poller.PollUntilDone(ctx, nil)
+	_, err = poller.PollUntilDone(delCtx, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Polling failed while waiting for Deleting of NIC: %s for ResourceGroup: %s", nicName, resourceGroup)
 	}
@@ -144,13 +152,15 @@ func createNIC(ctx context.Context, nicAccess *armnetwork.InterfacesClient, reso
 		poller       *runtime.Poller[armnetwork.InterfacesClientCreateOrUpdateResponse]
 		creationResp armnetwork.InterfacesClientCreateOrUpdateResponse
 	)
+	createCtx, cancelFn := context.WithTimeout(ctx, defaultCreateNICTimeout)
+	defer cancelFn()
 	nicName := *nicParams.Name
-	poller, err = nicAccess.BeginCreateOrUpdate(ctx, resourceGroup, nicName, nicParams, nil)
+	poller, err = nicAccess.BeginCreateOrUpdate(createCtx, resourceGroup, nicName, nicParams, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Failed to trigger create of NIC [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
 		return nil, err
 	}
-	creationResp, err = poller.PollUntilDone(ctx, nil)
+	creationResp, err = poller.PollUntilDone(createCtx, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Polling failed while waiting for Creation of NIC: %s for ResourceGroup: %s", nicName, resourceGroup)
 	}

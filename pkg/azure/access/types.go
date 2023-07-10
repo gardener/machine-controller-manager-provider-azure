@@ -26,6 +26,6 @@ type Factory interface {
 	GetSubnetAccess(connectConfig ConnectConfig) (*armnetwork.SubnetsClient, error)
 	GetDisksAccess(connectConfig ConnectConfig) (*armcompute.DisksClient, error)
 	GetResourceGraphAccess(connectConfig ConnectConfig) (*armresourcegraph.Client, error)
-	GetImagesAccess(connectConfig ConnectConfig) (*armcompute.ImagesClient, error)
+	GetVirtualMachineImagesAccess(connectConfig ConnectConfig) (*armcompute.VirtualMachineImagesClient, error)
 	GetMarketPlaceAgreementsAccess(connectConfig ConnectConfig) (*armmarketplaceordering.MarketplaceAgreementsClient, error)
 }

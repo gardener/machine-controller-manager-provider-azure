@@ -87,12 +87,12 @@ func (f defaultFactory) GetResourceGraphAccess(connectConfig ConnectConfig) (*ar
 	return armresourcegraph.NewClient(tokenCredential, f.clientOptions)
 }
 
-func (f defaultFactory) GetImagesAccess(connectConfig ConnectConfig) (*armcompute.ImagesClient, error) {
+func (f defaultFactory) GetVirtualMachineImagesAccess(connectConfig ConnectConfig) (*armcompute.VirtualMachineImagesClient, error) {
 	tokenCredential, err := f.tokenCredentialProvider(connectConfig)
 	if err != nil {
 		return nil, err
 	}
-	return armcompute.NewImagesClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
+	return armcompute.NewVirtualMachineImagesClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
 }
 
 func (f defaultFactory) GetMarketPlaceAgreementsAccess(connectConfig ConnectConfig) (*armmarketplaceordering.MarketplaceAgreementsClient, error) {

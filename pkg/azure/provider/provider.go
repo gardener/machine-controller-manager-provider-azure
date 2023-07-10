@@ -55,30 +55,16 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 	if err != nil {
 		return nil, err
 	}
-
 	vmName := req.Machine.Name
-	resourceGroup := providerSpec.ResourceGroup
 
-	_, err = d.factory.GetVirtualMachinesAccess(connectConfig)
+	_, err = d.createNICIfNotExists(ctx, providerSpec, connectConfig, vmName)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, req.Machine.Name, err))
+		return nil, err
 	}
 
-	d.createNICIfNotExists(ctx, providerSpec, connectConfig, vmName)
+	d.createOrUpdateVM(ctx, connectConfig, providerSpec, vmName)
 
 	return helpers.ConstructCreateMachineResponse(providerSpec.Location, ""), nil
-}
-
-func (d defaultDriver) createNICIfNotExists(ctx context.Context, providerSpec api.AzureProviderSpec, connectConfig access.ConnectConfig, vmName string) (string, error) {
-	nicAccess, err := d.factory.GetNetworkInterfacesAccess(connectConfig)
-	if err != nil {
-		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create nic access, Err: %v", err))
-	}
-	subnetAccess, err := d.factory.GetSubnetAccess(connectConfig)
-	if err != nil {
-		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create subnet access, Err: %v", err))
-	}
-	return clienthelpers.CreateNICIfNotExists(ctx, nicAccess, subnetAccess, providerSpec, helpers.CreateNICName(vmName))
 }
 
 func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {
@@ -237,4 +223,38 @@ func (d defaultDriver) createDiskDeletionTasks(resourceGroup string, diskNames [
 		tasks = append(tasks, task)
 	}
 	return tasks
+}
+
+func (d defaultDriver) createNICIfNotExists(ctx context.Context, providerSpec api.AzureProviderSpec, connectConfig access.ConnectConfig, vmName string) (string, error) {
+	nicAccess, err := d.factory.GetNetworkInterfacesAccess(connectConfig)
+	if err != nil {
+		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create nic access, Err: %v", err))
+	}
+	subnetAccess, err := d.factory.GetSubnetAccess(connectConfig)
+	if err != nil {
+		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create subnet access, Err: %v", err))
+	}
+	return clienthelpers.CreateNICIfNotExists(ctx, nicAccess, subnetAccess, providerSpec, helpers.CreateNICName(vmName))
+}
+
+func (d defaultDriver) createOrUpdateVM(ctx context.Context, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) error {
+	_, err := d.factory.GetVirtualMachinesAccess(connectConfig)
+	if err != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+	}
+	// TODO
+	return nil
+}
+
+func (d defaultDriver) getVirtualMachineImage(ctx context.Context, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) (*armcompute.VirtualMachineImage, error) {
+	vmImagesAccess, err := d.factory.GetVirtualMachineImagesAccess(connectConfig)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create image access, Err: %v", err))
+	}
+	imgRef := helpers.GetImageReference(providerSpec)
+	vmImage, err := clienthelpers.GetVMImage(ctx, vmImagesAccess, providerSpec.Location, imgRef)
+	if err != nil {
+		return nil, err
+	}
+	return vmImage, nil
 }

@@ -13,10 +13,18 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
+// labels used for recording prometheus metrics
 const (
 	vmGetServiceLabel    = "virtual_machine_get"
 	vmUpdateServiceLabel = "virtual_machine_update"
 	vmDeleteServiceLabel = "virtual_machine_delete"
+)
+
+// Default timeouts for all async operations - Create/Delete/Update
+const (
+	defaultDeleteVMTimeout = 15 * time.Minute
+	defaultCreateVMTimeout = 15 * time.Minute
+	defaultUpdateVMTimeout = 10 * time.Minute
 )
 
 // GetVirtualMachine gets a VirtualMachine for the given vm name and resource group.
@@ -38,12 +46,14 @@ func GetVirtualMachine(ctx context.Context, vmClient *armcompute.VirtualMachines
 // If cascade delete is set for associated NICs and Disks then these resources will also be deleted along with the VM.
 func DeleteVirtualMachine(ctx context.Context, vmClient *armcompute.VirtualMachinesClient, resourceGroup, vmName string) (err error) {
 	defer instrument.RecordAzAPIMetric(err, vmDeleteServiceLabel, time.Now())
-	poller, err := vmClient.BeginDelete(ctx, resourceGroup, vmName, nil)
+	delCtx, cancelFn := context.WithTimeout(ctx, defaultDeleteVMTimeout)
+	defer cancelFn()
+	poller, err := vmClient.BeginDelete(delCtx, resourceGroup, vmName, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Failed to trigger delete of VM [ResourceGroup: %s, VMName: %s]", resourceGroup, vmName)
 		return
 	}
-	_, err = poller.PollUntilDone(ctx, nil)
+	_, err = poller.PollUntilDone(delCtx, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Polling failed while waiting for delete of VM: %s for ResourceGroup: %s", vmName, resourceGroup)
 		return
@@ -59,12 +69,14 @@ func SetCascadeDeleteForNICsAndDisks(ctx context.Context, vmClient *armcompute.V
 		klog.Infof("All configured NICs, OSDisk and DataDisks have cascade delete already set. Skipping update of VM: [ResourceGroup: %s, Name: %s]", resourceGroup, *vm.Name)
 		return
 	}
-	poller, err := vmClient.BeginUpdate(ctx, resourceGroup, *vm.Name, *vmUpdateParams, nil)
+	updCtx, cancelFn := context.WithTimeout(ctx, defaultUpdateVMTimeout)
+	defer cancelFn()
+	poller, err := vmClient.BeginUpdate(updCtx, resourceGroup, *vm.Name, *vmUpdateParams, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Failed to trigger update of VM [ResourceGroup: %s, VMName: %s]", resourceGroup, *vm.Name)
 		return
 	}
-	pollResp, err := poller.PollUntilDone(ctx, nil)
+	pollResp, err := poller.PollUntilDone(updCtx, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Polling failed while waiting for update of VM: %s for ResourceGroup: %s", *vm.Name, resourceGroup)
 		return
