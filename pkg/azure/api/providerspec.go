@@ -125,7 +125,8 @@ type AzureStorageProfile struct {
 // marketplace image, community image, shared gallery image or virtual machine image, but is not used in other creation operations.
 type AzureImageReference struct {
 	ID string `json:"id,omitempty"`
-	// Uniform Resource Name of the OS image to be used, it has the format 'publisher:offer:sku:version'
+	// URN Uniform Resource Name of the OS image to be used, it has the format 'publisher:offer:sku:version'
+	// This is a marketplace image. For marketplace images there needs to be a purchase plan and an agreement. The agreement needs to be accepted.
 	URN *string `json:"urn,omitempty"`
 	// CommunityGalleryImageID is the id of the OS image to be used, hosted within an Azure Community Image Gallery.
 	CommunityGalleryImageID *string `json:"communityGalleryImageID,omitempty"`

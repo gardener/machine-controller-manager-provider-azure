@@ -133,7 +133,7 @@ func getNetworkInterfaceReferencesToUpdate(networkProfile *armcompute.NetworkPro
 	for _, nicRef := range networkProfile.NetworkInterfaces {
 		updatedNicRef := &armcompute.NetworkInterfaceReference{ID: nicRef.ID}
 		if !isNicCascadeDeleteSet(nicRef) {
-			if nicRef.Properties == nil {
+			if updatedNicRef.Properties == nil {
 				updatedNicRef.Properties = &armcompute.NetworkInterfaceReferenceProperties{}
 			}
 			updatedNicRef.Properties.DeleteOption = to.Ptr(armcompute.DeleteOptionsDelete)
@@ -145,7 +145,7 @@ func getNetworkInterfaceReferencesToUpdate(networkProfile *armcompute.NetworkPro
 
 func isNicCascadeDeleteSet(nicRef *armcompute.NetworkInterfaceReference) bool {
 	if nicRef.Properties == nil {
-		return true
+		return false
 	}
 	deleteOption := nicRef.Properties.DeleteOption
 	return deleteOption != nil && *deleteOption == armcompute.DeleteOptionsDelete

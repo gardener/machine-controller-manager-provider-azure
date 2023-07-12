@@ -182,7 +182,7 @@ func (d defaultDriver) getVirtualMachine(ctx context.Context, connectConfig acce
 func (d defaultDriver) checkAndDeleteLeftoverNICsAndDisks(ctx context.Context, vmName string, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) error {
 	// Gather the names for NIC, OSDisk and Data Disks that needs to be checked for existence and then deleted if they exist.
 	resourceGroup := providerSpec.ResourceGroup
-	nicName := helpers.CreateNICName(vmName)
+	nicName := utils.CreateNICName(vmName)
 	diskNames := helpers.GetDiskNames(providerSpec, vmName)
 
 	// create NIC and Disks clients
@@ -234,7 +234,7 @@ func (d defaultDriver) createNICIfNotExists(ctx context.Context, providerSpec ap
 	if err != nil {
 		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create subnet access, Err: %v", err))
 	}
-	return clienthelpers.CreateNICIfNotExists(ctx, nicAccess, subnetAccess, providerSpec, helpers.CreateNICName(vmName))
+	return clienthelpers.CreateNICIfNotExists(ctx, nicAccess, subnetAccess, providerSpec, utils.CreateNICName(vmName))
 }
 
 func (d defaultDriver) createOrUpdateVM(ctx context.Context, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) error {

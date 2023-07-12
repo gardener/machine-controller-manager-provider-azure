@@ -6,6 +6,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"k8s.io/utils/pointer"
 )
 
 type ProviderSpecBuilder struct {
@@ -19,10 +20,14 @@ func NewProviderSpecBuilder(resourceGroup, shootNs, workerPoolName string) *Prov
 		shootNs:        shootNs,
 		workerPoolName: workerPoolName,
 		spec: api.AzureProviderSpec{
-			Location:      "westeurope",
+			Location:      Location,
 			ResourceGroup: resourceGroup,
 			Properties: api.AzureVirtualMachineProperties{
-				Zone: to.Ptr(1),
+				Zone:            to.Ptr(1),
+				StorageProfile:  api.AzureStorageProfile{},
+				OsProfile:       api.AzureOSProfile{},
+				NetworkProfile:  api.AzureNetworkProfile{},
+				HardwareProfile: api.AzureHardwareProfile{},
 			},
 		},
 	}
@@ -45,25 +50,50 @@ func (b *ProviderSpecBuilder) WithDefaultSubnetInfo() *ProviderSpecBuilder {
 	return b
 }
 
+func (b *ProviderSpecBuilder) WithSubnetInfo(vnetResourceGroup string) *ProviderSpecBuilder {
+	b.spec.SubnetInfo = api.AzureSubnetInfo{
+		VnetName:          b.shootNs,
+		VnetResourceGroup: to.Ptr(vnetResourceGroup),
+		SubnetName:        fmt.Sprintf("%s-nodes", b.shootNs),
+	}
+	return b
+}
+
 func (b *ProviderSpecBuilder) WithDefaultHardwareProfile() *ProviderSpecBuilder {
-	b.spec.Properties.HardwareProfile = api.AzureHardwareProfile{VMSize: "Standard_DS2_v2"}
+	b.spec.Properties.HardwareProfile.VMSize = VMSize
 	return b
 }
 
 func (b *ProviderSpecBuilder) WithDefaultStorageProfile() *ProviderSpecBuilder {
-	b.spec.Properties.StorageProfile = api.AzureStorageProfile{
-		ImageReference: api.AzureImageReference{
-			URN: to.Ptr("sap:gardenlinux:greatest:184.0.0"),
-		},
-		OsDisk: api.AzureOSDisk{
-			Caching: "None",
-			ManagedDisk: api.AzureManagedDiskParameters{
-				StorageAccountType: "StandardSSD_LRS",
-			},
-			DiskSizeGB:   50,
-			CreateOption: "FromImage",
-		},
+	b.spec.Properties.StorageProfile.ImageReference = api.AzureImageReference{
+		URN: to.Ptr(ImageRefURN),
 	}
+	b.spec.Properties.StorageProfile.OsDisk = api.AzureOSDisk{
+		Caching: "None",
+		ManagedDisk: api.AzureManagedDiskParameters{
+			StorageAccountType: StorageAccountType,
+		},
+		DiskSizeGB:   50,
+		CreateOption: "FromImage",
+	}
+	return b
+}
+
+func (b *ProviderSpecBuilder) WithDataDisks(diskNames []string) *ProviderSpecBuilder {
+	dataDisks := make([]api.AzureDataDisk, 0, len(diskNames))
+	var lun int32
+	for _, diskName := range diskNames {
+		d := api.AzureDataDisk{
+			Name:               diskName,
+			Lun:                pointer.Int32(lun),
+			Caching:            "None",
+			StorageAccountType: StorageAccountType,
+			DiskSizeGB:         20,
+		}
+		dataDisks = append(dataDisks, d)
+		lun++
+	}
+	b.spec.Properties.StorageProfile.DataDisks = dataDisks
 	return b
 }
 
@@ -99,4 +129,8 @@ func (b *ProviderSpecBuilder) WithTags(tags map[string]string) *ProviderSpecBuil
 
 func (b *ProviderSpecBuilder) Marshal() ([]byte, error) {
 	return json.Marshal(b.spec)
+}
+
+func (b *ProviderSpecBuilder) Build() api.AzureProviderSpec {
+	return b.spec
 }

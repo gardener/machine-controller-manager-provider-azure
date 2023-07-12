@@ -4,25 +4,26 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	azfake "github.com/Azure/azure-sdk-for-go/sdk/azcore/fake"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
 	fakenetwork "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3/fake"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/test"
 )
 
 type NICAccessBuilder struct {
-	resourceGroup string
-	existingNICs  map[string]armnetwork.Interface
-	nicServer     fakenetwork.InterfacesServer
+	clusterState *ClusterState
+	nicServer    fakenetwork.InterfacesServer
 }
 
-func (b *NICAccessBuilder) WithExistingNICs(nics []armnetwork.Interface) *NICAccessBuilder {
-	if b.existingNICs == nil {
-		b.existingNICs = make(map[string]armnetwork.Interface)
-	}
-	for _, nic := range nics {
-		b.existingNICs[*nic.Name] = nic
-	}
+func (b *NICAccessBuilder) WithClusterState(clusterState *ClusterState) *NICAccessBuilder {
+	b.clusterState = clusterState
 	return b
+}
+
+func (b *NICAccessBuilder) WithDefaultAPIBehavior() *NICAccessBuilder {
+	return b.WithGet(nil).WithBeginDelete(nil)
 }
 
 func (b *NICAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *NICAccessBuilder {
@@ -31,16 +32,16 @@ func (b *NICAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *NICAcce
 			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
 			return
 		}
-		if b.resourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(ErrorCodeResourceGroupNotFound))
+		if b.clusterState.ResourceGroup != resourceGroupName {
+			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
 			return
 		}
-		nic, exists := b.existingNICs[networkInterfaceName]
-		if !exists {
-			errResp.SetError(ResourceNotFoundErr(ErrorCodeResourceNotFound))
+		nic := b.clusterState.GetNIC(networkInterfaceName)
+		if nic == nil {
+			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceNotFound))
 			return
 		}
-		nicResponse := armnetwork.InterfacesClientGetResponse{Interface: nic}
+		nicResponse := armnetwork.InterfacesClientGetResponse{Interface: *nic}
 		resp.SetResponse(http.StatusOK, nicResponse, nil)
 		return
 	}
@@ -53,14 +54,22 @@ func (b *NICAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions) 
 			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
 			return
 		}
-		if b.resourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(ErrorCodeResourceGroupNotFound))
+		if b.clusterState.ResourceGroup != resourceGroupName {
+			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
 			return
 		}
 		// Azure API NIC deletion does not fail if the NIC does not exist. It still returns 200 Ok.
-		delete(b.existingNICs, networkInterfaceName)
+		b.clusterState.DeleteNIC(networkInterfaceName)
 		resp.SetTerminalResponse(200, armnetwork.InterfacesClientDeleteResponse{}, nil)
 		return
 	}
 	return b
+}
+
+func (b *NICAccessBuilder) Build() (*armnetwork.InterfacesClient, error) {
+	return armnetwork.NewInterfacesClient(test.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
+		ClientOptions: policy.ClientOptions{
+			Transport: fakenetwork.NewInterfacesServerTransport(&b.nicServer),
+		},
+	})
 }

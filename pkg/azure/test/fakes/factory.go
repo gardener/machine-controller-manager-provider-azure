@@ -1,8 +1,6 @@
 package fakes
 
 import (
-	"time"
-
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	fakecompute "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5/fake"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering"
@@ -14,10 +12,6 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 )
 
-type APIBehaviorOptions struct {
-	TimeoutAfter *time.Duration
-}
-
 func NewFactory(resourceGroup string) *Factory {
 	return &Factory{
 		resourceGroup: resourceGroup,
@@ -25,54 +19,52 @@ func NewFactory(resourceGroup string) *Factory {
 }
 
 type Factory struct {
-	resourceGroup        string
-	vmAccess             *armcompute.VirtualMachinesClient
-	resourceGroupsAccess *armresources.ResourceGroupsClient
-	nwiAccess            *armnetwork.InterfacesClient
-	subnetAccess         *armnetwork.SubnetsClient
-	disksClient          *armcompute.DisksClient
-	resourceGraphAccess  *armresourcegraph.Client
-	imagesAccess         *armcompute.ImagesClient
-	mpaAccess            *armmarketplaceordering.MarketplaceAgreementsClient
+	resourceGroup               string
+	VMAccess                    *armcompute.VirtualMachinesClient
+	ResourceGroupAccess         *armresources.ResourceGroupsClient
+	InterfaceAccess             *armnetwork.InterfacesClient
+	SubnetAccess                *armnetwork.SubnetsClient
+	DisksAccess                 *armcompute.DisksClient
+	ResourceGraphAccess         *armresourcegraph.Client
+	VMImageAccess               *armcompute.VirtualMachineImagesClient
+	MarketplaceAgreementsAccess *armmarketplaceordering.MarketplaceAgreementsClient
 }
 
 // Fake implementation methods of access.Factory interface.
 // --------------------------------------------------------------------------------------------
 
 func (f *Factory) GetVirtualMachinesAccess(_ access.ConnectConfig) (*armcompute.VirtualMachinesClient, error) {
-	return f.vmAccess, nil
+	return f.VMAccess, nil
 }
 func (f *Factory) GetResourceGroupsAccess(_ access.ConnectConfig) (*armresources.ResourceGroupsClient, error) {
-	return f.resourceGroupsAccess, nil
+	return f.ResourceGroupAccess, nil
 }
 func (f *Factory) GetNetworkInterfacesAccess(_ access.ConnectConfig) (*armnetwork.InterfacesClient, error) {
-	return f.nwiAccess, nil
+	return f.InterfaceAccess, nil
 }
 func (f *Factory) GetSubnetAccess(_ access.ConnectConfig) (*armnetwork.SubnetsClient, error) {
-	return f.subnetAccess, nil
+	return f.SubnetAccess, nil
 }
 func (f *Factory) GetDisksAccess(_ access.ConnectConfig) (*armcompute.DisksClient, error) {
-	return f.disksClient, nil
+	return f.DisksAccess, nil
 }
 func (f *Factory) GetResourceGraphAccess(_ access.ConnectConfig) (*armresourcegraph.Client, error) {
-	return f.resourceGraphAccess, nil
+	return f.ResourceGraphAccess, nil
 }
-func (f *Factory) GetImagesAccess(_ access.ConnectConfig) (*armcompute.ImagesClient, error) {
-	return f.imagesAccess, nil
+func (f *Factory) GetVirtualMachineImagesAccess(_ access.ConnectConfig) (*armcompute.VirtualMachineImagesClient, error) {
+	return f.VMImageAccess, nil
 }
 func (f *Factory) GetMarketPlaceAgreementsAccess(_ access.ConnectConfig) (*armmarketplaceordering.MarketplaceAgreementsClient, error) {
-	return f.mpaAccess, nil
+	return f.MarketplaceAgreementsAccess, nil
 }
 
 // --------------------------------------------------------------------------------------------
-
 // Builder methods to allow partial initialization of fake Factory.
 // --------------------------------------------------------------------------------------------
 
 func (f *Factory) NewVirtualMachineAccessBuilder() *VMAccessBuilder {
 	return &VMAccessBuilder{
-		resourceGroup: f.resourceGroup,
-		vmServer:      fakecompute.VirtualMachinesServer{},
+		vmServer: fakecompute.VirtualMachinesServer{},
 	}
 }
 
@@ -85,49 +77,45 @@ func (f *Factory) NewResourceGroupsAccessBuilder() *ResourceGroupsAccessBuilder 
 
 func (f *Factory) NewNICAccessBuilder() *NICAccessBuilder {
 	return &NICAccessBuilder{
-		resourceGroup: f.resourceGroup,
-		nicServer:     fakenetwork.InterfacesServer{},
+		nicServer: fakenetwork.InterfacesServer{},
 	}
 }
 
 func (f *Factory) NewDiskAccessBuilder() *DiskAccessBuilder {
 	return &DiskAccessBuilder{
-		resourceGroup: f.resourceGroup,
-		diskServer:    fakecompute.DisksServer{},
+		diskServer: fakecompute.DisksServer{},
 	}
 }
 
 func (f *Factory) WithVirtualMachineAccess(vmAccess *armcompute.VirtualMachinesClient) *Factory {
-	f.vmAccess = vmAccess
+	f.VMAccess = vmAccess
 	return f
 }
 func (f *Factory) WithResourceGroupsAccess(rgAccess *armresources.ResourceGroupsClient) *Factory {
-	f.resourceGroupsAccess = rgAccess
+	f.ResourceGroupAccess = rgAccess
 	return f
 }
 func (f *Factory) WithNetworkInterfacesAccess(nwiAccess *armnetwork.InterfacesClient) *Factory {
-	f.nwiAccess = nwiAccess
+	f.InterfaceAccess = nwiAccess
 	return f
 }
 func (f *Factory) WithSubnetAccess(subnetAccess *armnetwork.SubnetsClient) *Factory {
-	f.subnetAccess = subnetAccess
+	f.SubnetAccess = subnetAccess
 	return f
 }
 func (f *Factory) WithDisksAccess(diskClient *armcompute.DisksClient) *Factory {
-	f.disksClient = diskClient
+	f.DisksAccess = diskClient
 	return f
 }
 func (f *Factory) WithResourceGraphAccess(rgAccess *armresourcegraph.Client) *Factory {
-	f.resourceGraphAccess = rgAccess
+	f.ResourceGraphAccess = rgAccess
 	return f
 }
-func (f *Factory) WithImagesAccess(imagesAccess *armcompute.ImagesClient) *Factory {
-	f.imagesAccess = imagesAccess
+func (f *Factory) WithVirtualMachineImagesAccess(vmImageAccess *armcompute.VirtualMachineImagesClient) *Factory {
+	f.VMImageAccess = vmImageAccess
 	return f
 }
 func (f *Factory) WithMarketPlaceAgreementsAccess(mpaAccess *armmarketplaceordering.MarketplaceAgreementsClient) *Factory {
-	f.mpaAccess = mpaAccess
+	f.MarketplaceAgreementsAccess = mpaAccess
 	return f
 }
-
-// --------------------------------------------------------------------------------------------

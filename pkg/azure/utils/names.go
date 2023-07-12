@@ -1,10 +1,9 @@
-package helpers
+package utils
 
 import (
 	"fmt"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 const (
@@ -29,7 +28,7 @@ func CreateDataDiskName(vmName string, dataDisk api.AzureDataDisk) string {
 
 func getDataDiskInfix(dataDisk api.AzureDataDisk) string {
 	name := dataDisk.Name
-	if utils.IsEmptyString(name) {
+	if IsEmptyString(name) {
 		return fmt.Sprintf("%d", dataDisk.Lun)
 	}
 	return fmt.Sprintf("%s-%d", name, dataDisk.Lun)

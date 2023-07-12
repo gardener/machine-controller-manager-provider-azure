@@ -73,10 +73,10 @@ func DeriveInstanceID(location, vmName string) string {
 func GetDiskNames(providerSpec api.AzureProviderSpec, vmName string) []string {
 	dataDisks := providerSpec.Properties.StorageProfile.DataDisks
 	diskNames := make([]string, 0, len(dataDisks)+1)
-	diskNames = append(diskNames, CreateOSDiskName(vmName))
+	diskNames = append(diskNames, utils.CreateOSDiskName(vmName))
 	if !utils.IsSliceNilOrEmpty(dataDisks) {
 		for _, disk := range dataDisks {
-			diskName := CreateDataDiskName(vmName, disk)
+			diskName := utils.CreateDataDiskName(vmName, disk)
 			diskNames = append(diskNames, diskName)
 		}
 	}

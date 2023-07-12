@@ -4,27 +4,29 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	azfake "github.com/Azure/azure-sdk-for-go/sdk/azcore/fake"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	fakecompute "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5/fake"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/test"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 type VMAccessBuilder struct {
-	resourceGroup string
-	existingVms   map[string]armcompute.VirtualMachine
-	vmServer      fakecompute.VirtualMachinesServer
+	clusterState *ClusterState
+	vmServer     fakecompute.VirtualMachinesServer
 }
 
-func (b *VMAccessBuilder) WithExistingVMs(vms []armcompute.VirtualMachine) *VMAccessBuilder {
-	if b.existingVms == nil {
-		b.existingVms = make(map[string]armcompute.VirtualMachine, len(vms))
-	}
-	for _, v := range vms {
-		b.existingVms[*v.Name] = v
-	}
+func (b *VMAccessBuilder) WithClusterState(clusterState *ClusterState) *VMAccessBuilder {
+	b.clusterState = clusterState
 	return b
+}
+
+func (b *VMAccessBuilder) WithDefaultAPIBehavior() *VMAccessBuilder {
+	return b.WithGet(nil).
+		WithBeginDelete(nil).
+		WithBeginUpdate(nil)
 }
 
 func (b *VMAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *VMAccessBuilder {
@@ -33,16 +35,16 @@ func (b *VMAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *VMAccess
 			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
 			return
 		}
-		if b.resourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(ErrorCodeResourceGroupNotFound))
+		if b.clusterState.ResourceGroup != resourceGroupName {
+			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
 			return
 		}
-		vm, existingVM := b.existingVms[vmName]
-		if !existingVM {
-			errResp.SetError(ResourceNotFoundErr(ErrorCodeResourceNotFound))
+		machine, existingMachine := b.clusterState.MachineResourcesMap[vmName]
+		if !existingMachine {
+			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceNotFound))
 			return
 		}
-		vmResp := armcompute.VirtualMachinesClientGetResponse{VirtualMachine: vm}
+		vmResp := armcompute.VirtualMachinesClientGetResponse{VirtualMachine: *machine.VM}
 		resp.SetResponse(http.StatusOK, vmResp, nil)
 		return
 	}
@@ -55,13 +57,13 @@ func (b *VMAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions) *
 			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
 			return
 		}
-		if b.resourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(ErrorCodeResourceGroupNotFound))
+		if b.clusterState.ResourceGroup != resourceGroupName {
+			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
 			return
 		}
 
+		b.clusterState.DeleteVM(vmName)
 		// Azure API VM deletion does not fail if the VM does not exist. It still returns 200 Ok.
-		delete(b.existingVms, vmName)
 		resp.SetTerminalResponse(200, armcompute.VirtualMachinesClientDeleteResponse{}, nil)
 		return
 	}
@@ -74,18 +76,77 @@ func (b *VMAccessBuilder) WithBeginUpdate(apiBehaviorOpts *APIBehaviorOptions) *
 			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
 			return
 		}
-		if b.resourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(ErrorCodePatchResourceNotFound))
+		if b.clusterState.ResourceGroup != resourceGroupName {
+			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
 			return
 		}
+		if _, ok := b.clusterState.MachineResourcesMap[vmName]; !ok {
+			errResp.SetError(ResourceNotFoundErr(test.ErrorCodePatchResourceNotFound))
+			return
+		}
+		// NOTE: Currently we are only using this API to set cascade delete option for NIC and Disks.
+		// So to avoid complexity, we will restrict it to only updating cascade delete options only.
+		// If in future the usage changes then changes should also be done here to reflect that.
+		b.updateNICCascadeDeleteOption(vmName, parameters.Properties.NetworkProfile)
+		b.updateOSDiskCascadeDeleteOption(vmName, parameters.Properties.StorageProfile)
+		b.updatedDataDisksCascadeDeleteOption(vmName, parameters.Properties.StorageProfile)
 
+		m := b.clusterState.MachineResourcesMap[vmName]
+		resp.SetTerminalResponse(200, armcompute.VirtualMachinesClientUpdateResponse{VirtualMachine: *m.VM}, nil)
+		return
 	}
 	return b
 }
 
+func (b *VMAccessBuilder) updateNICCascadeDeleteOption(vmName string, nwProfile *armcompute.NetworkProfile) {
+	var deleteOpt *armcompute.DeleteOptions
+	if nwProfile != nil {
+		nwInterfaces := nwProfile.NetworkInterfaces
+		if !utils.IsSliceNilOrEmpty(nwInterfaces) {
+			properties := nwInterfaces[0].Properties
+			if properties != nil {
+				deleteOpt = properties.DeleteOption
+			}
+		}
+	}
+	m := b.clusterState.MachineResourcesMap[vmName]
+	m.cascadeDeleteOpts.NIC = deleteOpt
+	b.clusterState.MachineResourcesMap[vmName] = m
+}
+
+func (b *VMAccessBuilder) updateOSDiskCascadeDeleteOption(vmName string, storageProfile *armcompute.StorageProfile) {
+	var deleteOpt *armcompute.DiskDeleteOptionTypes
+	if storageProfile != nil {
+		osDisk := storageProfile.OSDisk
+		if osDisk != nil {
+			deleteOpt = osDisk.DeleteOption
+		}
+	}
+	m := b.clusterState.MachineResourcesMap[vmName]
+	m.cascadeDeleteOpts.OSDisk = deleteOpt
+	b.clusterState.MachineResourcesMap[vmName] = m
+}
+
+// updatedDataDisksCascadeDeleteOption updates the cascade delete option for data disks that are associated to a VM.
+// It is assumed that consumer will uniformly set delete option for all data disks. This is the only case we also support
+// in gardener and to ensure simplicity of tests we will not support a case where different data disk can have different delete options.
+// So the implementation only takes the first DataDisk and assumes the delete option for rest of them as well.
+func (b *VMAccessBuilder) updatedDataDisksCascadeDeleteOption(vmName string, storageProfile *armcompute.StorageProfile) {
+	var deleteOpt *armcompute.DiskDeleteOptionTypes
+	if storageProfile != nil {
+		dataDisks := storageProfile.DataDisks
+		if !utils.IsSliceNilOrEmpty(dataDisks) {
+			deleteOpt = dataDisks[0].DeleteOption
+		}
+	}
+	m := b.clusterState.MachineResourcesMap[vmName]
+	m.cascadeDeleteOpts.DataDisk = deleteOpt
+	b.clusterState.MachineResourcesMap[vmName] = m
+}
+
 func (b *VMAccessBuilder) Build() (*armcompute.VirtualMachinesClient, error) {
-	return armcompute.NewVirtualMachinesClient(TestSubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
-		ClientOptions: policy.ClientOptions{
+	return armcompute.NewVirtualMachinesClient(test.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
+		ClientOptions: azcore.ClientOptions{
 			Transport: fakecompute.NewVirtualMachinesServerTransport(&b.vmServer),
 		},
 	})
