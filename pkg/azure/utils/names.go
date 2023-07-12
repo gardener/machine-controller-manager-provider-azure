@@ -29,7 +29,7 @@ func CreateDataDiskName(vmName string, dataDisk api.AzureDataDisk) string {
 func getDataDiskInfix(dataDisk api.AzureDataDisk) string {
 	name := dataDisk.Name
 	if IsEmptyString(name) {
-		return fmt.Sprintf("%d", dataDisk.Lun)
+		return fmt.Sprintf("%d", *dataDisk.Lun)
 	}
-	return fmt.Sprintf("%s-%d", name, dataDisk.Lun)
+	return fmt.Sprintf("%s-%d", name, *dataDisk.Lun)
 }

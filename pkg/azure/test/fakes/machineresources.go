@@ -253,20 +253,24 @@ func createImageReference(imageRef api.AzureImageReference) *armcompute.ImageRef
 }
 
 func createDiskResource(spec api.AzureProviderSpec, diskName string, vmID *string, plan *armcompute.Plan) *armcompute.Disk {
+	var purchasePlan *armcompute.DiskPurchasePlan
+	if plan != nil {
+		purchasePlan = &armcompute.DiskPurchasePlan{
+			Name:      plan.Name,
+			Product:   plan.Product,
+			Publisher: plan.Publisher,
+		}
+	}
 	return &armcompute.Disk{
 		Location: to.Ptr(spec.Location),
 		Properties: &armcompute.DiskProperties{
 			CreationData: &armcompute.CreationData{
 				CreateOption: to.Ptr(armcompute.DiskCreateOptionEmpty),
 			},
-			DiskSizeGB: pointer.Int32(spec.Properties.StorageProfile.OsDisk.DiskSizeGB),
-			OSType:     to.Ptr(armcompute.OperatingSystemTypesLinux),
-			PurchasePlan: &armcompute.DiskPurchasePlan{
-				Name:      plan.Name,
-				Product:   plan.Product,
-				Publisher: plan.Publisher,
-			},
-			DiskState: to.Ptr(armcompute.DiskStateAttached),
+			DiskSizeGB:   pointer.Int32(spec.Properties.StorageProfile.OsDisk.DiskSizeGB),
+			OSType:       to.Ptr(armcompute.OperatingSystemTypesLinux),
+			PurchasePlan: purchasePlan,
+			DiskState:    to.Ptr(armcompute.DiskStateAttached),
 		},
 		SKU: &armcompute.DiskSKU{
 			Name: to.Ptr(armcompute.DiskStorageAccountTypes(spec.Properties.StorageProfile.OsDisk.ManagedDisk.StorageAccountType)),
@@ -284,7 +288,7 @@ func createDataDisks(spec api.AzureProviderSpec, vmName string, deleteOption *ar
 	if specDataDisks == nil {
 		return nil
 	}
-	dataDisks := make([]*armcompute.DataDisk, len(specDataDisks))
+	dataDisks := make([]*armcompute.DataDisk, 0, len(specDataDisks))
 	for _, disk := range specDataDisks {
 		d := &armcompute.DataDisk{
 			CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),

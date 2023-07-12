@@ -18,6 +18,11 @@ func ResourceGroupExists(ctx context.Context, client *armresources.ResourceGroup
 	defer instrument.RecordAzAPIMetric(err, resourceGroupExistsServiceLabel, time.Now())
 	resp, err := client.CheckExistence(ctx, resourceGroup, nil)
 	if err != nil {
+		if errors.IsNotFoundAzAPIError(err) {
+			exists = resp.Success
+			err = nil
+			return
+		}
 		errors.LogAzAPIError(err, "Failed to check if ResourceGroup: %s exists", resourceGroup)
 		return false, err
 	}

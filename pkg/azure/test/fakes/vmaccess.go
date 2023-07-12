@@ -71,7 +71,7 @@ func (b *VMAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions) *
 }
 
 func (b *VMAccessBuilder) WithBeginUpdate(apiBehaviorOpts *APIBehaviorOptions) *VMAccessBuilder {
-	b.vmServer.BeginUpdate = func(ctx context.Context, resourceGroupName string, vmName string, parameters armcompute.VirtualMachineUpdate, options *armcompute.VirtualMachinesClientBeginUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientUpdateResponse], errResp azfake.ErrorResponder) {
+	b.vmServer.BeginUpdate = func(ctx context.Context, resourceGroupName string, vmName string, updateParams armcompute.VirtualMachineUpdate, options *armcompute.VirtualMachinesClientBeginUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientUpdateResponse], errResp azfake.ErrorResponder) {
 		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
 			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
 			return
@@ -87,9 +87,9 @@ func (b *VMAccessBuilder) WithBeginUpdate(apiBehaviorOpts *APIBehaviorOptions) *
 		// NOTE: Currently we are only using this API to set cascade delete option for NIC and Disks.
 		// So to avoid complexity, we will restrict it to only updating cascade delete options only.
 		// If in future the usage changes then changes should also be done here to reflect that.
-		b.updateNICCascadeDeleteOption(vmName, parameters.Properties.NetworkProfile)
-		b.updateOSDiskCascadeDeleteOption(vmName, parameters.Properties.StorageProfile)
-		b.updatedDataDisksCascadeDeleteOption(vmName, parameters.Properties.StorageProfile)
+		b.updateNICCascadeDeleteOption(vmName, updateParams.Properties.NetworkProfile)
+		b.updateOSDiskCascadeDeleteOption(vmName, updateParams.Properties.StorageProfile)
+		b.updatedDataDisksCascadeDeleteOption(vmName, updateParams.Properties.StorageProfile)
 
 		m := b.clusterState.MachineResourcesMap[vmName]
 		resp.SetTerminalResponse(200, armcompute.VirtualMachinesClientUpdateResponse{VirtualMachine: *m.VM}, nil)
@@ -108,10 +108,9 @@ func (b *VMAccessBuilder) updateNICCascadeDeleteOption(vmName string, nwProfile 
 				deleteOpt = properties.DeleteOption
 			}
 		}
+		m := b.clusterState.MachineResourcesMap[vmName]
+		m.cascadeDeleteOpts.NIC = deleteOpt
 	}
-	m := b.clusterState.MachineResourcesMap[vmName]
-	m.cascadeDeleteOpts.NIC = deleteOpt
-	b.clusterState.MachineResourcesMap[vmName] = m
 }
 
 func (b *VMAccessBuilder) updateOSDiskCascadeDeleteOption(vmName string, storageProfile *armcompute.StorageProfile) {
@@ -120,11 +119,10 @@ func (b *VMAccessBuilder) updateOSDiskCascadeDeleteOption(vmName string, storage
 		osDisk := storageProfile.OSDisk
 		if osDisk != nil {
 			deleteOpt = osDisk.DeleteOption
+			m := b.clusterState.MachineResourcesMap[vmName]
+			m.cascadeDeleteOpts.OSDisk = deleteOpt
 		}
 	}
-	m := b.clusterState.MachineResourcesMap[vmName]
-	m.cascadeDeleteOpts.OSDisk = deleteOpt
-	b.clusterState.MachineResourcesMap[vmName] = m
 }
 
 // updatedDataDisksCascadeDeleteOption updates the cascade delete option for data disks that are associated to a VM.
@@ -137,11 +135,10 @@ func (b *VMAccessBuilder) updatedDataDisksCascadeDeleteOption(vmName string, sto
 		dataDisks := storageProfile.DataDisks
 		if !utils.IsSliceNilOrEmpty(dataDisks) {
 			deleteOpt = dataDisks[0].DeleteOption
+			m := b.clusterState.MachineResourcesMap[vmName]
+			m.cascadeDeleteOpts.DataDisk = deleteOpt
 		}
 	}
-	m := b.clusterState.MachineResourcesMap[vmName]
-	m.cascadeDeleteOpts.DataDisk = deleteOpt
-	b.clusterState.MachineResourcesMap[vmName] = m
 }
 
 func (b *VMAccessBuilder) Build() (*armcompute.VirtualMachinesClient, error) {

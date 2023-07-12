@@ -49,7 +49,7 @@ func (c *ClusterState) DeleteVM(vmName string) {
 	m.HandleOSDiskOnMachineDelete()
 	m.HandleDataDisksOnMachineDelete()
 
-	if m.HasResources() {
+	if !m.HasResources() {
 		delete(c.MachineResourcesMap, vmName)
 	} else {
 		c.MachineResourcesMap[vmName] = m
