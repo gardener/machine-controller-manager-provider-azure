@@ -1,7 +1,6 @@
 package fakes
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
@@ -122,36 +121,55 @@ func (b *MachineResourcesBuilder) WithCascadeDeleteOptions(opts CascadeDeleteOpt
 	return b
 }
 
-func (b *MachineResourcesBuilder) Build() MachineResources {
-	return CreateMachineResources(b.spec, b.vmName, b.plan, b.cascadeDeleteOpts)
+func (b *MachineResourcesBuilder) BuildAllResources() MachineResources {
+	return b.BuildWith(true, true, true, true, nil)
 }
 
-func CreateMachineResources(spec api.AzureProviderSpec, vmName string, plan *armcompute.Plan, cascadeDeleteOpts *CascadeDeleteOpts) MachineResources {
-	vm := createVMResource(spec, vmName, plan, cascadeDeleteOpts)
-	osDisk := createDiskResource(spec, utils.CreateOSDiskName(vmName), vm.ID, plan)
-	var dataDisks map[string]*armcompute.Disk
-	specDataDisks := spec.Properties.StorageProfile.DataDisks
-	if specDataDisks != nil {
-		dataDisks = make(map[string]*armcompute.Disk, len(specDataDisks))
-		for _, specDataDisk := range specDataDisks {
-			diskName := utils.CreateDataDiskName(vmName, specDataDisk)
-			dataDisks[diskName] = createDiskResource(spec, diskName, vm.ID, nil)
+func (b *MachineResourcesBuilder) BuildWith(createVM, createNIC, createOSDisk, createDataDisk bool, withNonExistentVMID *string) MachineResources {
+	return b.CreateMachineResources(createVM, createNIC, createOSDisk, createDataDisk, withNonExistentVMID)
+}
+
+func (b *MachineResourcesBuilder) CreateMachineResources(createVM, createNIC, createOSDisk, createDataDisks bool, nonExistentVMID *string) MachineResources {
+	var (
+		vm        *armcompute.VirtualMachine
+		vmID      = nonExistentVMID
+		osDisk    *armcompute.Disk
+		dataDisks map[string]*armcompute.Disk
+		nic       *armnetwork.Interface
+	)
+	if createVM {
+		vm = createVMResource(b.spec, b.vmName, b.plan, b.cascadeDeleteOpts)
+		vmID = vm.ID
+	}
+	if createNIC {
+		nic = CreateNICResource(b.spec, vmID, utils.CreateNICName(b.vmName))
+	}
+	if createOSDisk {
+		osDisk = CreateDiskResource(b.spec, utils.CreateOSDiskName(b.vmName), vmID, b.plan)
+	}
+	if createDataDisks {
+		specDataDisks := b.spec.Properties.StorageProfile.DataDisks
+		if specDataDisks != nil {
+			dataDisks = make(map[string]*armcompute.Disk, len(specDataDisks))
+			for _, specDataDisk := range specDataDisks {
+				diskName := utils.CreateDataDiskName(b.vmName, specDataDisk)
+				dataDisks[diskName] = CreateDiskResource(b.spec, diskName, vmID, nil)
+			}
 		}
 	}
-	nic := createNICResource(spec, vm.ID, utils.CreateNICName(vmName))
 	return MachineResources{
-		Name:              vmName,
-		VM:                &vm,
+		Name:              b.vmName,
+		VM:                vm,
 		OSDisk:            osDisk,
 		DataDisks:         dataDisks,
 		NIC:               nic,
-		cascadeDeleteOpts: cascadeDeleteOpts,
+		cascadeDeleteOpts: b.cascadeDeleteOpts,
 	}
 }
 
-func createNICResource(spec api.AzureProviderSpec, vmID *string, nicName string) *armnetwork.Interface {
-	ipConfigID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkInterfaces/%s/ipConfigurations/%s", test.SubscriptionID, spec.ResourceGroup, nicName, nicName)
-	interfaceID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkInterfaces/%s", test.SubscriptionID, spec.ResourceGroup, nicName)
+func CreateNICResource(spec api.AzureProviderSpec, vmID *string, nicName string) *armnetwork.Interface {
+	ipConfigID := test.CreateIPConfigurationID(test.SubscriptionID, spec.ResourceGroup, nicName, nicName)
+	interfaceID := test.CreateNetworkInterfaceID(test.SubscriptionID, spec.ResourceGroup, nicName)
 
 	return &armnetwork.Interface{
 		Location: &spec.Location,
@@ -176,9 +194,9 @@ func createNICResource(spec api.AzureProviderSpec, vmID *string, nicName string)
 	}
 }
 
-func createVMResource(spec api.AzureProviderSpec, vmName string, plan *armcompute.Plan, cascadeDeleteOpts *CascadeDeleteOpts) armcompute.VirtualMachine {
-	id := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s", test.SubscriptionID, spec.ResourceGroup, vmName)
-	return armcompute.VirtualMachine{
+func createVMResource(spec api.AzureProviderSpec, vmName string, plan *armcompute.Plan, cascadeDeleteOpts *CascadeDeleteOpts) *armcompute.VirtualMachine {
+	id := test.CreateVirtualMachineID(test.SubscriptionID, spec.ResourceGroup, vmName)
+	return &armcompute.VirtualMachine{
 		Location: to.Ptr(spec.Location),
 		Plan:     plan,
 		Properties: &armcompute.VirtualMachineProperties{
@@ -252,7 +270,7 @@ func createImageReference(imageRef api.AzureImageReference) *armcompute.ImageRef
 	}
 }
 
-func createDiskResource(spec api.AzureProviderSpec, diskName string, vmID *string, plan *armcompute.Plan) *armcompute.Disk {
+func CreateDiskResource(spec api.AzureProviderSpec, diskName string, vmID *string, plan *armcompute.Plan) *armcompute.Disk {
 	var purchasePlan *armcompute.DiskPurchasePlan
 	if plan != nil {
 		purchasePlan = &armcompute.DiskPurchasePlan{

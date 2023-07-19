@@ -3,17 +3,19 @@ package provider
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
+	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/test"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/test/fakes"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,6 +27,7 @@ const (
 	testResourceGroupName = "test-rg"
 	testShootNs           = "test-shoot-ns"
 	testWorkerPool0Name   = "test-worker-pool-0"
+	testDataDiskName      = "test-data-disk"
 )
 
 func TestDeleteMachineWhenVMExists(t *testing.T) {
@@ -51,13 +54,13 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string) {
 				_, err := factory.VMAccess.Get(ctx, testResourceGroupName, vmName, nil)
 				g.Expect(err).ToNot(BeNil())
-				g.Expect(errors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
 				_, err = factory.InterfaceAccess.Get(ctx, testResourceGroupName, utils.CreateNICName(vmName), nil)
 				g.Expect(err).ToNot(BeNil())
-				g.Expect(errors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
 				_, err = factory.DisksAccess.Get(ctx, testResourceGroupName, utils.CreateOSDiskName(vmName), nil)
 				g.Expect(err).ToNot(BeNil())
-				g.Expect(errors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
 			},
 		},
 		{
@@ -75,13 +78,13 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string) {
 				_, err := factory.VMAccess.Get(ctx, testResourceGroupName, vmName, nil)
 				g.Expect(err).ToNot(BeNil())
-				g.Expect(errors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
 				_, err = factory.DisksAccess.Get(ctx, testResourceGroupName, utils.CreateOSDiskName(vmName), nil)
 				g.Expect(err).ToNot(BeNil())
-				g.Expect(errors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
 				_, err = factory.InterfaceAccess.Get(ctx, testResourceGroupName, utils.CreateNICName(vmName), nil)
 				g.Expect(err).ToNot(BeNil())
-				g.Expect(errors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
 			},
 		},
 		{
@@ -96,13 +99,13 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string) {
 				_, err := factory.VMAccess.Get(ctx, testResourceGroupName, vmName, nil)
 				g.Expect(err).ToNot(BeNil())
-				g.Expect(errors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
 				_, err = factory.DisksAccess.Get(ctx, testResourceGroupName, utils.CreateOSDiskName(vmName), nil)
 				g.Expect(err).ToNot(BeNil())
-				g.Expect(errors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
 				_, err = factory.InterfaceAccess.Get(ctx, testResourceGroupName, utils.CreateNICName(vmName), nil)
 				g.Expect(err).ToNot(BeNil())
-				g.Expect(errors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
 			},
 		},
 		{
@@ -129,7 +132,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 	}
 
 	g := NewWithT(t)
-	ctx := context.TODO()
+	ctx := context.Background()
 
 	for _, entry := range table {
 		t.Log(entry.description)
@@ -140,14 +143,14 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 		providerSpecBuilder := test.NewProviderSpecBuilder(entry.resourceGroup, testShootNs, testWorkerPool0Name).WithDefaultValues()
 		if entry.numDataDisks > 0 {
 			//Add data disks
-			providerSpecBuilder.WithDataDisks(createDataDiskNames(entry.numDataDisks))
+			providerSpecBuilder.WithDataDisks(testDataDiskName, entry.numDataDisks)
 		}
 		providerSpec := providerSpecBuilder.Build()
 
 		// create cluster state
 		clusterState := fakes.NewClusterState(providerSpec.ResourceGroup)
 		for _, vmName := range entry.existingVMNames {
-			clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).WithCascadeDeleteOptions(entry.cascadeDeleteOpts).Build())
+			clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).WithCascadeDeleteOptions(entry.cascadeDeleteOpts).BuildAllResources())
 		}
 		// create fake factory
 		fakeFactory := createDefaultFakeFactoryForDeleteAPI(g, providerSpec.ResourceGroup, clusterState)
@@ -180,11 +183,130 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 }
 
 func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
+	const vmName = "test-vm-0"
+	testVMID := test.CreateVirtualMachineID(test.SubscriptionID, testResourceGroupName, vmName)
 
+	table := []struct {
+		description                string
+		nicPresent                 bool
+		osDiskPresent              bool
+		numDataDisks               int
+		vmID                       *string
+		shouldDeleteMachineSucceed bool
+		checkClusterStateFn        func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string)
+	}{
+		{
+			"should delete left over NIC and Disks when they are detached from VM",
+			true, true, 1, nil, true,
+			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
+				_, err := factory.DisksAccess.Get(ctx, testResourceGroupName, utils.CreateOSDiskName(vmName), nil)
+				g.Expect(err).ToNot(BeNil())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				for _, dataDiskName := range dataDiskNames {
+					_, err := factory.DisksAccess.Get(ctx, testResourceGroupName, dataDiskName, nil)
+					g.Expect(err).ToNot(BeNil())
+					g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				}
+				_, err = factory.InterfaceAccess.Get(ctx, testResourceGroupName, utils.CreateNICName(vmName), nil)
+				g.Expect(err).ToNot(BeNil())
+				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
+			},
+		},
+		{
+			"should fail delete of NIC when its still associated with a VM",
+			true, false, 0, &testVMID, false,
+			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
+				nic, err := factory.InterfaceAccess.Get(ctx, testResourceGroupName, utils.CreateNICName(vmName), nil)
+				g.Expect(err).To(BeNil())
+				g.Expect(nic.Properties.VirtualMachine).ToNot(BeNil())
+				g.Expect(*nic.Properties.VirtualMachine.ID).To(Equal(testVMID))
+			},
+		},
+		{
+			"should fail delete of disks when its still associated with a VM",
+			false, true, 1, &testVMID, false,
+			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
+				osDisk, err := factory.DisksAccess.Get(ctx, testResourceGroupName, utils.CreateOSDiskName(vmName), nil)
+				g.Expect(err).To(BeNil())
+				g.Expect(osDisk.ManagedBy).ToNot(BeNil())
+				g.Expect(*osDisk.ManagedBy).To(Equal(testVMID))
+				for _, dataDiskName := range dataDiskNames {
+					dataDisk, err := factory.DisksAccess.Get(ctx, testResourceGroupName, dataDiskName, nil)
+					g.Expect(err).To(BeNil())
+					g.Expect(*dataDisk.ManagedBy).ToNot(BeNil())
+					g.Expect(*dataDisk.ManagedBy).To(Equal(testVMID))
+				}
+			},
+		},
+	}
+
+	g := NewWithT(t)
+	ctx := context.Background()
+
+	for _, entry := range table {
+		t.Log(entry.description)
+		// initialize cluster state
+		//----------------------------------------------------------------------------
+
+		// create provider spec
+		providerSpecBuilder := test.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
+		if entry.numDataDisks > 0 {
+			//Add data disks
+			providerSpecBuilder.WithDataDisks(testDataDiskName, entry.numDataDisks)
+		}
+		providerSpec := providerSpecBuilder.Build()
+
+		// create cluster state
+		clusterState := fakes.NewClusterState(providerSpec.ResourceGroup)
+		clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).BuildWith(false, entry.nicPresent, entry.osDiskPresent, entry.numDataDisks > 0, entry.vmID))
+
+		// create fake factory
+		fakeFactory := createDefaultFakeFactoryForDeleteAPI(g, providerSpec.ResourceGroup, clusterState)
+
+		// Create machine and machine class to be used to create DeleteMachineRequest
+		machineClass, err := createMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+		g.Expect(err).To(BeNil())
+		machine := &v1alpha1.Machine{
+			ObjectMeta: newMachineObjectMeta(testShootNs, vmName),
+		}
+
+		// Test
+		//----------------------------------------------------------------------------
+		testDriver := NewDefaultDriver(fakeFactory)
+		_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
+			Machine:      machine,
+			MachineClass: machineClass,
+			Secret:       test.CreateProviderSecret(),
+		})
+		g.Expect(err == nil).To(Equal(entry.shouldDeleteMachineSucceed))
+
+		dataDiskNames := test.CreateDataDiskNames(vmName, providerSpec)
+		entry.checkClusterStateFn(g, ctx, *fakeFactory, vmName, dataDiskNames)
+	}
 }
 
 func TestDeleteMachineWhenProviderIsNotAzure(t *testing.T) {
-
+	const vmName = "test-vm-0"
+	g := NewWithT(t)
+	ctx := context.Background()
+	fakeFactory := fakes.NewFactory(testResourceGroupName)
+	testDriver := NewDefaultDriver(fakeFactory)
+	providerSpec := test.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().Build()
+	machineClass, err := createMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+	g.Expect(err).To(BeNil())
+	machineClass.Provider = "aws" //set an incorrect provider
+	machine := &v1alpha1.Machine{
+		ObjectMeta: newMachineObjectMeta(testShootNs, vmName),
+	}
+	_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
+		Machine:      machine,
+		MachineClass: machineClass,
+		Secret:       test.CreateProviderSecret(),
+	})
+	g.Expect(err).ToNot(BeNil())
+	var statusErr *status.Status
+	g.Expect(errors.As(err, &statusErr)).Should(BeTrue())
+	g.Expect(statusErr.Code()).To(Equal(codes.InvalidArgument))
 }
 
 func createDefaultFakeFactoryForDeleteAPI(g *WithT, resourceGroup string, clusterState *fakes.ClusterState) *fakes.Factory {
@@ -230,11 +352,11 @@ func newMachineObjectMeta(namespace string, vmName string) metav1.ObjectMeta {
 	}
 }
 
-func createDataDiskNames(numDataDisks int) []string {
-	diskNames := make([]string, 0, numDataDisks)
-	for i := 0; i < numDataDisks; i++ {
-		diskName := fmt.Sprintf("test-disk-%d", i)
-		diskNames = append(diskNames, diskName)
-	}
-	return diskNames
-}
+//func createDataDiskNames(numDataDisks int) []string {
+//	diskNames := make([]string, 0, numDataDisks)
+//	for i := 0; i < numDataDisks; i++ {
+//		diskName := fmt.Sprintf("test-disk-%d", i)
+//		diskNames = append(diskNames, diskName)
+//	}
+//	return diskNames
+//}

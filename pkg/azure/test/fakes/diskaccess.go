@@ -10,6 +10,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	fakecompute "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5/fake"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/test"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 type DiskAccessBuilder struct {
@@ -60,6 +61,11 @@ func (b *DiskAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions)
 		}
 
 		// Azure API Disk deletion does not fail if the Disk does not exist. It still returns 200 Ok.
+		disk := b.clusterState.GetDisk(diskName)
+		if disk != nil && !utils.IsNilOrEmptyStringPtr(disk.ManagedBy) {
+			errResp.SetError(ConflictErr(test.ErrorOperationNotAllowed))
+			return
+		}
 		b.clusterState.DeleteDisk(diskName)
 		resp.SetTerminalResponse(http.StatusOK, armcompute.DisksClientDeleteResponse{}, nil)
 		return

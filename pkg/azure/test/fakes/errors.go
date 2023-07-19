@@ -27,3 +27,14 @@ func ResourceNotFoundErr(errorCode string) error {
 	}
 	return runtime.NewResponseError(resp)
 }
+
+func ConflictErr(errorCode string) error {
+	headers := http.Header{}
+	headers.Set("x-ms-error-code", errorCode)
+	resp := &http.Response{
+		Status:     "409 Conflict",
+		StatusCode: 409,
+		Header:     headers,
+	}
+	return runtime.NewResponseError(resp)
+}

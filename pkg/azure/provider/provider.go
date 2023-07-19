@@ -86,11 +86,11 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 		return &driver.DeleteMachineResponse{}, nil
 	}
 
-	vmClient, err := d.factory.GetVirtualMachinesAccess(connectConfig)
+	vmAccess, err := d.factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
 	}
-	vm, err := clienthelpers.GetVirtualMachine(ctx, vmClient, resourceGroup, vmName)
+	vm, err := clienthelpers.GetVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 	if err != nil {
 		return nil, err
 	}
@@ -102,11 +102,11 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 		}
 	} else {
 		// update the VM and set cascade delete on NIC and Disks (OSDisk and DataDisks) if not already set and then trigger VM deletion.
-		err = clienthelpers.SetCascadeDeleteForNICsAndDisks(ctx, vmClient, resourceGroup, vm)
+		err = clienthelpers.SetCascadeDeleteForNICsAndDisks(ctx, vmAccess, resourceGroup, vm)
 		if err != nil {
 			return nil, err
 		}
-		err = clienthelpers.DeleteVirtualMachine(ctx, vmClient, resourceGroup, vmName)
+		err = clienthelpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 		if err != nil {
 			return nil, err
 		}
@@ -123,13 +123,13 @@ func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMach
 
 	resourceGroup := providerSpec.ResourceGroup
 	vmName := req.Machine.Name
-	vmClient, err := d.factory.GetVirtualMachinesAccess(connectConfig)
+	vmAccess, err := d.factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
 	}
 
 	// After getting response for Query: [https://github.com/Azure/azure-sdk-for-go/issues/21031] replace this call with a more optimized variant to check if a VM exists.
-	vm, err := clienthelpers.GetVirtualMachine(ctx, vmClient, resourceGroup, vmName)
+	vm, err := clienthelpers.GetVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 	if err != nil {
 		return nil, err
 	}
@@ -160,11 +160,11 @@ func (d defaultDriver) GetVolumeIDs(_ context.Context, request *driver.GetVolume
 
 // skipDeleteMachine checks if ResourceGroup exists. If it does not exist then there is no need to delete any resource as it is assumed that none would exist.
 func (d defaultDriver) skipDeleteMachine(ctx context.Context, connectConfig access.ConnectConfig, resourceGroup string) (bool, error) {
-	resGroupCli, err := d.factory.GetResourceGroupsAccess(connectConfig)
+	resGroupAccess, err := d.factory.GetResourceGroupsAccess(connectConfig)
 	if err != nil {
 		return false, status.Error(codes.Internal, fmt.Sprintf("failed to create resource group access to process request: [resourceGroup: %s]", resourceGroup))
 	}
-	resGroupExists, err := clienthelpers.ResourceGroupExists(ctx, resGroupCli, resourceGroup)
+	resGroupExists, err := clienthelpers.ResourceGroupExists(ctx, resGroupAccess, resourceGroup)
 	if err != nil {
 		return false, status.Error(codes.Internal, fmt.Sprintf("failed to check if resource group %s exists, Err: %v", resourceGroup, err))
 	}
@@ -172,11 +172,11 @@ func (d defaultDriver) skipDeleteMachine(ctx context.Context, connectConfig acce
 }
 
 func (d defaultDriver) getVirtualMachine(ctx context.Context, connectConfig access.ConnectConfig, resourceGroup, vmName string) (*armcompute.VirtualMachine, error) {
-	vmClient, err := d.factory.GetVirtualMachinesAccess(connectConfig)
+	vmAccess, err := d.factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
 	}
-	return clienthelpers.GetVirtualMachine(ctx, vmClient, resourceGroup, vmName)
+	return clienthelpers.GetVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 }
 
 func (d defaultDriver) checkAndDeleteLeftoverNICsAndDisks(ctx context.Context, vmName string, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) error {
@@ -186,44 +186,63 @@ func (d defaultDriver) checkAndDeleteLeftoverNICsAndDisks(ctx context.Context, v
 	diskNames := helpers.GetDiskNames(providerSpec, vmName)
 
 	// create NIC and Disks clients
-	nicClient, err := d.factory.GetNetworkInterfacesAccess(connectConfig)
+	nicAccess, err := d.factory.GetNetworkInterfacesAccess(connectConfig)
 	if err != nil {
 		return err
 	}
-	disksClient, err := d.factory.GetDisksAccess(connectConfig)
+	disksAccess, err := d.factory.GetDisksAccess(connectConfig)
 	if err != nil {
 		return err
 	}
 
 	// Create NIC and Disk deletion tasks and run them concurrently.
 	tasks := make([]utils.Task, 0, len(diskNames)+1)
-	tasks = append(tasks, d.createNICDeleteTask(resourceGroup, nicName, nicClient))
-	tasks = append(tasks, d.createDiskDeletionTasks(resourceGroup, diskNames, disksClient)...)
+	tasks = append(tasks, d.createNICDeleteTask(resourceGroup, nicName, nicAccess))
+	//tasks = append(tasks, d.createDiskDeletionTasks(resourceGroup, diskNames, disksAccess)...)
+	tasks = append(tasks, d.createDisksDeletionTask(resourceGroup, diskNames, disksAccess))
 	return errors.Join(utils.RunConcurrently(ctx, tasks, len(tasks))...)
 }
 
-func (d defaultDriver) createNICDeleteTask(resourceGroup, nicName string, nicClient *armnetwork.InterfacesClient) utils.Task {
+func (d defaultDriver) createNICDeleteTask(resourceGroup, nicName string, nicAccess *armnetwork.InterfacesClient) utils.Task {
 	return utils.Task{
 		Name: fmt.Sprintf("delete-nic-[resourceGroup: %s name: %s]", resourceGroup, nicName),
 		Fn: func(ctx context.Context) error {
-			return clienthelpers.DeleteNICIfExists(ctx, nicClient, resourceGroup, nicName)
+			return clienthelpers.DeleteNIC(ctx, nicAccess, resourceGroup, nicName)
 		},
 	}
 }
 
-func (d defaultDriver) createDiskDeletionTasks(resourceGroup string, diskNames []string, diskClient *armcompute.DisksClient) []utils.Task {
-	tasks := make([]utils.Task, 0, len(diskNames))
-	for _, diskName := range diskNames {
-		task := utils.Task{
-			Name: fmt.Sprintf("delete-disk-[resourceGroup: %s name: %s]", resourceGroup, diskName),
-			Fn: func(ctx context.Context) error {
-				return clienthelpers.DeleteDiskIfExists(ctx, diskClient, resourceGroup, diskName)
-			},
+func (d defaultDriver) createDisksDeletionTask(resourceGroup string, diskNames []string, diskAccess *armcompute.DisksClient) utils.Task {
+	taskFn := func(ctx context.Context) error {
+		var errs []error
+		for _, diskName := range diskNames {
+			klog.Infof("Deleting disk: [ResourceGroup: %s, DiskName: %s]", resourceGroup, diskName)
+			if err := clienthelpers.DeleteDisk(ctx, diskAccess, resourceGroup, diskName); err != nil {
+				errs = append(errs, err)
+			}
 		}
-		tasks = append(tasks, task)
+		return errors.Join(errs...)
 	}
-	return tasks
+	return utils.Task{
+		Name: fmt.Sprintf("delete-disks-[resourceGroup: %s]", resourceGroup),
+		Fn:   taskFn,
+	}
 }
+
+//func (d defaultDriver) createDiskDeletionTasks(resourceGroup string, diskNames []string, diskAccess *armcompute.DisksClient) []utils.Task {
+//	tasks := make([]utils.Task, 0, len(diskNames))
+//	for _, diskName := range diskNames {
+//		diskName := diskName // Refer: https://github.com/golang/go/wiki/CommonMistakes#using-reference-to-loop-iterator-variable, should be resolved in go 1.21
+//		task := utils.Task{
+//			Name: fmt.Sprintf("delete-disk-[resourceGroup: %s name: %s]", resourceGroup, diskName),
+//			Fn: func(ctx context.Context) error {
+//				return clienthelpers.DeleteDisk(ctx, diskAccess, resourceGroup, diskName)
+//			},
+//		}
+//		tasks = append(tasks, task)
+//	}
+//	return tasks
+//}
 
 func (d defaultDriver) createNICIfNotExists(ctx context.Context, providerSpec api.AzureProviderSpec, connectConfig access.ConnectConfig, vmName string) (string, error) {
 	nicAccess, err := d.factory.GetNetworkInterfacesAccess(connectConfig)

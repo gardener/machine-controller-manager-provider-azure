@@ -2,18 +2,13 @@ package helpers
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
-	"k8s.io/klog/v2"
-
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 )
 
@@ -30,24 +25,41 @@ const (
 	defaultCreateNICTimeout = 15 * time.Minute
 )
 
-func DeleteNICIfExists(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) error {
-	nic, err := getNIC(ctx, client, resourceGroup, nicName)
+//func DeleteNICIfExists(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) error {
+//	nic, err := getNIC(ctx, client, resourceGroup, nicName)
+//	if err != nil {
+//		return err
+//	}
+//	if nic == nil {
+//		klog.Infof("NIC: [ResourceGraph: %s, NICName: %s] does not exist. Skipping deletion.", resourceGroup, nicName)
+//		return nil
+//	}
+//	if nic.Properties != nil && nic.Properties.VirtualMachine != nil && nic.Properties.VirtualMachine.ID != nil {
+//		return fmt.Errorf("cannot delete NIC [ResourceGroup: %s, Name: %s] as its still attached to VM: %s", resourceGroup, nicName, *nic.Properties.VirtualMachine.ID)
+//	}
+//	err = deleteNIC(ctx, client, resourceGroup, nicName)
+//	if err != nil {
+//		return status.Error(codes.Internal, fmt.Sprintf("failed to delete NIC: [ResourceGroup: %s, NICName: %s] Err: %v", resourceGroup, nicName, err))
+//	}
+//	klog.Infof("Successfully delete NIC: [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
+//	return nil
+//}
+
+func DeleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) (err error) {
+	defer instrument.RecordAzAPIMetric(err, nicDeleteServiceLabel, time.Now())
+	var poller *runtime.Poller[armnetwork.InterfacesClientDeleteResponse]
+	delCtx, cancelFn := context.WithTimeout(ctx, defaultDeleteNICTimeout)
+	defer cancelFn()
+	poller, err = client.BeginDelete(delCtx, resourceGroup, nicName, nil)
 	if err != nil {
-		return err
+		errors.LogAzAPIError(err, "Failed to trigger delete of NIC [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
+		return
 	}
-	if nic == nil {
-		klog.Infof("NIC: [ResourceGraph: %s, NICName: %s] does not exist. Skipping deletion.", resourceGroup, nicName)
-		return nil
-	}
-	if nic.Properties != nil && nic.Properties.VirtualMachine != nil && nic.Properties.VirtualMachine.ID != nil {
-		return fmt.Errorf("cannot delete NIC [ResourceGroup: %s, Name: %s] as its still attached to VM: %s", resourceGroup, nicName, *nic.Properties.VirtualMachine.ID)
-	}
-	err = deleteNIC(ctx, client, resourceGroup, nicName)
+	_, err = poller.PollUntilDone(delCtx, nil)
 	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to delete NIC: [ResourceGroup: %s, NICName: %s] Err: %v", resourceGroup, nicName, err))
+		errors.LogAzAPIError(err, "Polling failed while waiting for Deleting of NIC: %s for ResourceGroup: %s", nicName, resourceGroup)
 	}
-	klog.Infof("Successfully delete NIC: [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
-	return nil
+	return
 }
 
 // CreateNICIfNotExists creates a NIC if it does not exist. It returns the NIC ID of an already existing NIC or a freshly created one.
@@ -127,23 +139,6 @@ func getNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGr
 		return nil, err
 	}
 	return &resp.Interface, nil
-}
-
-func deleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) (err error) {
-	defer instrument.RecordAzAPIMetric(err, nicDeleteServiceLabel, time.Now())
-	var poller *runtime.Poller[armnetwork.InterfacesClientDeleteResponse]
-	delCtx, cancelFn := context.WithTimeout(ctx, defaultDeleteNICTimeout)
-	defer cancelFn()
-	poller, err = client.BeginDelete(delCtx, resourceGroup, nicName, nil)
-	if err != nil {
-		errors.LogAzAPIError(err, "Failed to trigger delete of NIC [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
-		return
-	}
-	_, err = poller.PollUntilDone(delCtx, nil)
-	if err != nil {
-		errors.LogAzAPIError(err, "Polling failed while waiting for Deleting of NIC: %s for ResourceGroup: %s", nicName, resourceGroup)
-	}
-	return
 }
 
 func createNIC(ctx context.Context, nicAccess *armnetwork.InterfacesClient, resourceGroup string, nicParams armnetwork.Interface) (nic *armnetwork.Interface, err error) {

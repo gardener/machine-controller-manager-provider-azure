@@ -37,11 +37,12 @@ func LogAzAPIError(err error, format string, v ...any) {
 		return
 	}
 	respHeaders := traceResponseHeaders(err)
-	errMsg := fmt.Sprintf(format, v)
+	errMsg := fmt.Sprintf(format, v...)
 	if len(respHeaders) == 0 {
-		klog.Errorf("%s: %v\n", errMsg, err)
+		klog.Errorf("%s: %+v\n", errMsg, err)
+		return
 	}
-	klog.Errorf("%s : Azure API Response-Headers: %+v Err: %v\n", errMsg, respHeaders, err)
+	klog.Errorf("%s : Azure API Response-Headers: %+v Err: %+v\n", errMsg, respHeaders, err)
 }
 
 func traceResponseHeaders(err error) map[string]string {

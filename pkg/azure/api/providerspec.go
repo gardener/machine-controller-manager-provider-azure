@@ -92,6 +92,8 @@ type AzureVirtualMachineProperties struct {
 	// Points to note:
 	// 1. A VM can only be added to availability set at creation time.
 	// 2. Either of AvailabilitySet or VirtualMachineScaleSet should be specified but not both.
+	// 3. Only `Flexible` variant of VMSS is currently supported. It is strongly recommended that consumers turn-off any
+	// autoscaling capabilities as it interferes with the lifecycle management of MCM and auto-scaling capabilities offered by Cluster-Autoscaler.
 	VirtualMachineScaleSet *AzureSubResource `json:"virtualMachineScaleSet,omitempty"`
 	// Deprecated. Use either AvailabilitySet or VirtualMachineScaleSet instead
 	MachineSet *AzureMachineSetConfig `json:"machineSet,omitempty"`
@@ -191,6 +193,7 @@ type AzureSSHPublicKey struct {
 
 // AzureNetworkProfile specifies the network interfaces of the virtual machine.
 type AzureNetworkProfile struct {
+	// Deprecated: This field is currently not used and will be removed in later versions of the API.
 	NetworkInterfaces     AzureNetworkInterfaceReference `json:"networkInterfaces,omitempty"`
 	AcceleratedNetworking *bool                          `json:"acceleratedNetworking,omitempty"`
 }

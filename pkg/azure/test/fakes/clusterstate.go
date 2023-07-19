@@ -1,6 +1,7 @@
 package fakes
 
 import (
+	"sync"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
@@ -12,6 +13,7 @@ type APIBehaviorOptions struct {
 }
 
 type ClusterState struct {
+	mutex               sync.RWMutex
 	ResourceGroup       string
 	MachineResourcesMap map[string]MachineResources
 }
@@ -31,10 +33,12 @@ func NewClusterState(resourceGroup string) *ClusterState {
 }
 
 func (c *ClusterState) AddMachineResources(m MachineResources) {
-	c.MachineResourcesMap[*m.VM.Name] = m
+	c.MachineResourcesMap[m.Name] = m
 }
 
 func (c *ClusterState) DeleteVM(vmName string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	m, ok := c.MachineResourcesMap[vmName]
 	if !ok {
 		return
@@ -66,24 +70,27 @@ func (c *ClusterState) GetNIC(nicName string) *armnetwork.Interface {
 }
 
 func (c *ClusterState) DeleteNIC(nicName string) {
-	var targetMachine *MachineResources
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	var targetMachineResources *MachineResources
 loop:
 	for _, m := range c.MachineResourcesMap {
 		if m.NIC != nil && *m.NIC.Name == nicName {
-			targetMachine = &m
+			targetMachineResources = &m
 			break loop
 		}
 	}
-	if targetMachine != nil {
-		targetMachine.NIC = nil
-		if !targetMachine.HasResources() {
-			delete(c.MachineResourcesMap, *targetMachine.VM.Name)
+	if targetMachineResources != nil {
+		targetMachineResources.NIC = nil
+		if !targetMachineResources.HasResources() {
+			delete(c.MachineResourcesMap, targetMachineResources.Name)
 		}
+		c.MachineResourcesMap[targetMachineResources.Name] = *targetMachineResources
 	}
 }
 
 func (c *ClusterState) GetDisk(diskName string) *armcompute.Disk {
-	diskType, machine := c.getDiskTypeAndOwningMachine(diskName)
+	diskType, machine := c.getDiskTypeAndOwningMachineResources(diskName)
 	switch diskType {
 	case DiskTypeOS:
 		return machine.OSDisk
@@ -95,27 +102,29 @@ func (c *ClusterState) GetDisk(diskName string) *armcompute.Disk {
 }
 
 func (c *ClusterState) DeleteDisk(diskName string) {
-	diskType, machine := c.getDiskTypeAndOwningMachine(diskName)
-	if machine == nil {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	diskType, machineResources := c.getDiskTypeAndOwningMachineResources(diskName)
+	if machineResources == nil {
 		return
 	}
 	switch diskType {
 	case DiskTypeOS:
-		machine.OSDisk = nil
+		machineResources.OSDisk = nil
 	case DiskTypeData:
-		delete(machine.DataDisks, diskName)
-		if len(machine.DataDisks) == 0 {
-			machine.DataDisks = nil
+		delete(machineResources.DataDisks, diskName)
+		if len(machineResources.DataDisks) == 0 {
+			machineResources.DataDisks = nil
 		}
 	}
-	if !machine.HasResources() {
-		delete(c.MachineResourcesMap, *machine.VM.Name)
+	if !machineResources.HasResources() {
+		delete(c.MachineResourcesMap, machineResources.Name)
 	} else {
-		c.MachineResourcesMap[machine.Name] = *machine
+		c.MachineResourcesMap[machineResources.Name] = *machineResources
 	}
 }
 
-func (c *ClusterState) getDiskTypeAndOwningMachine(diskName string) (DiskType, *MachineResources) {
+func (c *ClusterState) getDiskTypeAndOwningMachineResources(diskName string) (DiskType, *MachineResources) {
 	if c.MachineResourcesMap != nil {
 		for _, m := range c.MachineResourcesMap {
 			if m.OSDisk != nil && *m.OSDisk.Name == diskName {

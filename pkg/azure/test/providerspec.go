@@ -6,6 +6,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 	"k8s.io/utils/pointer"
 )
 
@@ -39,7 +40,8 @@ func (b *ProviderSpecBuilder) WithDefaultValues() *ProviderSpecBuilder {
 		WithDefaultStorageProfile().
 		WithDefaultHardwareProfile().
 		WithDefaultOsProfile().
-		WithDefaultSubnetInfo()
+		WithDefaultSubnetInfo().
+		WithDefaultNetworkProfile()
 }
 
 func (b *ProviderSpecBuilder) WithDefaultSubnetInfo() *ProviderSpecBuilder {
@@ -55,6 +57,13 @@ func (b *ProviderSpecBuilder) WithSubnetInfo(vnetResourceGroup string) *Provider
 		VnetName:          b.shootNs,
 		VnetResourceGroup: to.Ptr(vnetResourceGroup),
 		SubnetName:        fmt.Sprintf("%s-nodes", b.shootNs),
+	}
+	return b
+}
+
+func (b *ProviderSpecBuilder) WithDefaultNetworkProfile() *ProviderSpecBuilder {
+	b.spec.Properties.NetworkProfile = api.AzureNetworkProfile{
+		AcceleratedNetworking: to.Ptr(true),
 	}
 	return b
 }
@@ -79,19 +88,17 @@ func (b *ProviderSpecBuilder) WithDefaultStorageProfile() *ProviderSpecBuilder {
 	return b
 }
 
-func (b *ProviderSpecBuilder) WithDataDisks(diskNames []string) *ProviderSpecBuilder {
-	dataDisks := make([]api.AzureDataDisk, 0, len(diskNames))
-	var lun int32
-	for _, diskName := range diskNames {
+func (b *ProviderSpecBuilder) WithDataDisks(diskName string, numDisks int) *ProviderSpecBuilder {
+	dataDisks := make([]api.AzureDataDisk, 0, numDisks)
+	for i := 0; i < numDisks; i++ {
 		d := api.AzureDataDisk{
 			Name:               diskName,
-			Lun:                pointer.Int32(lun),
+			Lun:                pointer.Int32(int32(i)),
 			Caching:            "None",
 			StorageAccountType: StorageAccountType,
 			DiskSizeGB:         20,
 		}
 		dataDisks = append(dataDisks, d)
-		lun++
 	}
 	b.spec.Properties.StorageProfile.DataDisks = dataDisks
 	return b
@@ -133,4 +140,12 @@ func (b *ProviderSpecBuilder) Marshal() ([]byte, error) {
 
 func (b *ProviderSpecBuilder) Build() api.AzureProviderSpec {
 	return b.spec
+}
+
+func CreateDataDiskNames(vmName string, spec api.AzureProviderSpec) []string {
+	var diskNames []string
+	for _, specDataDisk := range spec.Properties.StorageProfile.DataDisks {
+		diskNames = append(diskNames, utils.CreateDataDiskName(vmName, specDataDisk))
+	}
+	return diskNames
 }

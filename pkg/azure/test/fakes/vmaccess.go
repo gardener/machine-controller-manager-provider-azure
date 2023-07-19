@@ -39,12 +39,12 @@ func (b *VMAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *VMAccess
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
 			return
 		}
-		machine, existingMachine := b.clusterState.MachineResourcesMap[vmName]
-		if !existingMachine {
+		machineResources, existing := b.clusterState.MachineResourcesMap[vmName]
+		if !existing || machineResources.VM == nil {
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceNotFound))
 			return
 		}
-		vmResp := armcompute.VirtualMachinesClientGetResponse{VirtualMachine: *machine.VM}
+		vmResp := armcompute.VirtualMachinesClientGetResponse{VirtualMachine: *machineResources.VM}
 		resp.SetResponse(http.StatusOK, vmResp, nil)
 		return
 	}
@@ -80,10 +80,12 @@ func (b *VMAccessBuilder) WithBeginUpdate(apiBehaviorOpts *APIBehaviorOptions) *
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
 			return
 		}
-		if _, ok := b.clusterState.MachineResourcesMap[vmName]; !ok {
-			errResp.SetError(ResourceNotFoundErr(test.ErrorCodePatchResourceNotFound))
+		machineResources, existing := b.clusterState.MachineResourcesMap[vmName]
+		if !existing || machineResources.VM == nil {
+			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceNotFound))
 			return
 		}
+
 		// NOTE: Currently we are only using this API to set cascade delete option for NIC and Disks.
 		// So to avoid complexity, we will restrict it to only updating cascade delete options only.
 		// If in future the usage changes then changes should also be done here to reflect that.

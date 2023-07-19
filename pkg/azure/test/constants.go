@@ -5,6 +5,7 @@ const (
 	ErrorCodeResourceNotFound      = "ResourceNotFound"
 	ErrorCodeResourceGroupNotFound = "ResourceGroupNotFound"
 	ErrorCodePatchResourceNotFound = "PatchResourceNotFound"
+	ErrorOperationNotAllowed       = "OperationNotAllowed"
 )
 
 const (
