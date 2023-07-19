@@ -126,6 +126,9 @@ func (b *MachineResourcesBuilder) BuildAllResources() MachineResources {
 }
 
 func (b *MachineResourcesBuilder) BuildWith(createVM, createNIC, createOSDisk, createDataDisk bool, withNonExistentVMID *string) MachineResources {
+	if b.cascadeDeleteOpts == nil {
+		b.cascadeDeleteOpts = &CascadeDeleteAllResources
+	}
 	return b.CreateMachineResources(createVM, createNIC, createOSDisk, createDataDisk, withNonExistentVMID)
 }
 

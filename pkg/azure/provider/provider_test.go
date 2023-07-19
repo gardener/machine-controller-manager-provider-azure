@@ -9,6 +9,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/provider/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/test"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/test/fakes"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
@@ -247,7 +248,6 @@ func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 		t.Log(entry.description)
 		// initialize cluster state
 		//----------------------------------------------------------------------------
-
 		// create provider spec
 		providerSpecBuilder := test.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
 		if entry.numDataDisks > 0 {
@@ -309,6 +309,72 @@ func TestDeleteMachineWhenProviderIsNotAzure(t *testing.T) {
 	g.Expect(statusErr.Code()).To(Equal(codes.InvalidArgument))
 }
 
+func TestGetMachineStatus(t *testing.T) {
+	table := []struct {
+		description            string
+		existingVMNames        []string
+		targetVMName           string
+		shouldOperationSucceed bool
+		checkErrorFn           func(g *WithT, err error)
+	}{
+		{
+			"should return an error for a non-existing VM", []string{"vm-0", "vm-1"}, "vm-2", false,
+			func(g *WithT, err error) {
+				var statusErr *status.Status
+				g.Expect(err).ToNot(BeNil())
+				g.Expect(errors.As(err, &statusErr)).Should(BeTrue())
+				g.Expect(statusErr.Code()).To(Equal(codes.NotFound))
+			},
+		},
+		{"should return a valid response for an existing VM", []string{"vm-0", "vm-1"}, "vm-0", true, nil},
+	}
+
+	g := NewWithT(t)
+	ctx := context.Background()
+
+	for _, entry := range table {
+		t.Log(entry.description)
+		// initialize cluster state
+		//----------------------------------------------------------------------------
+		// create provider spec
+		providerSpec := test.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().Build()
+
+		// create cluster state
+		clusterState := fakes.NewClusterState(providerSpec.ResourceGroup)
+		for _, vmName := range entry.existingVMNames {
+			clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).BuildAllResources())
+		}
+		// create fake factory
+		fakeFactory := createDefaultFakeFactoryForDeleteAPI(g, providerSpec.ResourceGroup, clusterState)
+
+		// Create machine and machine class to be used to create DeleteMachineRequest
+		machineClass, err := createMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+		g.Expect(err).To(BeNil())
+		machine := &v1alpha1.Machine{
+			ObjectMeta: newMachineObjectMeta(testShootNs, entry.targetVMName),
+		}
+
+		// Test
+		//----------------------------------------------------------------------------
+		testDriver := NewDefaultDriver(fakeFactory)
+		getMachineStatusResp, err := testDriver.GetMachineStatus(ctx, &driver.GetMachineStatusRequest{
+			Machine:      machine,
+			MachineClass: machineClass,
+			Secret:       test.CreateProviderSecret(),
+		})
+		g.Expect(err == nil).To(Equal(entry.shouldOperationSucceed))
+		if err == nil {
+			g.Expect(getMachineStatusResp).ToNot(BeNil())
+			g.Expect(getMachineStatusResp.NodeName).To(Equal(entry.targetVMName))
+			instanceID := helpers.DeriveInstanceID(providerSpec.Location, entry.targetVMName)
+			g.Expect(getMachineStatusResp.ProviderID).To(Equal(instanceID))
+		}
+		if entry.checkErrorFn != nil {
+			entry.checkErrorFn(g, err)
+		}
+	}
+}
+
 func createDefaultFakeFactoryForDeleteAPI(g *WithT, resourceGroup string, clusterState *fakes.ClusterState) *fakes.Factory {
 	fakeFactory := fakes.NewFactory(resourceGroup)
 	vmAccess, err := fakeFactory.NewVirtualMachineAccessBuilder().WithClusterState(clusterState).WithDefaultAPIBehavior().Build()
@@ -351,12 +417,3 @@ func newMachineObjectMeta(namespace string, vmName string) metav1.ObjectMeta {
 		Name:      vmName,
 	}
 }
-
-//func createDataDiskNames(numDataDisks int) []string {
-//	diskNames := make([]string, 0, numDataDisks)
-//	for i := 0; i < numDataDisks; i++ {
-//		diskName := fmt.Sprintf("test-disk-%d", i)
-//		diskNames = append(diskNames, diskName)
-//	}
-//	return diskNames
-//}

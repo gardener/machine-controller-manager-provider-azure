@@ -36,6 +36,13 @@ func (c *ClusterState) AddMachineResources(m MachineResources) {
 	c.MachineResourcesMap[m.Name] = m
 }
 
+func (c *ClusterState) GetVM(vmName string) *armcompute.VirtualMachine {
+	if machineResources, ok := c.MachineResourcesMap[vmName]; ok {
+		return machineResources.VM
+	}
+	return nil
+}
+
 func (c *ClusterState) DeleteVM(vmName string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
