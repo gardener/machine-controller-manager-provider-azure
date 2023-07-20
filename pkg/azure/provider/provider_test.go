@@ -345,7 +345,10 @@ func TestGetMachineStatus(t *testing.T) {
 			clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).BuildAllResources())
 		}
 		// create fake factory
-		fakeFactory := createDefaultFakeFactoryForDeleteAPI(g, providerSpec.ResourceGroup, clusterState)
+		fakeFactory := fakes.NewFactory(testResourceGroupName)
+		vmAccess, err := fakeFactory.NewVirtualMachineAccessBuilder().WithClusterState(clusterState).WithDefaultAPIBehavior().Build()
+		g.Expect(err).To(BeNil())
+		fakeFactory.WithVirtualMachineAccess(vmAccess)
 
 		// Create machine and machine class to be used to create DeleteMachineRequest
 		machineClass, err := createMachineClass(providerSpec, to.Ptr(testResourceGroupName))
