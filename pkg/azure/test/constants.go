@@ -19,3 +19,10 @@ const (
 	ImageRefURN        = "sap:gardenlinux:greatest:184.0.0"
 	TestAdminUserName  = "core"
 )
+
+const (
+	AccessMethodGet            = "Get"
+	AccessMethodBeginDelete    = "BeginDelete"
+	AccessMethodBeginUpdate    = "BeginUpdate"
+	AccessMethodCheckExistence = "CheckExistence"
+)

@@ -14,8 +14,9 @@ import (
 )
 
 type DiskAccessBuilder struct {
-	clusterState *ClusterState
-	diskServer   fakecompute.DisksServer
+	clusterState    *ClusterState
+	diskServer      fakecompute.DisksServer
+	apiBehaviorSpec *APIBehaviorSpec
 }
 
 func (b *DiskAccessBuilder) WithClusterState(clusterState *ClusterState) *DiskAccessBuilder {
@@ -23,15 +24,19 @@ func (b *DiskAccessBuilder) WithClusterState(clusterState *ClusterState) *DiskAc
 	return b
 }
 
-func (b *DiskAccessBuilder) WithDefaultAPIBehavior() *DiskAccessBuilder {
-	return b.WithGet(nil).WithBeginDelete(nil)
+func (b *DiskAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *DiskAccessBuilder {
+	b.apiBehaviorSpec = apiBehaviorSpec
+	return b
 }
 
-func (b *DiskAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *DiskAccessBuilder {
+func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 	b.diskServer.Get = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientGetOptions) (resp azfake.Responder[armcompute.DisksClientGetResponse], errResp azfake.ErrorResponder) {
-		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
-			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
-			return
+		if b.apiBehaviorSpec != nil {
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, diskName, test.AccessMethodGet)
+			if err != nil {
+				errResp.SetError(err)
+				return
+			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
@@ -49,11 +54,14 @@ func (b *DiskAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *DiskAc
 	return b
 }
 
-func (b *DiskAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions) *DiskAccessBuilder {
+func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
 	b.diskServer.BeginDelete = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.DisksClientDeleteResponse], errResp azfake.ErrorResponder) {
-		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
-			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
-			return
+		if b.apiBehaviorSpec != nil {
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, diskName, test.AccessMethodBeginDelete)
+			if err != nil {
+				errResp.SetError(err)
+				return
+			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
@@ -74,6 +82,7 @@ func (b *DiskAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions)
 }
 
 func (b *DiskAccessBuilder) Build() (*armcompute.DisksClient, error) {
+	b.withGet().withBeginDelete()
 	return armcompute.NewDisksClient(test.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
 		ClientOptions: policy.ClientOptions{
 			Transport: fakecompute.NewDisksServerTransport(&b.diskServer),

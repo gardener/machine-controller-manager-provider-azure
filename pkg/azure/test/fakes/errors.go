@@ -38,3 +38,15 @@ func ConflictErr(errorCode string) error {
 	}
 	return runtime.NewResponseError(resp)
 }
+
+func InternalServerError(errorCode string) error {
+	headers := http.Header{}
+	headers.Set("x-ms-error-code", errorCode)
+	resp := &http.Response{
+		Status:     "500 Internal Server Error",
+		StatusCode: 500,
+		Header:     headers,
+	}
+	return runtime.NewResponseError(resp)
+
+}

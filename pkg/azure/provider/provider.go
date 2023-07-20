@@ -88,27 +88,27 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 
 	vmAccess, err := d.factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v\n", resourceGroup, vmName, err))
 	}
 	vm, err := clienthelpers.GetVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 	if err != nil {
-		return nil, err
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get virtual machine for VM: [resourceGroup: %s, name: %s], Err: %v", resourceGroup, vmName, err))
 	}
 	if vm == nil {
 		klog.Infof("VirtualMachine [resourceGroup: %s, name: %s] does not exist. Skipping deletion of VirtualMachine", providerSpec.ResourceGroup, vmName)
 		// check if there are leftover NICs and Disks that needs to be deleted.
 		if err = d.checkAndDeleteLeftoverNICsAndDisks(ctx, vmName, connectConfig, providerSpec); err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to check if there are left over resources for non-existent VM: [resourceGroup: %s, name: %s], Err: %v\n", resourceGroup, vmName, err))
 		}
 	} else {
 		// update the VM and set cascade delete on NIC and Disks (OSDisk and DataDisks) if not already set and then trigger VM deletion.
 		err = clienthelpers.SetCascadeDeleteForNICsAndDisks(ctx, vmAccess, resourceGroup, vm)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to update cascade delete of associated resources for VM: [resourceGroup: %s, name: %s], Err: %v\\n", resourceGroup, vmName, err))
 		}
 		err = clienthelpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to delete VM: [resourceGroup: %s, name: %s], Err: %v\\n", resourceGroup, vmName, err))
 		}
 	}
 

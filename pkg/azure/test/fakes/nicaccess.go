@@ -14,8 +14,9 @@ import (
 )
 
 type NICAccessBuilder struct {
-	clusterState *ClusterState
-	nicServer    fakenetwork.InterfacesServer
+	clusterState    *ClusterState
+	nicServer       fakenetwork.InterfacesServer
+	apiBehaviorSpec *APIBehaviorSpec
 }
 
 func (b *NICAccessBuilder) WithClusterState(clusterState *ClusterState) *NICAccessBuilder {
@@ -23,15 +24,19 @@ func (b *NICAccessBuilder) WithClusterState(clusterState *ClusterState) *NICAcce
 	return b
 }
 
-func (b *NICAccessBuilder) WithDefaultAPIBehavior() *NICAccessBuilder {
-	return b.WithGet(nil).WithBeginDelete(nil)
+func (b *NICAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *NICAccessBuilder {
+	b.apiBehaviorSpec = apiBehaviorSpec
+	return b
 }
 
-func (b *NICAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *NICAccessBuilder {
+func (b *NICAccessBuilder) WithGet() *NICAccessBuilder {
 	b.nicServer.Get = func(ctx context.Context, resourceGroupName string, nicName string, options *armnetwork.InterfacesClientGetOptions) (resp azfake.Responder[armnetwork.InterfacesClientGetResponse], errResp azfake.ErrorResponder) {
-		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
-			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
-			return
+		if b.apiBehaviorSpec != nil {
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, nicName, test.AccessMethodGet)
+			if err != nil {
+				errResp.SetError(err)
+				return
+			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
@@ -49,11 +54,14 @@ func (b *NICAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *NICAcce
 	return b
 }
 
-func (b *NICAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions) *NICAccessBuilder {
+func (b *NICAccessBuilder) WithBeginDelete() *NICAccessBuilder {
 	b.nicServer.BeginDelete = func(ctx context.Context, resourceGroupName string, nicName string, options *armnetwork.InterfacesClientBeginDeleteOptions) (resp azfake.PollerResponder[armnetwork.InterfacesClientDeleteResponse], errResp azfake.ErrorResponder) {
-		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
-			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
-			return
+		if b.apiBehaviorSpec != nil {
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, nicName, test.AccessMethodBeginDelete)
+			if err != nil {
+				errResp.SetError(err)
+				return
+			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
@@ -73,6 +81,7 @@ func (b *NICAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions) 
 }
 
 func (b *NICAccessBuilder) Build() (*armnetwork.InterfacesClient, error) {
+	b.WithGet().WithBeginDelete()
 	return armnetwork.NewInterfacesClient(test.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
 		ClientOptions: policy.ClientOptions{
 			Transport: fakenetwork.NewInterfacesServerTransport(&b.nicServer),

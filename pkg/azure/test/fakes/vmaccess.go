@@ -14,8 +14,9 @@ import (
 )
 
 type VMAccessBuilder struct {
-	clusterState *ClusterState
-	vmServer     fakecompute.VirtualMachinesServer
+	clusterState    *ClusterState
+	vmServer        fakecompute.VirtualMachinesServer
+	apiBehaviorSpec *APIBehaviorSpec
 }
 
 func (b *VMAccessBuilder) WithClusterState(clusterState *ClusterState) *VMAccessBuilder {
@@ -23,17 +24,19 @@ func (b *VMAccessBuilder) WithClusterState(clusterState *ClusterState) *VMAccess
 	return b
 }
 
-func (b *VMAccessBuilder) WithDefaultAPIBehavior() *VMAccessBuilder {
-	return b.WithGet(nil).
-		WithBeginDelete(nil).
-		WithBeginUpdate(nil)
+func (b *VMAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *VMAccessBuilder {
+	b.apiBehaviorSpec = apiBehaviorSpec
+	return b
 }
 
-func (b *VMAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *VMAccessBuilder {
+func (b *VMAccessBuilder) withGet() *VMAccessBuilder {
 	b.vmServer.Get = func(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachinesClientGetResponse], errResp azfake.ErrorResponder) {
-		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
-			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
-			return
+		if b.apiBehaviorSpec != nil {
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, vmName, test.AccessMethodGet)
+			if err != nil {
+				errResp.SetError(err)
+				return
+			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
@@ -51,11 +54,14 @@ func (b *VMAccessBuilder) WithGet(apiBehaviorOpts *APIBehaviorOptions) *VMAccess
 	return b
 }
 
-func (b *VMAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions) *VMAccessBuilder {
+func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
 	b.vmServer.BeginDelete = func(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientDeleteResponse], errResp azfake.ErrorResponder) {
-		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
-			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
-			return
+		if b.apiBehaviorSpec != nil {
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, vmName, test.AccessMethodBeginDelete)
+			if err != nil {
+				errResp.SetError(err)
+				return
+			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
@@ -70,11 +76,14 @@ func (b *VMAccessBuilder) WithBeginDelete(apiBehaviorOpts *APIBehaviorOptions) *
 	return b
 }
 
-func (b *VMAccessBuilder) WithBeginUpdate(apiBehaviorOpts *APIBehaviorOptions) *VMAccessBuilder {
+func (b *VMAccessBuilder) withBeginUpdate() *VMAccessBuilder {
 	b.vmServer.BeginUpdate = func(ctx context.Context, resourceGroupName string, vmName string, updateParams armcompute.VirtualMachineUpdate, options *armcompute.VirtualMachinesClientBeginUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientUpdateResponse], errResp azfake.ErrorResponder) {
-		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
-			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
-			return
+		if b.apiBehaviorSpec != nil {
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, vmName, test.AccessMethodBeginUpdate)
+			if err != nil {
+				errResp.SetError(err)
+				return
+			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
@@ -144,6 +153,7 @@ func (b *VMAccessBuilder) updatedDataDisksCascadeDeleteOption(vmName string, sto
 }
 
 func (b *VMAccessBuilder) Build() (*armcompute.VirtualMachinesClient, error) {
+	b.withGet().withBeginDelete().withBeginUpdate()
 	return armcompute.NewVirtualMachinesClient(test.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
 		ClientOptions: azcore.ClientOptions{
 			Transport: fakecompute.NewVirtualMachinesServerTransport(&b.vmServer),

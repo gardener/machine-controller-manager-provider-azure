@@ -2,15 +2,10 @@ package fakes
 
 import (
 	"sync"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
 )
-
-type APIBehaviorOptions struct {
-	TimeoutAfter *time.Duration
-}
 
 type ClusterState struct {
 	mutex               sync.RWMutex

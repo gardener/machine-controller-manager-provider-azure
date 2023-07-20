@@ -13,15 +13,24 @@ import (
 )
 
 type ResourceGroupsAccessBuilder struct {
-	rg       string
-	rgServer fakearmresources.ResourceGroupsServer
+	rg              string
+	rgServer        fakearmresources.ResourceGroupsServer
+	apiBehaviorSpec *APIBehaviorSpec
 }
 
-func (b *ResourceGroupsAccessBuilder) WithCheckExistence(apiBehaviorOpts *APIBehaviorOptions) *ResourceGroupsAccessBuilder {
+func (b *ResourceGroupsAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *ResourceGroupsAccessBuilder {
+	b.apiBehaviorSpec = apiBehaviorSpec
+	return b
+}
+
+func (b *ResourceGroupsAccessBuilder) WithCheckExistence() *ResourceGroupsAccessBuilder {
 	b.rgServer.CheckExistence = func(ctx context.Context, resourceGroupName string, options *armresources.ResourceGroupsClientCheckExistenceOptions) (resp azfake.Responder[armresources.ResourceGroupsClientCheckExistenceResponse], errResp azfake.ErrorResponder) {
-		if apiBehaviorOpts != nil && apiBehaviorOpts.TimeoutAfter != nil {
-			errResp.SetError(ContextTimeoutError(ctx, *apiBehaviorOpts.TimeoutAfter))
-			return
+		if b.apiBehaviorSpec != nil {
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, resourceGroupName, test.AccessMethodCheckExistence)
+			if err != nil {
+				errResp.SetError(err)
+				return
+			}
 		}
 		if b.rg != resourceGroupName {
 			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
@@ -35,6 +44,7 @@ func (b *ResourceGroupsAccessBuilder) WithCheckExistence(apiBehaviorOpts *APIBeh
 }
 
 func (b *ResourceGroupsAccessBuilder) Build() (*armresources.ResourceGroupsClient, error) {
+	b.WithCheckExistence()
 	return armresources.NewResourceGroupsClient(
 		test.SubscriptionID,
 		azfake.NewTokenCredential(),
