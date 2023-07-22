@@ -9,7 +9,7 @@ import (
 	azfake "github.com/Azure/azure-sdk-for-go/sdk/azcore/fake"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	fakecompute "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5/fake"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/test"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
@@ -32,19 +32,19 @@ func (b *VMAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) 
 func (b *VMAccessBuilder) withGet() *VMAccessBuilder {
 	b.vmServer.Get = func(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachinesClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, vmName, test.AccessMethodGet)
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, vmName, testhelp.AccessMethodGet)
 			if err != nil {
 				errResp.SetError(err)
 				return
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 		machineResources, existing := b.clusterState.MachineResourcesMap[vmName]
 		if !existing || machineResources.VM == nil {
-			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceNotFound))
+			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
 			return
 		}
 		vmResp := armcompute.VirtualMachinesClientGetResponse{VirtualMachine: *machineResources.VM}
@@ -57,14 +57,14 @@ func (b *VMAccessBuilder) withGet() *VMAccessBuilder {
 func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
 	b.vmServer.BeginDelete = func(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, vmName, test.AccessMethodBeginDelete)
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, vmName, testhelp.AccessMethodBeginDelete)
 			if err != nil {
 				errResp.SetError(err)
 				return
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 
@@ -79,29 +79,30 @@ func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
 func (b *VMAccessBuilder) withBeginUpdate() *VMAccessBuilder {
 	b.vmServer.BeginUpdate = func(ctx context.Context, resourceGroupName string, vmName string, updateParams armcompute.VirtualMachineUpdate, options *armcompute.VirtualMachinesClientBeginUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientUpdateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, vmName, test.AccessMethodBeginUpdate)
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, vmName, testhelp.AccessMethodBeginUpdate)
 			if err != nil {
 				errResp.SetError(err)
 				return
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 		machineResources, existing := b.clusterState.MachineResourcesMap[vmName]
 		if !existing || machineResources.VM == nil {
-			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceNotFound))
+			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
 			return
 		}
 
-		// NOTE: Currently we are only using this API to set cascade delete option for NIC and Disks.
+		// NOTE: Currently we are only using update API to set cascade delete option for NIC and Disks.
 		// So to avoid complexity, we will restrict it to only updating cascade delete options only.
 		// If in future the usage changes then changes should also be done here to reflect that.
 		b.updateNICCascadeDeleteOption(vmName, updateParams.Properties.NetworkProfile)
 		b.updateOSDiskCascadeDeleteOption(vmName, updateParams.Properties.StorageProfile)
 		b.updatedDataDisksCascadeDeleteOption(vmName, updateParams.Properties.StorageProfile)
 
+		// Get the updated VM
 		m := b.clusterState.MachineResourcesMap[vmName]
 		resp.SetTerminalResponse(200, armcompute.VirtualMachinesClientUpdateResponse{VirtualMachine: *m.VM}, nil)
 		return
@@ -120,7 +121,8 @@ func (b *VMAccessBuilder) updateNICCascadeDeleteOption(vmName string, nwProfile 
 			}
 		}
 		m := b.clusterState.MachineResourcesMap[vmName]
-		m.cascadeDeleteOpts.NIC = deleteOpt
+		m.UpdateNICDeleteOpt(deleteOpt)
+		//b.clusterState.MachineResourcesMap[vmName] = m
 	}
 }
 
@@ -131,7 +133,8 @@ func (b *VMAccessBuilder) updateOSDiskCascadeDeleteOption(vmName string, storage
 		if osDisk != nil {
 			deleteOpt = osDisk.DeleteOption
 			m := b.clusterState.MachineResourcesMap[vmName]
-			m.cascadeDeleteOpts.OSDisk = deleteOpt
+			m.UpdateOSDiskDeleteOpt(deleteOpt)
+			//b.clusterState.MachineResourcesMap[vmName] = m
 		}
 	}
 }
@@ -147,14 +150,15 @@ func (b *VMAccessBuilder) updatedDataDisksCascadeDeleteOption(vmName string, sto
 		if !utils.IsSliceNilOrEmpty(dataDisks) {
 			deleteOpt = dataDisks[0].DeleteOption
 			m := b.clusterState.MachineResourcesMap[vmName]
-			m.cascadeDeleteOpts.DataDisk = deleteOpt
+			m.UpdateDataDisksDeleteOpt(deleteOpt)
+			//b.clusterState.MachineResourcesMap[vmName] = m
 		}
 	}
 }
 
 func (b *VMAccessBuilder) Build() (*armcompute.VirtualMachinesClient, error) {
 	b.withGet().withBeginDelete().withBeginUpdate()
-	return armcompute.NewVirtualMachinesClient(test.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
+	return armcompute.NewVirtualMachinesClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
 		ClientOptions: azcore.ClientOptions{
 			Transport: fakecompute.NewVirtualMachinesServerTransport(&b.vmServer),
 		},

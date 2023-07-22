@@ -1,4 +1,4 @@
-package test
+package testhelp
 
 // Error codes
 const (

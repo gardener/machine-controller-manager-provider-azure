@@ -9,7 +9,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	fakecompute "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5/fake"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/test"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
@@ -32,19 +32,19 @@ func (b *DiskAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec
 func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 	b.diskServer.Get = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientGetOptions) (resp azfake.Responder[armcompute.DisksClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, diskName, test.AccessMethodGet)
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, diskName, testhelp.AccessMethodGet)
 			if err != nil {
 				errResp.SetError(err)
 				return
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 		disk := b.clusterState.GetDisk(diskName)
 		if disk == nil {
-			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceNotFound))
+			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
 			return
 		}
 		diskResponse := armcompute.DisksClientGetResponse{Disk: *disk}
@@ -57,21 +57,21 @@ func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
 	b.diskServer.BeginDelete = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.DisksClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, diskName, test.AccessMethodBeginDelete)
+			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, diskName, testhelp.AccessMethodBeginDelete)
 			if err != nil {
 				errResp.SetError(err)
 				return
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(test.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 
 		// Azure API Disk deletion does not fail if the Disk does not exist. It still returns 200 Ok.
 		disk := b.clusterState.GetDisk(diskName)
 		if disk != nil && !utils.IsNilOrEmptyStringPtr(disk.ManagedBy) {
-			errResp.SetError(ConflictErr(test.ErrorOperationNotAllowed))
+			errResp.SetError(ConflictErr(testhelp.ErrorOperationNotAllowed))
 			return
 		}
 		b.clusterState.DeleteDisk(diskName)
@@ -83,7 +83,7 @@ func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
 
 func (b *DiskAccessBuilder) Build() (*armcompute.DisksClient, error) {
 	b.withGet().withBeginDelete()
-	return armcompute.NewDisksClient(test.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
+	return armcompute.NewDisksClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
 		ClientOptions: policy.ClientOptions{
 			Transport: fakecompute.NewDisksServerTransport(&b.diskServer),
 		},

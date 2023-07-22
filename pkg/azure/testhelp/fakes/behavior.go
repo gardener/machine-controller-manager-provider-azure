@@ -70,6 +70,9 @@ func (s *APIBehaviorSpec) initializeResourceReactionMapForResource(resourceName 
 
 func (s *APIBehaviorSpec) Simulate(ctx context.Context, resourceGroup, resourceName, method string) error {
 	resReaction := s.getResourceReaction(resourceName, method)
+	if resReaction == nil {
+		return nil // there is no configured reaction for combination of this method and resourceName
+	}
 	if resReaction.panic {
 		panic(fmt.Sprintf("Panicking for resource -> [resourceGroup: %s, name: %s]", resourceGroup, resourceName))
 	}

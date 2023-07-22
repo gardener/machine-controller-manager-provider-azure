@@ -50,10 +50,10 @@ func (c *ClusterState) DeleteVM(vmName string) {
 		return
 	}
 
+	m.HandleNICOnVMDelete()
+	m.HandleOSDiskOnVMDelete()
+	m.HandleDataDisksOnVMDelete()
 	m.VM = nil
-	m.HandleNICOnMachineDelete()
-	m.HandleOSDiskOnMachineDelete()
-	m.HandleDataDisksOnMachineDelete()
 
 	if !m.HasResources() {
 		delete(c.MachineResourcesMap, vmName)
