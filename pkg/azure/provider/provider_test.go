@@ -49,7 +49,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			"vm-1",
 			true,
 			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string) {
-				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false)
+				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, true)
 			},
 		},
 		{
@@ -65,7 +65,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			"vm-0",
 			true,
 			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string) {
-				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false)
+				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, true)
 			},
 		},
 		{
@@ -78,7 +78,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			"vm-1",
 			true,
 			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string) {
-				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false)
+				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, true)
 			},
 		},
 		{
@@ -91,7 +91,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			"vm-1",
 			true,
 			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string) {
-				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, true, true, true)
+				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, true, true, true, true)
 			},
 		},
 	}
@@ -255,7 +255,9 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 		testErrorCode = "test-error-code"
 		vmName        = "test-vm-0"
 	)
+
 	testInternalServerError := fakes.InternalServerError(testErrorCode)
+
 	table := []struct {
 		description               string
 		vmAccessAPIBehaviorSpec   *fakes.APIBehaviorSpec
@@ -284,11 +286,21 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 			},
 		},
 		{
-			"should delete left over OSDisk but fail to delete left over NIC when VM does not exist",
+			"non-existing-vm: should delete left over OSDisk even if error is returned when deleting left over NIC",
 			nil, nil, nil,
-			fakes.NewAPIBehaviorSpec().AddErrorResourceReaction(utils.CreateNICName(vmName), testhelp.AccessMethodBeginDelete, testInternalServerError), fakes.CascadeDeleteAllResources, false, checkError,
+			fakes.NewAPIBehaviorSpec().AddErrorResourceReaction(utils.CreateNICName(vmName), testhelp.AccessMethodBeginDelete, testInternalServerError),
+			fakes.CascadeDeleteAllResources, false, checkError,
 			func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string) {
 				createFactoryAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, false, true, false)
+			},
+		},
+		{
+			"non-existing-vm: should delete left over NIC even if there is a panic when deleting left over OSDisk",
+			nil, nil,
+			fakes.NewAPIBehaviorSpec().AddPanicResourceReaction(utils.CreateOSDiskName(vmName), testhelp.AccessMethodBeginDelete),
+			nil, fakes.CascadeDeleteAllResources, false, checkError,
+			func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string) {
+				createFactoryAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, false, false, true)
 			},
 		},
 		{
@@ -305,7 +317,7 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 			nil, nil, nil, fakes.CascadeDeleteOpts{}, true, checkError,
 			func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string) {
 				factory := createDefaultFakeFactoryForMachineDelete(g, testResourceGroupName, clusterState)
-				machineResources := checkClusterStateAndGetMachineResources(g, ctx, *factory, vmName, true, true, true)
+				machineResources := checkClusterStateAndGetMachineResources(g, ctx, *factory, vmName, true, true, true, true)
 				// validate that the cascade delete options are now set
 				g.Expect(machineResources.VM).ToNot(BeNil())
 				checkCascadeDeleteOptions(t, *machineResources.VM, fakes.CascadeDeleteAllResources)
@@ -536,10 +548,10 @@ func checkError(g *WithT, err error) {
 	// TODO: Add additional check when we improve status.Status error type to include the underline error as well.
 }
 
-func checkClusterStateAndGetMachineResources(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, expectVMExists bool, expectNICExists bool, expectOSDiskExists bool) fakes.MachineResources {
+func checkClusterStateAndGetMachineResources(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, expectVMExists bool, expectNICExists bool, expectOSDiskExists bool, expectAssociatedVMID bool) fakes.MachineResources {
 	vm := checkAndGetVM(g, ctx, factory, vmName, expectVMExists)
-	nic := checkAndGetNIC(g, ctx, factory, vmName, expectNICExists)
-	osDisk := checkAndGetOSDisk(g, ctx, factory, vmName, expectOSDiskExists)
+	nic := checkAndGetNIC(g, ctx, factory, vmName, expectNICExists, expectAssociatedVMID)
+	osDisk := checkAndGetOSDisk(g, ctx, factory, vmName, expectOSDiskExists, expectAssociatedVMID)
 	return fakes.MachineResources{
 		Name:   vmName,
 		VM:     vm,
@@ -550,7 +562,7 @@ func checkClusterStateAndGetMachineResources(g *WithT, ctx context.Context, fact
 
 func createFactoryAndCheckClusterState(g *WithT, ctx context.Context, resourceGroupName string, clusterState *fakes.ClusterState, vmName string, expectVMExists bool, expectNICExists bool, expectOSDiskExists bool) {
 	factory := createDefaultFakeFactoryForMachineDelete(g, resourceGroupName, clusterState)
-	checkClusterStateAndGetMachineResources(g, ctx, *factory, vmName, expectVMExists, expectNICExists, expectOSDiskExists)
+	checkClusterStateAndGetMachineResources(g, ctx, *factory, vmName, expectVMExists, expectNICExists, expectOSDiskExists, false)
 }
 
 func checkCascadeDeleteOptions(t *testing.T, vm armcompute.VirtualMachine, expectedCascadeDeleteOpts fakes.CascadeDeleteOpts) {
@@ -587,11 +599,14 @@ func checkAndGetVM(g *WithT, ctx context.Context, factory fakes.Factory, vmName 
 	}
 }
 
-func checkAndGetNIC(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, expectNICExists bool) *armnetwork.Interface {
+func checkAndGetNIC(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, expectNICExists bool, expectAssociatedVMID bool) *armnetwork.Interface {
 	nicResp, err := factory.InterfaceAccess.Get(ctx, testResourceGroupName, utils.CreateNICName(vmName), nil)
 	if expectNICExists {
 		g.Expect(err).To(BeNil())
-		g.Expect(nicResp.Interface.Properties.VirtualMachine).ToNot(BeNil())
+		if expectAssociatedVMID {
+			g.Expect(nicResp.Interface.Properties.VirtualMachine).ToNot(BeNil())
+			g.Expect(nicResp.Interface.Properties.VirtualMachine.ID).ToNot(BeNil())
+		}
 		return &nicResp.Interface
 	} else {
 		g.Expect(err).ToNot(BeNil())
@@ -600,11 +615,13 @@ func checkAndGetNIC(g *WithT, ctx context.Context, factory fakes.Factory, vmName
 	}
 }
 
-func checkAndGetOSDisk(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, expectOSDiskExists bool) *armcompute.Disk {
+func checkAndGetOSDisk(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, expectOSDiskExists bool, expectAssociatedVMID bool) *armcompute.Disk {
 	osDiskResp, err := factory.DisksAccess.Get(ctx, testResourceGroupName, utils.CreateOSDiskName(vmName), nil)
 	if expectOSDiskExists {
 		g.Expect(err).To(BeNil())
-		g.Expect(osDiskResp.ManagedBy).ToNot(BeNil())
+		if expectAssociatedVMID {
+			g.Expect(osDiskResp.ManagedBy).ToNot(BeNil())
+		}
 		return &osDiskResp.Disk
 	} else {
 		g.Expect(err).ToNot(BeNil())
