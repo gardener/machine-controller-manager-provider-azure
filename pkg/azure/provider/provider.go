@@ -229,21 +229,6 @@ func (d defaultDriver) createDisksDeletionTask(resourceGroup string, diskNames [
 	}
 }
 
-//func (d defaultDriver) createDiskDeletionTasks(resourceGroup string, diskNames []string, diskAccess *armcompute.DisksClient) []utils.Task {
-//	tasks := make([]utils.Task, 0, len(diskNames))
-//	for _, diskName := range diskNames {
-//		diskName := diskName // Refer: https://github.com/golang/go/wiki/CommonMistakes#using-reference-to-loop-iterator-variable, should be resolved in go 1.21
-//		task := utils.Task{
-//			Name: fmt.Sprintf("delete-disk-[resourceGroup: %s name: %s]", resourceGroup, diskName),
-//			Fn: func(ctx context.Context) error {
-//				return clienthelpers.DeleteDisk(ctx, diskAccess, resourceGroup, diskName)
-//			},
-//		}
-//		tasks = append(tasks, task)
-//	}
-//	return tasks
-//}
-
 func (d defaultDriver) createNICIfNotExists(ctx context.Context, providerSpec api.AzureProviderSpec, connectConfig access.ConnectConfig, vmName string) (string, error) {
 	nicAccess, err := d.factory.GetNetworkInterfacesAccess(connectConfig)
 	if err != nil {

@@ -26,7 +26,7 @@ func (b *ResourceGroupsAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBe
 func (b *ResourceGroupsAccessBuilder) WithCheckExistence() *ResourceGroupsAccessBuilder {
 	b.rgServer.CheckExistence = func(ctx context.Context, resourceGroupName string, options *armresources.ResourceGroupsClientCheckExistenceOptions) (resp azfake.Responder[armresources.ResourceGroupsClientCheckExistenceResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, resourceGroupName, testhelp.AccessMethodCheckExistence)
+			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, resourceGroupName, testhelp.AccessMethodCheckExistence)
 			if err != nil {
 				errResp.SetError(err)
 				return

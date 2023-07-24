@@ -32,7 +32,7 @@ func (b *DiskAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec
 func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 	b.diskServer.Get = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientGetOptions) (resp azfake.Responder[armcompute.DisksClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, diskName, testhelp.AccessMethodGet)
+			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, diskName, testhelp.AccessMethodGet)
 			if err != nil {
 				errResp.SetError(err)
 				return
@@ -57,7 +57,7 @@ func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
 	b.diskServer.BeginDelete = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.DisksClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.Simulate(ctx, resourceGroupName, diskName, testhelp.AccessMethodBeginDelete)
+			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, diskName, testhelp.AccessMethodBeginDelete)
 			if err != nil {
 				errResp.SetError(err)
 				return

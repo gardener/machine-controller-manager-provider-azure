@@ -447,6 +447,85 @@ func TestGetMachineStatus(t *testing.T) {
 	}
 }
 
+func TestListMachines(t *testing.T) {
+	type machineResourcesTestSpec struct {
+		vmName        string
+		vmPresent     bool
+		osDiskPresent bool
+		nicPresent    bool
+	}
+
+	table := []struct {
+		description     string
+		mrTestSpecs     []machineResourcesTestSpec
+		apiBehaviorSpec *fakes.APIBehaviorSpec
+		expectedResult  []string
+		expectedErr     bool
+	}{
+		{
+			"should return no result if no resources exist", nil, nil, []string{}, false,
+		},
+		{
+			"should return all vm names where vm's exist",
+			[]machineResourcesTestSpec{
+				{"vm-0", true, true, true},
+				{"vm-1", true, true, true},
+			}, nil, []string{"vm-0", "vm-1"}, false,
+		},
+		{
+			"should return vm names only for vms which vm does not exist but a nic exists",
+			[]machineResourcesTestSpec{
+				{"vm-0", false, true, false},
+				{"vm-1", false, false, true},
+			}, nil, []string{"vm-1"}, false,
+		},
+	}
+
+	g := NewWithT(t)
+	ctx := context.Background()
+
+	// create provider spec
+	providerSpec := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().Build()
+
+	for _, entry := range table {
+		t.Run(entry.description, func(t *testing.T) {
+			// initialize cluster state
+			//----------------------------------------------------------------------------
+			// create cluster state
+			clusterState := fakes.NewClusterState(providerSpec.ResourceGroup)
+			if entry.mrTestSpecs != nil {
+				for _, mrTestSpec := range entry.mrTestSpecs {
+					var testVMID *string
+					if !mrTestSpec.vmPresent {
+						testVMID = to.Ptr(testhelp.CreateVirtualMachineID(testhelp.SubscriptionID, testResourceGroupName, mrTestSpec.vmName))
+					}
+					clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, mrTestSpec.vmName).BuildWith(mrTestSpec.vmPresent, mrTestSpec.nicPresent, mrTestSpec.osDiskPresent, false, testVMID))
+				}
+			}
+
+			// create fake factory
+			fakeFactory := fakes.NewFactory(testResourceGroupName)
+			resourceGraphAccess, err := fakeFactory.NewResourceGraphAccessBuilder().WithClusterState(clusterState).Build()
+			g.Expect(err).To(BeNil())
+			fakeFactory.WithResourceGraphAccess(resourceGraphAccess)
+
+			// Create machine and machine class to be used to create DeleteMachineRequest
+			machineClass, err := testhelp.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+			g.Expect(err).To(BeNil())
+
+			// Test
+			//----------------------------------------------------------------------------
+			testDriver := NewDefaultDriver(fakeFactory)
+			listMachinesResp, err := testDriver.ListMachines(ctx, &driver.ListMachinesRequest{
+				MachineClass: machineClass,
+				Secret:       testhelp.CreateProviderSecret(),
+			})
+			g.Expect(err != nil).To(Equal(entry.expectedErr))
+			g.Expect(testhelp.ActualSliceEqualsExpectedSlice(getVMNamesFromListMachineResponse(listMachinesResp), entry.expectedResult)).To(BeTrue())
+		})
+	}
+}
+
 // unit test helper functions
 //------------------------------------------------------------------------------------------------------
 
@@ -560,4 +639,15 @@ func createFakeFactoryForMachineDeleteWithAPIBehaviorSpecs(g *WithT, resourceGro
 		WithDisksAccess(diskAccess)
 
 	return fakeFactory
+}
+
+func getVMNamesFromListMachineResponse(response *driver.ListMachinesResponse) []string {
+	if response == nil {
+		return []string{}
+	}
+	vmNames := make([]string, 0, len(response.MachineList))
+	for _, vmName := range response.MachineList {
+		vmNames = append(vmNames, vmName)
+	}
+	return vmNames
 }

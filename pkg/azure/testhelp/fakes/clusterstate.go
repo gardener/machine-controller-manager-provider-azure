@@ -126,6 +126,34 @@ func (c *ClusterState) DeleteDisk(diskName string) {
 	}
 }
 
+func (c *ClusterState) ExtractVMNamesFromNICs() []string {
+	vmNames := make([]string, 0, len(c.MachineResourcesMap))
+	for vmName, mr := range c.MachineResourcesMap {
+		if mr.NIC != nil {
+			vmNames = append(vmNames, vmName)
+		}
+	}
+	return vmNames
+}
+
+func (c *ClusterState) GetAllExistingVMNames() []string {
+	vmNames := make([]string, 0, len(c.MachineResourcesMap))
+	for vmName, mr := range c.MachineResourcesMap {
+		if mr.VM != nil {
+			vmNames = append(vmNames, vmName)
+		}
+	}
+	return vmNames
+}
+
+func (c *ClusterState) GetAllVMNamesFromMachineResources() []string {
+	vmNames := make([]string, 0, len(c.MachineResourcesMap))
+	for vmName := range c.MachineResourcesMap {
+		vmNames = append(vmNames, vmName)
+	}
+	return vmNames
+}
+
 func (c *ClusterState) getDiskTypeAndOwningMachineResources(diskName string) (DiskType, *MachineResources) {
 	if c.MachineResourcesMap != nil {
 		for _, m := range c.MachineResourcesMap {

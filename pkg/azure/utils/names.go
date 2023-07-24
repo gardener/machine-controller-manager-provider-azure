@@ -16,6 +16,10 @@ func CreateNICName(vmName string) string {
 	return fmt.Sprintf("%s-%s", vmName, nicSuffix)
 }
 
+func ExtractVMNameFromNICName(nicName string) string {
+	return nicName[:len(nicName)-len(nicSuffix)]
+}
+
 func CreateOSDiskName(vmName string) string {
 	return fmt.Sprintf("%s-%s", vmName, osDiskSuffix)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
 	fakenetwork "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3/fake"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph"
+	fakeresourcegraph "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph/fake"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	fakearmresources "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources/fake"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
@@ -84,6 +85,12 @@ func (f *Factory) NewNICAccessBuilder() *NICAccessBuilder {
 func (f *Factory) NewDiskAccessBuilder() *DiskAccessBuilder {
 	return &DiskAccessBuilder{
 		diskServer: fakecompute.DisksServer{},
+	}
+}
+
+func (f *Factory) NewResourceGraphAccessBuilder() *ResourceGraphAccessBuilder {
+	return &ResourceGraphAccessBuilder{
+		resourceGraphServer: fakeresourcegraph.Server{},
 	}
 }
 

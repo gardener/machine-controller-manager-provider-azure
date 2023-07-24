@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func CreateProviderSecret() *corev1.Secret {
@@ -100,4 +101,10 @@ func GetCascadeDeleteOptForDataDisks(vm armcompute.VirtualMachine) map[string]*a
 		}
 	}
 	return deleteOpts
+}
+
+func ActualSliceEqualsExpectedSlice[T comparable](actual []T, expected []T) bool {
+	actualSet := sets.New[T](actual...)
+	expectedSet := sets.New[T](expected...)
+	return len(actualSet.Difference(expectedSet)) == 0 && len(expectedSet.Difference(actualSet)) == 0
 }
