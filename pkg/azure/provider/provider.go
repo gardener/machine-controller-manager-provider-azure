@@ -2,12 +2,9 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
@@ -15,7 +12,6 @@ import (
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 	clienthelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/provider/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
@@ -56,13 +52,23 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 		return nil, err
 	}
 	vmName := req.Machine.Name
+	nicName := utils.CreateNICName(vmName)
 
-	_, err = d.createNICIfNotExists(ctx, providerSpec, connectConfig, vmName)
+	imageReference, purchasePlan, err := helpers.ProcessVMImageConfiguration(ctx, d.factory, connectConfig, providerSpec, vmName)
+	if err != nil {
+		return nil, err
+	}
+	subnet, err := helpers.GetSubnet(ctx, d.factory, connectConfig, providerSpec)
 	if err != nil {
 		return nil, err
 	}
 
-	d.createOrUpdateVM(ctx, connectConfig, providerSpec, vmName)
+	nicID, err := helpers.CreateNICIfNotExists(ctx, d.factory, connectConfig, providerSpec, subnet, nicName)
+	if err != nil {
+		return nil, err
+	}
+
+	helpers.CreateOrUpdateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, purchasePlan, nicID, vmName)
 
 	return helpers.ConstructCreateMachineResponse(providerSpec.Location, ""), nil
 }
@@ -77,7 +83,7 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 		vmName        = strings.ToLower(req.Machine.Name)
 	)
 	// Check if Deletion of the machine (VM, NIC, Disks) can be completely skipped.
-	skipDelete, err := d.skipDeleteMachine(ctx, connectConfig, resourceGroup)
+	skipDelete, err := helpers.SkipDeleteMachine(ctx, d.factory, connectConfig, resourceGroup)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +103,7 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 	if vm == nil {
 		klog.Infof("VirtualMachine [resourceGroup: %s, name: %s] does not exist. Skipping deletion of VirtualMachine", providerSpec.ResourceGroup, vmName)
 		// check if there are leftover NICs and Disks that needs to be deleted.
-		if err = d.checkAndDeleteLeftoverNICsAndDisks(ctx, vmName, connectConfig, providerSpec); err != nil {
+		if err = helpers.CheckAndDeleteLeftoverNICsAndDisks(ctx, d.factory, vmName, connectConfig, providerSpec); err != nil {
 			return nil, status.Error(codes.Internal, fmt.Sprintf("failed to check if there are left over resources for non-existent VM: [resourceGroup: %s, name: %s], Err: %v\n", resourceGroup, vmName, err))
 		}
 	} else {
@@ -156,109 +162,4 @@ func (d defaultDriver) GetVolumeIDs(_ context.Context, request *driver.GetVolume
 	}
 
 	return &driver.GetVolumeIDsResponse{VolumeIDs: volumeIDs}, nil
-}
-
-// skipDeleteMachine checks if ResourceGroup exists. If it does not exist then there is no need to delete any resource as it is assumed that none would exist.
-func (d defaultDriver) skipDeleteMachine(ctx context.Context, connectConfig access.ConnectConfig, resourceGroup string) (bool, error) {
-	resGroupAccess, err := d.factory.GetResourceGroupsAccess(connectConfig)
-	if err != nil {
-		return false, status.Error(codes.Internal, fmt.Sprintf("failed to create resource group access to process request: [resourceGroup: %s]", resourceGroup))
-	}
-	resGroupExists, err := clienthelpers.ResourceGroupExists(ctx, resGroupAccess, resourceGroup)
-	if err != nil {
-		return false, status.Error(codes.Internal, fmt.Sprintf("failed to check if resource group %s exists, Err: %v", resourceGroup, err))
-	}
-	return !resGroupExists, nil
-}
-
-func (d defaultDriver) getVirtualMachine(ctx context.Context, connectConfig access.ConnectConfig, resourceGroup, vmName string) (*armcompute.VirtualMachine, error) {
-	vmAccess, err := d.factory.GetVirtualMachinesAccess(connectConfig)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", resourceGroup, vmName, err))
-	}
-	return clienthelpers.GetVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
-}
-
-func (d defaultDriver) checkAndDeleteLeftoverNICsAndDisks(ctx context.Context, vmName string, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) error {
-	// Gather the names for NIC, OSDisk and Data Disks that needs to be checked for existence and then deleted if they exist.
-	resourceGroup := providerSpec.ResourceGroup
-	nicName := utils.CreateNICName(vmName)
-	diskNames := helpers.GetDiskNames(providerSpec, vmName)
-
-	// create NIC and Disks clients
-	nicAccess, err := d.factory.GetNetworkInterfacesAccess(connectConfig)
-	if err != nil {
-		return err
-	}
-	disksAccess, err := d.factory.GetDisksAccess(connectConfig)
-	if err != nil {
-		return err
-	}
-
-	// Create NIC and Disk deletion tasks and run them concurrently.
-	tasks := make([]utils.Task, 0, len(diskNames)+1)
-	tasks = append(tasks, d.createNICDeleteTask(resourceGroup, nicName, nicAccess))
-	//tasks = append(tasks, d.createDiskDeletionTasks(resourceGroup, diskNames, disksAccess)...)
-	tasks = append(tasks, d.createDisksDeletionTask(resourceGroup, diskNames, disksAccess))
-	return errors.Join(utils.RunConcurrently(ctx, tasks, len(tasks))...)
-}
-
-func (d defaultDriver) createNICDeleteTask(resourceGroup, nicName string, nicAccess *armnetwork.InterfacesClient) utils.Task {
-	return utils.Task{
-		Name: fmt.Sprintf("delete-nic-[resourceGroup: %s name: %s]", resourceGroup, nicName),
-		Fn: func(ctx context.Context) error {
-			return clienthelpers.DeleteNIC(ctx, nicAccess, resourceGroup, nicName)
-		},
-	}
-}
-
-func (d defaultDriver) createDisksDeletionTask(resourceGroup string, diskNames []string, diskAccess *armcompute.DisksClient) utils.Task {
-	taskFn := func(ctx context.Context) error {
-		var errs []error
-		for _, diskName := range diskNames {
-			klog.Infof("Deleting disk: [ResourceGroup: %s, DiskName: %s]", resourceGroup, diskName)
-			if err := clienthelpers.DeleteDisk(ctx, diskAccess, resourceGroup, diskName); err != nil {
-				errs = append(errs, err)
-			}
-		}
-		return errors.Join(errs...)
-	}
-	return utils.Task{
-		Name: fmt.Sprintf("delete-disks-[resourceGroup: %s]", resourceGroup),
-		Fn:   taskFn,
-	}
-}
-
-func (d defaultDriver) createNICIfNotExists(ctx context.Context, providerSpec api.AzureProviderSpec, connectConfig access.ConnectConfig, vmName string) (string, error) {
-	nicAccess, err := d.factory.GetNetworkInterfacesAccess(connectConfig)
-	if err != nil {
-		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create nic access, Err: %v", err))
-	}
-	subnetAccess, err := d.factory.GetSubnetAccess(connectConfig)
-	if err != nil {
-		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create subnet access, Err: %v", err))
-	}
-	return clienthelpers.CreateNICIfNotExists(ctx, nicAccess, subnetAccess, providerSpec, utils.CreateNICName(vmName))
-}
-
-func (d defaultDriver) createOrUpdateVM(ctx context.Context, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) error {
-	_, err := d.factory.GetVirtualMachinesAccess(connectConfig)
-	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
-	}
-	// TODO
-	return nil
-}
-
-func (d defaultDriver) getVirtualMachineImage(ctx context.Context, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) (*armcompute.VirtualMachineImage, error) {
-	vmImagesAccess, err := d.factory.GetVirtualMachineImagesAccess(connectConfig)
-	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create image access, Err: %v", err))
-	}
-	imgRef := helpers.GetImageReference(providerSpec)
-	vmImage, err := clienthelpers.GetVMImage(ctx, vmImagesAccess, providerSpec.Location, imgRef)
-	if err != nil {
-		return nil, err
-	}
-	return vmImage, nil
 }

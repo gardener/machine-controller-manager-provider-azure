@@ -16,17 +16,6 @@ const (
 	diskGetServiceLabel    = "disk_get"
 )
 
-//func DeleteDiskIfExists(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string) (err error) {
-//	disk, err := GetDisk(ctx, client, resourceGroup, diskName)
-//	if err != nil {
-//		return err
-//	}
-//	if disk.ManagedBy != nil {
-//		return fmt.Errorf("cannot delete Disk [ResourceGroup: %s, Name: %s] as it is still associated with the VM: %s", resourceGroup, diskName, *disk.ManagedBy)
-//	}
-//	return DeleteDisk(ctx, client, resourceGroup, diskName)
-//}
-
 func GetDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string) (disk *armcompute.Disk, err error) {
 	defer instrument.RecordAzAPIMetric(err, diskGetServiceLabel, time.Now())
 	resp, err := client.Get(ctx, resourceGroup, diskName, nil)
