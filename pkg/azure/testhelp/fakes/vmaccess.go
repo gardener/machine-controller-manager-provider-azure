@@ -39,12 +39,12 @@ func (b *VMAccessBuilder) withGet() *VMAccessBuilder {
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 		machineResources, existing := b.clusterState.MachineResourcesMap[vmName]
 		if !existing || machineResources.VM == nil {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
 			return
 		}
 		vmResp := armcompute.VirtualMachinesClientGetResponse{VirtualMachine: *machineResources.VM}
@@ -64,7 +64,7 @@ func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 
@@ -86,12 +86,12 @@ func (b *VMAccessBuilder) withBeginUpdate() *VMAccessBuilder {
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 		machineResources, existing := b.clusterState.MachineResourcesMap[vmName]
 		if !existing || machineResources.VM == nil {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
 			return
 		}
 

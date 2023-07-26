@@ -54,7 +54,7 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 	vmName := req.Machine.Name
 	nicName := utils.CreateNICName(vmName)
 
-	imageReference, purchasePlan, err := helpers.ProcessVMImageConfiguration(ctx, d.factory, connectConfig, providerSpec, vmName)
+	imageReference, plan, err := helpers.ProcessVMImageConfiguration(ctx, d.factory, connectConfig, providerSpec, vmName)
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +68,12 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 		return nil, err
 	}
 
-	helpers.CreateOrUpdateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, purchasePlan, nicID, vmName)
+	_, err = helpers.CreateOrUpdateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, plan, req.Secret, nicID, vmName)
+	if err != nil {
+		return nil, err
+	}
 
-	return helpers.ConstructCreateMachineResponse(providerSpec.Location, ""), nil
+	return helpers.ConstructCreateMachineResponse(providerSpec.Location, vmName), nil
 }
 
 func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (*driver.DeleteMachineResponse, error) {

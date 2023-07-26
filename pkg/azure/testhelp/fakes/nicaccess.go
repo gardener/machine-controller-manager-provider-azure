@@ -39,12 +39,12 @@ func (b *NICAccessBuilder) WithGet() *NICAccessBuilder {
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 		nic := b.clusterState.GetNIC(nicName)
 		if nic == nil {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
 			return
 		}
 		nicResponse := armnetwork.InterfacesClientGetResponse{Interface: *nic}
@@ -64,13 +64,13 @@ func (b *NICAccessBuilder) WithBeginDelete() *NICAccessBuilder {
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 		// Azure API NIC deletion does not fail if the NIC does not exist. It still returns 200 Ok.
 		nic := b.clusterState.GetNIC(nicName)
 		if nic != nil && nic.Properties.VirtualMachine != nil && !utils.IsNilOrEmptyStringPtr(nic.Properties.VirtualMachine.ID) {
-			errResp.SetError(ConflictErr(testhelp.ErrorOperationNotAllowed))
+			errResp.SetError(testhelp.ConflictErr(testhelp.ErrorOperationNotAllowed))
 			return
 		}
 		b.clusterState.DeleteNIC(nicName)

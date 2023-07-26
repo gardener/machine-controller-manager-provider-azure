@@ -1,14 +1,5 @@
 package testhelp
 
-// Error codes
-const (
-	ErrorCodeResourceNotFound      = "ResourceNotFound"
-	ErrorCodeResourceGroupNotFound = "ResourceGroupNotFound"
-	ErrorCodePatchResourceNotFound = "PatchResourceNotFound"
-	ErrorOperationNotAllowed       = "OperationNotAllowed"
-	ErrorBadRequest                = "BadRequest"
-)
-
 const (
 	SubscriptionID     = "test-subscription-id"
 	TenantID           = "test-tenant"

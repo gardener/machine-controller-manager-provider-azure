@@ -1,4 +1,4 @@
-package fakes
+package testhelp
 
 import (
 	"context"
@@ -6,6 +6,15 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
+)
+
+// Error codes
+const (
+	ErrorCodeResourceNotFound      = "ResourceNotFound"
+	ErrorCodeResourceGroupNotFound = "ResourceGroupNotFound"
+	ErrorCodePatchResourceNotFound = "PatchResourceNotFound"
+	ErrorOperationNotAllowed       = "OperationNotAllowed"
+	ErrorBadRequest                = "BadRequest"
 )
 
 func ContextTimeoutError(parentCtx context.Context, timeout time.Duration) error {

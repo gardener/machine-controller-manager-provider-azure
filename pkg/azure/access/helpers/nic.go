@@ -5,10 +5,8 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 )
 
@@ -42,25 +40,6 @@ func DeleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourc
 	return
 }
 
-//// CreateNICIfNotExists creates a NIC if it does not exist. It returns the NIC ID of an already existing NIC or a freshly created one.
-//func CreateNICIfNotExists(ctx context.Context, nicAccess *armnetwork.InterfacesClient, subnet *armnetwork.Subnet, providerSpec api.AzureProviderSpec, nicName string) (string, error) {
-//	resourceGroup := providerSpec.ResourceGroup
-//	nic, err := getNIC(ctx, nicAccess, resourceGroup, nicName)
-//	if err != nil {
-//		return "", err
-//	}
-//	if nic != nil {
-//		return *nic.ID, nil
-//	}
-//	// NIC is not found, create NIC
-//	nicParams := createNICParams(providerSpec, subnet, nicName)
-//	nic, err = createNIC(ctx, nicAccess, resourceGroup, nicParams)
-//	if err != nil {
-//		return "", err
-//	}
-//	return *nic.ID, nil
-//}
-
 func GetNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) (nic *armnetwork.Interface, err error) {
 	defer instrument.RecordAzAPIMetric(err, nicGetServiceLabel, time.Now())
 	resp, err := client.Get(ctx, resourceGroup, nicName, nil)
@@ -74,7 +53,7 @@ func GetNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGr
 	return &resp.Interface, nil
 }
 
-func CreateNIC(ctx context.Context, nicAccess *armnetwork.InterfacesClient, providerSpec api.AzureProviderSpec, subnet *armnetwork.Subnet, nicName string) (nic *armnetwork.Interface, err error) {
+func CreateNIC(ctx context.Context, nicAccess *armnetwork.InterfacesClient, resourceGroup string, nicParams armnetwork.Interface, nicName string) (nic *armnetwork.Interface, err error) {
 	defer instrument.RecordAzAPIMetric(err, nicCreateServiceLabel, time.Now())
 	var (
 		poller       *runtime.Poller[armnetwork.InterfacesClientCreateOrUpdateResponse]
@@ -82,9 +61,6 @@ func CreateNIC(ctx context.Context, nicAccess *armnetwork.InterfacesClient, prov
 	)
 	createCtx, cancelFn := context.WithTimeout(ctx, defaultCreateNICTimeout)
 	defer cancelFn()
-
-	nicParams := createNICParams(providerSpec, subnet, nicName)
-	resourceGroup := providerSpec.ResourceGroup
 
 	poller, err = nicAccess.BeginCreateOrUpdate(createCtx, resourceGroup, nicName, nicParams, nil)
 	if err != nil {
@@ -98,34 +74,3 @@ func CreateNIC(ctx context.Context, nicAccess *armnetwork.InterfacesClient, prov
 	nic = &creationResp.Interface
 	return
 }
-
-func createNICParams(providerSpec api.AzureProviderSpec, subnet *armnetwork.Subnet, nicName string) armnetwork.Interface {
-	return armnetwork.Interface{
-		Location: to.Ptr(providerSpec.Location),
-		Properties: &armnetwork.InterfacePropertiesFormat{
-			EnableAcceleratedNetworking: providerSpec.Properties.NetworkProfile.AcceleratedNetworking,
-			EnableIPForwarding:          to.Ptr(true),
-			IPConfigurations: []*armnetwork.InterfaceIPConfiguration{
-				{
-					Name: &nicName,
-					Properties: &armnetwork.InterfaceIPConfigurationPropertiesFormat{
-						PrivateIPAllocationMethod: to.Ptr(armnetwork.IPAllocationMethodDynamic),
-						Subnet:                    subnet,
-					},
-				},
-			},
-			NicType: to.Ptr(armnetwork.NetworkInterfaceNicTypeStandard),
-		},
-		Tags: createNICTags(providerSpec.Tags),
-		Name: &nicName,
-	}
-}
-
-func createNICTags(tags map[string]string) map[string]*string {
-	nicTags := make(map[string]*string, len(tags))
-	for k, v := range tags {
-		nicTags[k] = to.Ptr(v)
-	}
-	return nicTags
-}
-

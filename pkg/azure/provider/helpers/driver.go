@@ -1,10 +1,18 @@
 package helpers
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
+
+	"golang.org/x/crypto/ssh"
+	"k8s.io/utils/pointer"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
@@ -158,7 +166,74 @@ func createDisksDeletionTask(resourceGroup string, diskNames []string, diskAcces
 // Helper functions for driver.CreateMachine
 // ---------------------------------------------------------------------------------------------------------------------
 
-func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, purchasePlan *armcompute.PurchasePlan, err error) {
+func GetSubnet(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) (*armnetwork.Subnet, error) {
+	vnetResourceGroup := providerSpec.ResourceGroup
+	if !utils.IsNilOrEmptyStringPtr(providerSpec.SubnetInfo.VnetResourceGroup) {
+		vnetResourceGroup = *providerSpec.SubnetInfo.VnetResourceGroup
+	}
+	subnetAccess, err := factory.GetSubnetAccess(connectConfig)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create subnet access, Err: %v", err))
+	}
+	subnet, err := accesshelpers.GetSubnet(ctx, subnetAccess, vnetResourceGroup, providerSpec.SubnetInfo.VnetName, providerSpec.SubnetInfo.SubnetName)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get subnet: [ResourceGroup: %s, Name: %s, VNetName: %s], Err: %v", vnetResourceGroup, providerSpec.SubnetInfo.SubnetName, providerSpec.SubnetInfo.VnetName, err))
+	}
+	return subnet, nil
+}
+
+func CreateNICIfNotExists(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, subnet *armnetwork.Subnet, nicName string) (string, error) {
+	nicAccess, err := factory.GetNetworkInterfacesAccess(connectConfig)
+	if err != nil {
+		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create nic access, Err: %v", err))
+	}
+	existingNIC, err := accesshelpers.GetNIC(ctx, nicAccess, providerSpec.ResourceGroup, nicName)
+	if err != nil {
+		return "", status.Error(codes.Internal, fmt.Sprintf("failed to get NIC: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, nicName, err))
+	}
+	if existingNIC != nil {
+		return *existingNIC.ID, nil
+	}
+	// NIC is not found, create NIC
+	nicCreationParams := createNICParams(providerSpec, subnet, nicName)
+	nic, err := accesshelpers.CreateNIC(ctx, nicAccess, providerSpec.ResourceGroup, nicCreationParams, nicName)
+	if err != nil {
+		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create NIC: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, nicName, err))
+	}
+	return *nic.ID, nil
+}
+
+func createNICParams(providerSpec api.AzureProviderSpec, subnet *armnetwork.Subnet, nicName string) armnetwork.Interface {
+	return armnetwork.Interface{
+		Location: to.Ptr(providerSpec.Location),
+		Properties: &armnetwork.InterfacePropertiesFormat{
+			EnableAcceleratedNetworking: providerSpec.Properties.NetworkProfile.AcceleratedNetworking,
+			EnableIPForwarding:          to.Ptr(true),
+			IPConfigurations: []*armnetwork.InterfaceIPConfiguration{
+				{
+					Name: &nicName,
+					Properties: &armnetwork.InterfaceIPConfigurationPropertiesFormat{
+						PrivateIPAllocationMethod: to.Ptr(armnetwork.IPAllocationMethodDynamic),
+						Subnet:                    subnet,
+					},
+				},
+			},
+			NicType: to.Ptr(armnetwork.NetworkInterfaceNicTypeStandard),
+		},
+		Tags: createNICTags(providerSpec.Tags),
+		Name: &nicName,
+	}
+}
+
+func createNICTags(tags map[string]string) map[string]*string {
+	nicTags := make(map[string]*string, len(tags))
+	for k, v := range tags {
+		nicTags[k] = to.Ptr(v)
+	}
+	return nicTags
+}
+
+func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
 	imgRef = getImageReference(providerSpec)
 	if vMImageIsMarketPlaceImage(providerSpec) {
 		var vmImage *armcompute.VirtualMachineImage
@@ -172,53 +247,13 @@ func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, co
 				return
 			}
 		}
+		plan = &armcompute.Plan{
+			Name:      vmImage.Properties.Plan.Name,
+			Product:   vmImage.Properties.Plan.Product,
+			Publisher: vmImage.Properties.Plan.Publisher,
+		}
 	}
-	return imgRef, nil, nil
-}
-
-func GetSubnet(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) (*armnetwork.Subnet, error) {
-	vnetResourceGroup := providerSpec.ResourceGroup
-	if !utils.IsNilOrEmptyStringPtr(providerSpec.SubnetInfo.VnetResourceGroup) {
-		vnetResourceGroup = *providerSpec.SubnetInfo.VnetResourceGroup
-	}
-	subnetAccess, err := factory.GetSubnetAccess(connectConfig)
-	if err != nil {
-		return nil, err
-	}
-	subnet, err := accesshelpers.GetSubnet(ctx, subnetAccess, vnetResourceGroup, providerSpec.SubnetInfo.VnetName, providerSpec.SubnetInfo.SubnetName)
-	if err != nil {
-		return nil, err
-	}
-	return subnet, nil
-}
-
-func CreateNICIfNotExists(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, subnet *armnetwork.Subnet, nicName string) (string, error) {
-	nicAccess, err := factory.GetNetworkInterfacesAccess(connectConfig)
-	if err != nil {
-		return "", err
-	}
-	existingNIC, err := accesshelpers.GetNIC(ctx, nicAccess, providerSpec.ResourceGroup, nicName)
-	if err != nil {
-		return "", err
-	}
-	if existingNIC != nil {
-		return *existingNIC.ID, nil
-	}
-	// NIC is not found, create NIC
-	nic, err := accesshelpers.CreateNIC(ctx, nicAccess, providerSpec, subnet, nicName)
-	if err != nil {
-		return "", err
-	}
-	return *nic.ID, nil
-}
-
-func CreateOrUpdateVM(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, purchasePlan *armcompute.PurchasePlan, nicID string, vmName string) error {
-	_, err := factory.GetVirtualMachinesAccess(connectConfig)
-	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
-	}
-	// TODO
-	return nil
+	return imgRef, plan, nil
 }
 
 func getImageReference(providerSpec api.AzureProviderSpec) armcompute.ImageReference {
@@ -286,4 +321,178 @@ func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Fa
 		}
 	}
 	return nil
+}
+
+func CreateOrUpdateVM(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID string, vmName string) (*armcompute.VirtualMachine, error) {
+	vmAccess, err := factory.GetVirtualMachinesAccess(connectConfig)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+	}
+	vmCreationParams, err := createVMCreationParams(providerSpec, imageRef, plan, secret, nicID, vmName)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine parameters to create VM: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+	}
+	vm, err := accesshelpers.CreateVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmCreationParams)
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create VirtualMachine: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+	}
+	return vm, nil
+}
+
+func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID, vmName string) (armcompute.VirtualMachine, error) {
+	vmTags := utils.CreateResourceTags(providerSpec.Tags)
+	sshConfiguration, err := getSSHConfiguration(providerSpec.Properties.OsProfile.LinuxConfiguration.SSH)
+	if err != nil {
+		return armcompute.VirtualMachine{}, err
+	}
+
+	return armcompute.VirtualMachine{
+		Location: to.Ptr(providerSpec.Location),
+		Plan:     plan,
+		Properties: &armcompute.VirtualMachineProperties{
+			HardwareProfile: &armcompute.HardwareProfile{
+				VMSize: to.Ptr(armcompute.VirtualMachineSizeTypes(providerSpec.Properties.HardwareProfile.VMSize)),
+			},
+			NetworkProfile: &armcompute.NetworkProfile{
+				NetworkInterfaces: []*armcompute.NetworkInterfaceReference{
+					{
+						ID: &nicID,
+						Properties: &armcompute.NetworkInterfaceReferenceProperties{
+							DeleteOption: to.Ptr(armcompute.DeleteOptionsDelete),
+							Primary:      to.Ptr(true),
+						},
+					},
+				},
+			},
+			OSProfile: &armcompute.OSProfile{
+				AdminUsername: to.Ptr(providerSpec.Properties.OsProfile.AdminUsername),
+				ComputerName:  &vmName,
+				CustomData:    to.Ptr(base64.StdEncoding.EncodeToString(secret.Data["userData"])),
+				LinuxConfiguration: &armcompute.LinuxConfiguration{
+					DisablePasswordAuthentication: to.Ptr(providerSpec.Properties.OsProfile.LinuxConfiguration.DisablePasswordAuthentication),
+					SSH:                           sshConfiguration,
+				},
+			},
+			StorageProfile: &armcompute.StorageProfile{
+				DataDisks:      getDataDisks(providerSpec.Properties.StorageProfile.DataDisks, vmName),
+				ImageReference: &imageRef,
+				OSDisk: &armcompute.OSDisk{
+					CreateOption: to.Ptr(armcompute.DiskCreateOptionTypes(providerSpec.Properties.StorageProfile.OsDisk.CreateOption)),
+					Caching:      to.Ptr(armcompute.CachingTypes(providerSpec.Properties.StorageProfile.OsDisk.Caching)),
+					DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
+					DiskSizeGB:   pointer.Int32(providerSpec.Properties.StorageProfile.OsDisk.DiskSizeGB),
+					ManagedDisk: &armcompute.ManagedDiskParameters{
+						StorageAccountType: to.Ptr(armcompute.StorageAccountTypes(providerSpec.Properties.StorageProfile.OsDisk.ManagedDisk.StorageAccountType)),
+					},
+					Name: to.Ptr(utils.CreateOSDiskName(vmName)),
+				},
+			},
+			AvailabilitySet:        getAvailabilitySet(providerSpec.Properties.AvailabilitySet),
+			VirtualMachineScaleSet: getVirtualMachineScaleSet(providerSpec.Properties.VirtualMachineScaleSet),
+		},
+		Tags:     vmTags,
+		Zones:    getZonesFromProviderSpec(providerSpec),
+		Name:     &vmName,
+		Identity: getVMIdentity(providerSpec.Properties.IdentityID),
+	}, nil
+}
+
+func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcompute.DataDisk {
+	var dataDisks []*armcompute.DataDisk
+	if utils.IsSliceNilOrEmpty(specDataDisks) {
+		return dataDisks
+	}
+	for _, specDataDisk := range specDataDisks {
+		dataDiskName := utils.CreateDataDiskName(vmName, specDataDisk)
+		caching := armcompute.CachingTypesNone
+		if utils.IsEmptyString(specDataDisk.Caching) {
+			caching = armcompute.CachingTypes(specDataDisk.Caching)
+		}
+		dataDisk := &armcompute.DataDisk{
+			CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),
+			Lun:          specDataDisk.Lun,
+			Caching:      to.Ptr(caching),
+			DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
+			DiskSizeGB:   pointer.Int32(specDataDisk.DiskSizeGB),
+			ManagedDisk: &armcompute.ManagedDiskParameters{
+				StorageAccountType: to.Ptr(armcompute.StorageAccountTypes(specDataDisk.StorageAccountType)),
+			},
+			Name: to.Ptr(dataDiskName),
+		}
+		dataDisks = append(dataDisks, dataDisk)
+	}
+	return dataDisks
+}
+
+func getVMIdentity(specVMIdentityID *string) *armcompute.VirtualMachineIdentity {
+	if specVMIdentityID == nil {
+		return nil
+	}
+	return &armcompute.VirtualMachineIdentity{
+		Type: to.Ptr(armcompute.ResourceIdentityTypeUserAssigned),
+		UserAssignedIdentities: map[string]*armcompute.UserAssignedIdentitiesValue{
+			*specVMIdentityID: {},
+		},
+	}
+}
+
+func getAvailabilitySet(specAvailabilitySet *api.AzureSubResource) *armcompute.SubResource {
+	if specAvailabilitySet == nil {
+		return nil
+	}
+	return &armcompute.SubResource{
+		ID: to.Ptr(specAvailabilitySet.ID),
+	}
+}
+
+func getVirtualMachineScaleSet(specVMSS *api.AzureSubResource) *armcompute.SubResource {
+	if specVMSS == nil {
+		return nil
+	}
+	return &armcompute.SubResource{
+		ID: to.Ptr(specVMSS.ID),
+	}
+}
+
+func getSSHConfiguration(sshSpecConfig api.AzureSSHConfiguration) (*armcompute.SSHConfiguration, error) {
+	var (
+		publicKey string
+		err       error
+	)
+	publicKey = sshSpecConfig.PublicKeys.KeyData
+	if utils.IsEmptyString(publicKey) {
+		publicKey, err = generateDummyPublicKey()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &armcompute.SSHConfiguration{
+		PublicKeys: []*armcompute.SSHPublicKey{
+			{
+				KeyData: to.Ptr(publicKey),
+				Path:    to.Ptr(sshSpecConfig.PublicKeys.Path),
+			},
+		},
+	}, nil
+}
+
+func generateDummyPublicKey() (string, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return "", err
+	}
+	pubKey, err := ssh.NewPublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return "", err
+	}
+	pubKeyBytes := ssh.MarshalAuthorizedKey(pubKey)
+	return string(bytes.Trim(pubKeyBytes, "\x0a")), nil
+}
+
+func getZonesFromProviderSpec(spec api.AzureProviderSpec) []*string {
+	var zones []*string
+	if spec.Properties.Zone != nil {
+		zones = append(zones, to.Ptr(strconv.Itoa(*spec.Properties.Zone)))
+	}
+	return zones
 }

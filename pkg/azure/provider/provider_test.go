@@ -256,7 +256,7 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 		vmName        = "test-vm-0"
 	)
 
-	testInternalServerError := fakes.InternalServerError(testErrorCode)
+	testInternalServerError := testhelp.InternalServerError(testErrorCode)
 
 	table := []struct {
 		description               string

@@ -39,12 +39,12 @@ func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 		disk := b.clusterState.GetDisk(diskName)
 		if disk == nil {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
 			return
 		}
 		diskResponse := armcompute.DisksClientGetResponse{Disk: *disk}
@@ -64,14 +64,14 @@ func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
 			}
 		}
 		if b.clusterState.ResourceGroup != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 
 		// Azure API Disk deletion does not fail if the Disk does not exist. It still returns 200 Ok.
 		disk := b.clusterState.GetDisk(diskName)
 		if disk != nil && !utils.IsNilOrEmptyStringPtr(disk.ManagedBy) {
-			errResp.SetError(ConflictErr(testhelp.ErrorOperationNotAllowed))
+			errResp.SetError(testhelp.ConflictErr(testhelp.ErrorOperationNotAllowed))
 			return
 		}
 		b.clusterState.DeleteDisk(diskName)

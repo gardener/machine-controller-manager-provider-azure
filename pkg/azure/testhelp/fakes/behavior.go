@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 	"k8s.io/klog/v2"
 )
 
@@ -126,7 +127,7 @@ func doSimulate(ctx context.Context, reaction *ResourceReaction, panicMsg string
 		panic(panicMsg)
 	}
 	if reaction.timeoutAfter != nil {
-		return ContextTimeoutError(ctx, *reaction.timeoutAfter)
+		return testhelp.ContextTimeoutError(ctx, *reaction.timeoutAfter)
 	}
 	return reaction.err
 }

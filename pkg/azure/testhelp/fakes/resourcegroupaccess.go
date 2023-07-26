@@ -33,7 +33,7 @@ func (b *ResourceGroupsAccessBuilder) WithCheckExistence() *ResourceGroupsAccess
 			}
 		}
 		if b.rg != resourceGroupName {
-			errResp.SetError(ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
 		rgResponse := armresources.ResourceGroupsClientCheckExistenceResponse{Success: true}

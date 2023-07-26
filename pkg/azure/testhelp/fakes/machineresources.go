@@ -252,7 +252,7 @@ func CreateNICResource(spec api.AzureProviderSpec, vmID *string, nicName string)
 			NicType:        to.Ptr(armnetwork.NetworkInterfaceNicTypeStandard),
 			VirtualMachine: &armnetwork.SubResource{ID: vmID},
 		},
-		Tags: createResourceTags(spec.Tags),
+		Tags: utils.CreateResourceTags(spec.Tags),
 		ID:   &interfaceID,
 		Name: &nicName,
 		Type: to.Ptr("Microsoft.Network/networkInterfaces"),
@@ -298,7 +298,7 @@ func createVMResource(spec api.AzureProviderSpec, vmName string, plan *armcomput
 				},
 			},
 		},
-		Tags:  createResourceTags(spec.Tags),
+		Tags:  utils.CreateResourceTags(spec.Tags),
 		Zones: []*string{to.Ptr("1")},
 		Name:  to.Ptr(vmName),
 		ID:    to.Ptr(id),
@@ -360,7 +360,7 @@ func CreateDiskResource(spec api.AzureProviderSpec, diskName string, vmID *strin
 		},
 		Zones:     []*string{to.Ptr("1")},
 		ManagedBy: vmID,
-		Tags:      createResourceTags(spec.Tags),
+		Tags:      utils.CreateResourceTags(spec.Tags),
 		Name:      to.Ptr(diskName),
 		Type:      to.Ptr("Microsoft.Compute/disks"),
 	}
@@ -389,10 +389,10 @@ func createDataDisks(spec api.AzureProviderSpec, vmName string, deleteOption *ar
 	return dataDisks
 }
 
-func createResourceTags(tags map[string]string) map[string]*string {
-	vmTags := make(map[string]*string, len(tags))
-	for k, v := range tags {
-		vmTags[k] = to.Ptr(v)
-	}
-	return vmTags
-}
+//func createResourceTags(tags map[string]string) map[string]*string {
+//	vmTags := make(map[string]*string, len(tags))
+//	for k, v := range tags {
+//		vmTags[k] = to.Ptr(v)
+//	}
+//	return vmTags
+//}
