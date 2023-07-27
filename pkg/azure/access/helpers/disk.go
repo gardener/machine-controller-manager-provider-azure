@@ -13,21 +13,7 @@ import (
 
 const (
 	diskDeleteServiceLabel = "disk_delete"
-	diskGetServiceLabel    = "disk_get"
 )
-
-func GetDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string) (disk *armcompute.Disk, err error) {
-	defer instrument.RecordAzAPIMetric(err, diskGetServiceLabel, time.Now())
-	resp, err := client.Get(ctx, resourceGroup, diskName, nil)
-	if err != nil {
-		if errors.IsNotFoundAzAPIError(err) {
-			return nil, nil
-		}
-		errors.LogAzAPIError(err, "Failed to get Disk [ResourceGroup: %s, Name: %s]", resourceGroup, diskName)
-		return nil, err
-	}
-	return &resp.Disk, nil
-}
 
 func DeleteDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string) (err error) {
 	defer instrument.RecordAzAPIMetric(err, diskDeleteServiceLabel, time.Now())

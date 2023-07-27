@@ -38,3 +38,16 @@ func RecordAzAPIMetric(err error, azServiceName string, invocationTime time.Time
 		azServiceName,
 	).Observe(elapsed.Seconds())
 }
+
+func RecordDriverAPIMetric(err error, operation string, invocationTime time.Time) {
+	if err != nil {
+		// currently we only record duration for successful completion of driver methods
+		return
+	}
+	// compute the time taken to complete the AZ service call and record it as a metric
+	elapsed := time.Since(invocationTime)
+	metrics.DriverAPIRequestDuration.WithLabelValues(
+		prometheusProviderLabelValue,
+		operation,
+	).Observe(elapsed.Seconds())
+}

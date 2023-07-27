@@ -18,7 +18,7 @@ const (
 
 func GetAgreementTerms(ctx context.Context, mktPlaceAgreementAccess *armmarketplaceordering.MarketplaceAgreementsClient, purchasePlan armcompute.PurchasePlan) (agreementTerms *armmarketplaceordering.AgreementTerms, err error) {
 	defer instrument.RecordAzAPIMetric(err, mktPlaceAgreementGetServiceLabel, time.Now())
-	resp, err := mktPlaceAgreementAccess.GetAgreement(ctx, *purchasePlan.Publisher, *purchasePlan.Product, *purchasePlan.Name, nil)
+	resp, err := mktPlaceAgreementAccess.Get(ctx, armmarketplaceordering.OfferTypeVirtualmachine, *purchasePlan.Publisher, *purchasePlan.Product, *purchasePlan.Name, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Failed to get marketplace agreement for PurchasePlan: %+v", purchasePlan)
 		return nil, err

@@ -91,11 +91,11 @@ func DeriveInstanceID(location, vmName string) string {
 func SkipDeleteMachine(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, resourceGroup string) (bool, error) {
 	resGroupAccess, err := factory.GetResourceGroupsAccess(connectConfig)
 	if err != nil {
-		return false, status.Error(codes.Internal, fmt.Sprintf("failed to create resource group access to process request: [resourceGroup: %s]", resourceGroup))
+		return false, status.Error(codes.Internal, fmt.Sprintf("failed to create ResourceGroup access to process request: [ResourceGroup: %s]", resourceGroup))
 	}
 	resGroupExists, err := accesshelpers.ResourceGroupExists(ctx, resGroupAccess, resourceGroup)
 	if err != nil {
-		return false, status.Error(codes.Internal, fmt.Sprintf("failed to check if resource group %s exists, Err: %v", resourceGroup, err))
+		return false, status.Error(codes.Internal, fmt.Sprintf("failed to check if ResourceGroup %s exists, Err: %v", resourceGroup, err))
 	}
 	return !resGroupExists, nil
 }
@@ -122,11 +122,11 @@ func CheckAndDeleteLeftoverNICsAndDisks(ctx context.Context, factory access.Fact
 	// create NIC and Disks clients
 	nicAccess, err := factory.GetNetworkInterfacesAccess(connectConfig)
 	if err != nil {
-		return err
+		return status.Error(codes.Internal, fmt.Sprintf("Failed to create nic access for VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err))
 	}
 	disksAccess, err := factory.GetDisksAccess(connectConfig)
 	if err != nil {
-		return err
+		return status.Error(codes.Internal, fmt.Sprintf("Failed to create disk access for VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err))
 	}
 
 	// Create NIC and Disk deletion tasks and run them concurrently.
@@ -134,7 +134,25 @@ func CheckAndDeleteLeftoverNICsAndDisks(ctx context.Context, factory access.Fact
 	tasks = append(tasks, createNICDeleteTask(resourceGroup, nicName, nicAccess))
 	//tasks = append(tasks, d.createDiskDeletionTasks(resourceGroup, diskNames, disksAccess)...)
 	tasks = append(tasks, createDisksDeletionTask(resourceGroup, diskNames, disksAccess))
-	return errors.Join(utils.RunConcurrently(ctx, tasks, len(tasks))...)
+	combinedErr := errors.Join(utils.RunConcurrently(ctx, tasks, len(tasks))...)
+	if combinedErr != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("Errors during deletion of NIC/Disks associated to VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err))
+	}
+	return nil
+}
+
+func UpdateCascadeDeleteOptionsAndDeleteVM(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup string, vm *armcompute.VirtualMachine) error {
+	// update the VM and set cascade delete on NIC and Disks (OSDisk and DataDisks) if not already set and then trigger VM deletion.
+	vmName := *vm.Name
+	err := accesshelpers.SetCascadeDeleteForNICsAndDisks(ctx, vmAccess, resourceGroup, vm)
+	if err != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("Failed to update cascade delete of associated resources for VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err))
+	}
+	err = accesshelpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
+	if err != nil {
+		return status.Error(codes.Internal, fmt.Sprintf("Failed to delete VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err))
+	}
+	return nil
 }
 
 func createNICDeleteTask(resourceGroup, nicName string, nicAccess *armnetwork.InterfacesClient) utils.Task {
@@ -179,6 +197,7 @@ func GetSubnet(ctx context.Context, factory access.Factory, connectConfig access
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get subnet: [ResourceGroup: %s, Name: %s, VNetName: %s], Err: %v", vnetResourceGroup, providerSpec.SubnetInfo.SubnetName, providerSpec.SubnetInfo.VnetName, err))
 	}
+	klog.Infof("Retrieved Subnet: [ResourceGroup: %s, Name:%s, VNetName: %s]", vnetResourceGroup, providerSpec.SubnetInfo.SubnetName, providerSpec.SubnetInfo.VnetName)
 	return subnet, nil
 }
 
@@ -187,11 +206,13 @@ func CreateNICIfNotExists(ctx context.Context, factory access.Factory, connectCo
 	if err != nil {
 		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create nic access, Err: %v", err))
 	}
-	existingNIC, err := accesshelpers.GetNIC(ctx, nicAccess, providerSpec.ResourceGroup, nicName)
+	resourceGroup := providerSpec.ResourceGroup
+	existingNIC, err := accesshelpers.GetNIC(ctx, nicAccess, resourceGroup, nicName)
 	if err != nil {
-		return "", status.Error(codes.Internal, fmt.Sprintf("failed to get NIC: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, nicName, err))
+		return "", status.Error(codes.Internal, fmt.Sprintf("Failed to get NIC: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, nicName, err))
 	}
 	if existingNIC != nil {
+		klog.Infof("[ResourceGroup: %s, NIC: [Name: %s, ID: %s]] exists, will skip creation of the NIC", resourceGroup, nicName, *existingNIC.ID)
 		return *existingNIC.ID, nil
 	}
 	// NIC is not found, create NIC
@@ -200,6 +221,7 @@ func CreateNICIfNotExists(ctx context.Context, factory access.Factory, connectCo
 	if err != nil {
 		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create NIC: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, nicName, err))
 	}
+	klog.Infof("Successfully created NIC: [ResourceGroup: %s, NIC: [Name: %s, ID: %s]]", resourceGroup, nicName, *nic.ID)
 	return *nic.ID, nil
 }
 
@@ -241,6 +263,7 @@ func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, co
 		if err != nil {
 			return
 		}
+		klog.Infof("Retrieved VM Image: [VMName: %s, Name: %s]", vmName, *vmImage.Name)
 		if vmImage.Properties != nil && vmImage.Properties.Plan != nil {
 			err = checkAndAcceptAgreementIfNotAccepted(ctx, factory, connectConfig, vmName, *vmImage)
 			if err != nil {
@@ -296,7 +319,7 @@ func vMImageIsMarketPlaceImage(providerSpec api.AzureProviderSpec) bool {
 func getVirtualMachineImage(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, location string, imageReference armcompute.ImageReference) (*armcompute.VirtualMachineImage, error) {
 	vmImagesAccess, err := factory.GetVirtualMachineImagesAccess(connectConfig)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create image access, Err: %v", err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to create image access, Err: %v", err))
 	}
 	vmImage, err := accesshelpers.GetVMImage(ctx, vmImagesAccess, location, imageReference)
 	if err != nil {
@@ -308,7 +331,7 @@ func getVirtualMachineImage(ctx context.Context, factory access.Factory, connect
 func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, vmName string, vmImage armcompute.VirtualMachineImage) error {
 	agreementsAccess, err := factory.GetMarketPlaceAgreementsAccess(connectConfig)
 	if err != nil {
-		return status.Error(codes.Internal, fmt.Sprintf("failed to create marketplace agreement access to process request for vm-image: %s, Err: %v", *vmImage.Name, err))
+		return status.Error(codes.Internal, fmt.Sprintf("Failed to create marketplace agreement access to process request for vm-image: %s, Err: %v", *vmImage.Name, err))
 	}
 	agreementTerms, err := accesshelpers.GetAgreementTerms(ctx, agreementsAccess, *vmImage.Properties.Plan)
 	if err != nil {
@@ -317,8 +340,9 @@ func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Fa
 	if agreementTerms.Properties.Accepted == nil || !*agreementTerms.Properties.Accepted {
 		err = accesshelpers.AcceptAgreement(ctx, agreementsAccess, *vmImage.Properties.Plan, *agreementTerms)
 		if err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("failed to accept agreement for [vmName: %s, vmImage: %s] Err: %v", vmName, *vmImage.Name, err))
+			return status.Error(codes.Internal, fmt.Sprintf("Failed to accept agreement for [vmName: %s, vmImage: %s] Err: %v", vmName, *vmImage.Name, err))
 		}
+		klog.Infof("Successfully updated VM Image Agreement Terms to Accepted for: [VMName: %s, ImageName: %s]", vmName, *vmImage.Name)
 	}
 	return nil
 }
@@ -326,16 +350,17 @@ func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Fa
 func CreateOrUpdateVM(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID string, vmName string) (*armcompute.VirtualMachine, error) {
 	vmAccess, err := factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
 	}
 	vmCreationParams, err := createVMCreationParams(providerSpec, imageRef, plan, secret, nicID, vmName)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine parameters to create VM: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to create virtual machine parameters to create VM: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
 	}
 	vm, err := accesshelpers.CreateVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmCreationParams)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create VirtualMachine: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to create VirtualMachine: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
 	}
+	klog.Infof("Successfully created VM: [ResourceGroup: %s, Name: %s]", providerSpec.ResourceGroup, vmName)
 	return vm, nil
 }
 
