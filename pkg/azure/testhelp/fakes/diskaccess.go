@@ -15,7 +15,7 @@ import (
 
 type DiskAccessBuilder struct {
 	clusterState    *ClusterState
-	diskServer      fakecompute.DisksServer
+	server          fakecompute.DisksServer
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
@@ -30,7 +30,7 @@ func (b *DiskAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec
 }
 
 func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
-	b.diskServer.Get = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientGetOptions) (resp azfake.Responder[armcompute.DisksClientGetResponse], errResp azfake.ErrorResponder) {
+	b.server.Get = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientGetOptions) (resp azfake.Responder[armcompute.DisksClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, diskName, testhelp.AccessMethodGet)
 			if err != nil {
@@ -55,7 +55,7 @@ func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 }
 
 func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
-	b.diskServer.BeginDelete = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.DisksClientDeleteResponse], errResp azfake.ErrorResponder) {
+	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.DisksClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, diskName, testhelp.AccessMethodBeginDelete)
 			if err != nil {
@@ -85,7 +85,7 @@ func (b *DiskAccessBuilder) Build() (*armcompute.DisksClient, error) {
 	b.withGet().withBeginDelete()
 	return armcompute.NewDisksClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
 		ClientOptions: policy.ClientOptions{
-			Transport: fakecompute.NewDisksServerTransport(&b.diskServer),
+			Transport: fakecompute.NewDisksServerTransport(&b.server),
 		},
 	})
 }

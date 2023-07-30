@@ -17,9 +17,9 @@ import (
 )
 
 type ResourceGraphAccessBuilder struct {
-	clusterState        *ClusterState
-	resourceGraphServer fakeresourcegraph.Server
-	apiBehaviorSpec     *APIBehaviorSpec
+	clusterState    *ClusterState
+	server          fakeresourcegraph.Server
+	apiBehaviorSpec *APIBehaviorSpec
 }
 
 func (b *ResourceGraphAccessBuilder) WithClusterState(clusterState *ClusterState) *ResourceGraphAccessBuilder {
@@ -35,7 +35,7 @@ func (b *ResourceGraphAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBeh
 // withResources sets the implementation for `Resources` method. The implementation is not generic and currently only assumes that user will use this fake server method
 // to only test queries that are specified in `helpers.resourcegraph` package. If new queries are added then this implementation should be updated.
 func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder {
-	b.resourceGraphServer.Resources = func(ctx context.Context, query armresourcegraph.QueryRequest, options *armresourcegraph.ClientResourcesOptions) (resp azfake.Responder[armresourcegraph.ClientResourcesResponse], errResp azfake.ErrorResponder) {
+	b.server.Resources = func(ctx context.Context, query armresourcegraph.QueryRequest, options *armresourcegraph.ClientResourcesOptions) (resp azfake.Responder[armresourcegraph.ClientResourcesResponse], errResp azfake.ErrorResponder) {
 		var resType *ResourceType
 		if query.Query != nil {
 			resType = getResourceType(*query.Query)
@@ -55,9 +55,9 @@ func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder
 		if query.Query != nil {
 			if resType != nil {
 				switch *resType {
-				case virtualMachinesResourceType:
+				case VirtualMachinesResourceType:
 					vmNames = b.clusterState.GetAllExistingVMNames()
-				case networkInterfacesResourceType:
+				case NetworkInterfacesResourceType:
 					vmNames = b.clusterState.ExtractVMNamesFromNICs()
 				}
 			} else {
@@ -79,10 +79,10 @@ func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder
 // Unfortunately I could not find a way to parse the KUSTO Query string to extract the table name and therefore string matching is used here. We can change it if we find a better way
 func getResourceType(query string) *ResourceType {
 	switch {
-	case strings.Contains(query, string(virtualMachinesResourceType)):
-		return to.Ptr(virtualMachinesResourceType)
-	case strings.Contains(query, string(networkInterfacesResourceType)):
-		return to.Ptr(networkInterfacesResourceType)
+	case strings.Contains(query, string(VirtualMachinesResourceType)):
+		return to.Ptr(VirtualMachinesResourceType)
+	case strings.Contains(query, string(NetworkInterfacesResourceType)):
+		return to.Ptr(NetworkInterfacesResourceType)
 	default:
 		return nil
 	}
@@ -111,7 +111,7 @@ func (b *ResourceGraphAccessBuilder) Build() (*armresourcegraph.Client, error) {
 	b.withResources()
 	return armresourcegraph.NewClient(azfake.NewTokenCredential(), &arm.ClientOptions{
 		ClientOptions: azcore.ClientOptions{
-			Transport: fakeresourcegraph.NewServerTransport(&b.resourceGraphServer),
+			Transport: fakeresourcegraph.NewServerTransport(&b.server),
 		},
 	})
 }

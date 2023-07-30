@@ -14,7 +14,7 @@ import (
 
 type ResourceGroupsAccessBuilder struct {
 	rg              string
-	rgServer        fakearmresources.ResourceGroupsServer
+	server          fakearmresources.ResourceGroupsServer
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
@@ -24,7 +24,7 @@ func (b *ResourceGroupsAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBe
 }
 
 func (b *ResourceGroupsAccessBuilder) WithCheckExistence() *ResourceGroupsAccessBuilder {
-	b.rgServer.CheckExistence = func(ctx context.Context, resourceGroupName string, options *armresources.ResourceGroupsClientCheckExistenceOptions) (resp azfake.Responder[armresources.ResourceGroupsClientCheckExistenceResponse], errResp azfake.ErrorResponder) {
+	b.server.CheckExistence = func(ctx context.Context, resourceGroupName string, options *armresources.ResourceGroupsClientCheckExistenceOptions) (resp azfake.Responder[armresources.ResourceGroupsClientCheckExistenceResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, resourceGroupName, testhelp.AccessMethodCheckExistence)
 			if err != nil {
@@ -50,7 +50,7 @@ func (b *ResourceGroupsAccessBuilder) Build() (*armresources.ResourceGroupsClien
 		azfake.NewTokenCredential(),
 		&arm.ClientOptions{
 			ClientOptions: policy.ClientOptions{
-				Transport: fakearmresources.NewResourceGroupsServerTransport(&b.rgServer),
+				Transport: fakearmresources.NewResourceGroupsServerTransport(&b.server),
 			},
 		},
 	)

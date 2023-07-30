@@ -14,6 +14,7 @@ const (
 
 const (
 	AccessMethodGet            = "Get"
+	AccessMethodCreate         = "Create"
 	AccessMethodBeginDelete    = "BeginDelete"
 	AccessMethodBeginUpdate    = "BeginUpdate"
 	AccessMethodCheckExistence = "CheckExistence"

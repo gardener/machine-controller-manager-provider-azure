@@ -257,13 +257,14 @@ func createNICTags(tags map[string]string) map[string]*string {
 
 func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
 	imgRef = getImageReference(providerSpec)
-	if vMImageIsMarketPlaceImage(providerSpec) {
+	isMarketPlaceImage := providerSpec.Properties.StorageProfile.ImageReference.URN != nil
+	if isMarketPlaceImage {
 		var vmImage *armcompute.VirtualMachineImage
 		vmImage, err = getVirtualMachineImage(ctx, factory, connectConfig, providerSpec.Location, imgRef)
 		if err != nil {
 			return
 		}
-		klog.Infof("Retrieved VM Image: [VMName: %s, Name: %s]", vmName, *vmImage.Name)
+		klog.Infof("Retrieved VM Image: [VMName: %s, ID: %s]", vmName, *vmImage.ID)
 		if vmImage.Properties != nil && vmImage.Properties.Plan != nil {
 			err = checkAndAcceptAgreementIfNotAccepted(ctx, factory, connectConfig, vmName, *vmImage)
 			if err != nil {
@@ -311,11 +312,6 @@ func getImageReference(providerSpec api.AzureProviderSpec) armcompute.ImageRefer
 	}
 }
 
-func vMImageIsMarketPlaceImage(providerSpec api.AzureProviderSpec) bool {
-	imgRef := providerSpec.Properties.StorageProfile.ImageReference
-	return imgRef.URN != nil
-}
-
 func getVirtualMachineImage(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, location string, imageReference armcompute.ImageReference) (*armcompute.VirtualMachineImage, error) {
 	vmImagesAccess, err := factory.GetVirtualMachineImagesAccess(connectConfig)
 	if err != nil {
@@ -333,17 +329,19 @@ func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Fa
 	if err != nil {
 		return status.Error(codes.Internal, fmt.Sprintf("Failed to create marketplace agreement access to process request for vm-image: %s, Err: %v", *vmImage.Name, err))
 	}
-	agreementTerms, err := accesshelpers.GetAgreementTerms(ctx, agreementsAccess, *vmImage.Properties.Plan)
+	plan := *vmImage.Properties.Plan
+	agreementTerms, err := accesshelpers.GetAgreementTerms(ctx, agreementsAccess, plan)
 	if err != nil {
 		return err
 	}
+	klog.Infof("Retrieved Marketplace Image Agreement for Plan [Name: %s, Product: %s, Publisher: %s]", *plan.Name, *plan.Product, *plan.Publisher)
 	if agreementTerms.Properties.Accepted == nil || !*agreementTerms.Properties.Accepted {
 		err = accesshelpers.AcceptAgreement(ctx, agreementsAccess, *vmImage.Properties.Plan, *agreementTerms)
 		if err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("Failed to accept agreement for [vmName: %s, vmImage: %s] Err: %v", vmName, *vmImage.Name, err))
+			return status.Error(codes.Internal, fmt.Sprintf("Failed to accept agreement for [VMName: %s, VMImageID: %s] Err: %v", vmName, *vmImage.ID, err))
 		}
-		klog.Infof("Successfully updated VM Image Agreement Terms to Accepted for: [VMName: %s, ImageName: %s]", vmName, *vmImage.Name)
 	}
+	klog.Infof("Successfully validated/updated agreement terms as accepted for [VMName: %s, VMImage: %s, AgreementID: %s]", vmName, *vmImage.ID, *agreementTerms.ID)
 	return nil
 }
 
@@ -362,6 +360,28 @@ func CreateOrUpdateVM(ctx context.Context, factory access.Factory, connectConfig
 	}
 	klog.Infof("Successfully created VM: [ResourceGroup: %s, Name: %s]", providerSpec.ResourceGroup, vmName)
 	return vm, nil
+}
+
+func LogVMCreation(location, resourceGroup string, vm *armcompute.VirtualMachine) {
+	msgBuilder := strings.Builder{}
+	vmName := *vm.Name
+	msgBuilder.WriteString(fmt.Sprintf("Successfully create Machine in [Location: %s, ResourceGroup: %s] with the following resources:\n", location, resourceGroup))
+	msgBuilder.WriteString(fmt.Sprintf("VirtualMachine: [ID: %s, Name: %s]\n", *vm.ID, vmName))
+	if !utils.IsSliceNilOrEmpty(vm.Properties.NetworkProfile.NetworkInterfaces) {
+		nic := vm.Properties.NetworkProfile.NetworkInterfaces[0]
+		msgBuilder.WriteString(fmt.Sprintf("NIC: [ID: %s, Name: %s]\n", *nic.ID, utils.CreateNICName(vmName)))
+	}
+	if vm.Properties.StorageProfile.OSDisk != nil {
+		msgBuilder.WriteString(fmt.Sprintf("OSDisk: %s\n", *vm.Properties.StorageProfile.OSDisk.Name))
+	}
+	if !utils.IsSliceNilOrEmpty(vm.Properties.StorageProfile.DataDisks) {
+		msgBuilder.WriteString("DataDisks: [ ")
+		for _, dataDisk := range vm.Properties.StorageProfile.DataDisks {
+			msgBuilder.WriteString(fmt.Sprintf("{Name: %s} ", *dataDisk.Name))
+		}
+		msgBuilder.WriteString(" ]")
+	}
+	klog.Infof(msgBuilder.String())
 }
 
 func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID, vmName string) (armcompute.VirtualMachine, error) {

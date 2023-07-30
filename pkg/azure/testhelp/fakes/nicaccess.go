@@ -15,7 +15,7 @@ import (
 
 type NICAccessBuilder struct {
 	clusterState    *ClusterState
-	nicServer       fakenetwork.InterfacesServer
+	server          fakenetwork.InterfacesServer
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
@@ -30,7 +30,7 @@ func (b *NICAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec)
 }
 
 func (b *NICAccessBuilder) WithGet() *NICAccessBuilder {
-	b.nicServer.Get = func(ctx context.Context, resourceGroupName string, nicName string, options *armnetwork.InterfacesClientGetOptions) (resp azfake.Responder[armnetwork.InterfacesClientGetResponse], errResp azfake.ErrorResponder) {
+	b.server.Get = func(ctx context.Context, resourceGroupName string, nicName string, options *armnetwork.InterfacesClientGetOptions) (resp azfake.Responder[armnetwork.InterfacesClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, nicName, testhelp.AccessMethodGet)
 			if err != nil {
@@ -55,7 +55,7 @@ func (b *NICAccessBuilder) WithGet() *NICAccessBuilder {
 }
 
 func (b *NICAccessBuilder) WithBeginDelete() *NICAccessBuilder {
-	b.nicServer.BeginDelete = func(ctx context.Context, resourceGroupName string, nicName string, options *armnetwork.InterfacesClientBeginDeleteOptions) (resp azfake.PollerResponder[armnetwork.InterfacesClientDeleteResponse], errResp azfake.ErrorResponder) {
+	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, nicName string, options *armnetwork.InterfacesClientBeginDeleteOptions) (resp azfake.PollerResponder[armnetwork.InterfacesClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, nicName, testhelp.AccessMethodBeginDelete)
 			if err != nil {
@@ -84,7 +84,7 @@ func (b *NICAccessBuilder) Build() (*armnetwork.InterfacesClient, error) {
 	b.WithGet().WithBeginDelete()
 	return armnetwork.NewInterfacesClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
 		ClientOptions: policy.ClientOptions{
-			Transport: fakenetwork.NewInterfacesServerTransport(&b.nicServer),
+			Transport: fakenetwork.NewInterfacesServerTransport(&b.server),
 		},
 	})
 }

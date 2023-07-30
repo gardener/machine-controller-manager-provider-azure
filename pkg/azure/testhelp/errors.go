@@ -15,6 +15,7 @@ const (
 	ErrorCodePatchResourceNotFound = "PatchResourceNotFound"
 	ErrorOperationNotAllowed       = "OperationNotAllowed"
 	ErrorBadRequest                = "BadRequest"
+	ErrorCodeVMImageNotFound       = "NotFound"
 )
 
 func ContextTimeoutError(parentCtx context.Context, timeout time.Duration) error {

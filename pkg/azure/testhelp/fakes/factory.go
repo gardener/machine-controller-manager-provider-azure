@@ -65,32 +65,32 @@ func (f *Factory) GetMarketPlaceAgreementsAccess(_ access.ConnectConfig) (*armma
 
 func (f *Factory) NewVirtualMachineAccessBuilder() *VMAccessBuilder {
 	return &VMAccessBuilder{
-		vmServer: fakecompute.VirtualMachinesServer{},
+		server: fakecompute.VirtualMachinesServer{},
 	}
 }
 
 func (f *Factory) NewResourceGroupsAccessBuilder() *ResourceGroupsAccessBuilder {
 	return &ResourceGroupsAccessBuilder{
-		rg:       f.resourceGroup,
-		rgServer: fakearmresources.ResourceGroupsServer{},
+		rg:     f.resourceGroup,
+		server: fakearmresources.ResourceGroupsServer{},
 	}
 }
 
 func (f *Factory) NewNICAccessBuilder() *NICAccessBuilder {
 	return &NICAccessBuilder{
-		nicServer: fakenetwork.InterfacesServer{},
+		server: fakenetwork.InterfacesServer{},
 	}
 }
 
 func (f *Factory) NewDiskAccessBuilder() *DiskAccessBuilder {
 	return &DiskAccessBuilder{
-		diskServer: fakecompute.DisksServer{},
+		server: fakecompute.DisksServer{},
 	}
 }
 
 func (f *Factory) NewResourceGraphAccessBuilder() *ResourceGraphAccessBuilder {
 	return &ResourceGraphAccessBuilder{
-		resourceGraphServer: fakeresourcegraph.Server{},
+		server: fakeresourcegraph.Server{},
 	}
 }
 

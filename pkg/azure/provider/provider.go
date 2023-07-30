@@ -83,11 +83,12 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 		return
 	}
 
-	_, err = helpers.CreateOrUpdateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, plan, req.Secret, nicID, vmName)
+	vm, err := helpers.CreateOrUpdateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, plan, req.Secret, nicID, vmName)
 	if err != nil {
 		return
 	}
 	resp = helpers.ConstructCreateMachineResponse(providerSpec.Location, vmName)
+	helpers.LogVMCreation(providerSpec.Location, providerSpec.ResourceGroup, vm)
 	return
 }
 
@@ -133,6 +134,7 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 		if err != nil {
 			return
 		}
+		klog.Infof("Successfully delete all Machine resources[VM, NIC, Disks] for [ResourceGroup: %s, VMName: %s]", providerSpec.ResourceGroup, vmName)
 	}
 	resp = &driver.DeleteMachineResponse{}
 	return
