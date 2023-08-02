@@ -172,14 +172,13 @@ func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMach
 
 func (d defaultDriver) GetVolumeIDs(_ context.Context, request *driver.GetVolumeIDsRequest) (resp *driver.GetVolumeIDsResponse, err error) {
 	defer instrument.RecordDriverAPIMetric(err, getVolumeIDsOperationLabel, time.Now())
-	const csiDriverName = "disk.csi.azure.com"
 	var volumeIDs []string
 
 	if request.PVSpecs != nil {
 		for _, pvSpec := range request.PVSpecs {
 			if pvSpec.AzureDisk != nil {
 				volumeIDs = append(volumeIDs, pvSpec.AzureDisk.DiskName)
-			} else if pvSpec.CSI != nil && pvSpec.CSI.Driver == csiDriverName && !utils.IsEmptyString(pvSpec.CSI.VolumeHandle) {
+			} else if pvSpec.CSI != nil && pvSpec.CSI.Driver == utils.AzureCSIDriverName && !utils.IsEmptyString(pvSpec.CSI.VolumeHandle) {
 				volumeIDs = append(volumeIDs, pvSpec.CSI.VolumeHandle)
 			}
 		}

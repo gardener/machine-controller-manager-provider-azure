@@ -10,6 +10,7 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -107,4 +108,40 @@ func ActualSliceEqualsExpectedSlice[T comparable](actual []T, expected []T) bool
 	actualSet := sets.New[T](actual...)
 	expectedSet := sets.New[T](expected...)
 	return len(actualSet.Difference(expectedSet)) == 0 && len(expectedSet.Difference(actualSet)) == 0
+}
+
+func CreatePersistentVolumeSpec(pvSource corev1.PersistentVolumeSource) corev1.PersistentVolumeSpec {
+	return corev1.PersistentVolumeSpec{
+		Capacity: map[corev1.ResourceName]resource.Quantity{
+			corev1.ResourceStorage: resource.MustParse("30Gi"),
+		},
+		PersistentVolumeSource:        pvSource,
+		AccessModes:                   []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+		PersistentVolumeReclaimPolicy: "Delete",
+		StorageClassName:              "gardener.cloud-fast",
+		VolumeMode:                    to.Ptr(corev1.PersistentVolumeFilesystem),
+	}
+}
+
+func CreateAzureDiskPVSource(resourceGroup, diskName string) corev1.PersistentVolumeSource {
+	diskURI := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/disks/%s", SubscriptionID, resourceGroup, diskName)
+	return corev1.PersistentVolumeSource{
+		AzureDisk: &corev1.AzureDiskVolumeSource{
+			DiskName:    diskName,
+			DataDiskURI: diskURI,
+			CachingMode: to.Ptr(corev1.AzureDataDiskCachingReadWrite),
+			FSType:      to.Ptr("ext4"),
+			ReadOnly:    to.Ptr(false),
+			Kind:        to.Ptr(corev1.AzureManagedDisk),
+		}}
+}
+
+func CreateCSIPVSource(driverName, volumeName string) corev1.PersistentVolumeSource {
+	return corev1.PersistentVolumeSource{
+		CSI: &corev1.CSIPersistentVolumeSource{
+			Driver:       driverName,
+			VolumeHandle: volumeName,
+			ReadOnly:     false,
+			FSType:       "ext4",
+		}}
 }

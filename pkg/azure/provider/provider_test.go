@@ -18,6 +18,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -534,6 +535,52 @@ func TestListMachines(t *testing.T) {
 			})
 			g.Expect(err != nil).To(Equal(entry.expectedErr))
 			g.Expect(testhelp.ActualSliceEqualsExpectedSlice(getVMNamesFromListMachineResponse(listMachinesResp), entry.expectedResult)).To(BeTrue())
+		})
+	}
+}
+
+func TestGetVolumeIDs(t *testing.T) {
+	table := []struct {
+		description                     string
+		existingAzureDiskVolSourceNames []string
+		existingAzureCSIVolHandles      []string
+		existingNonAzureCSIVolHandles   []string
+		expectedVolumeIDs               []string
+	}{
+		{"should return empty volumeIDs when no pv exist", nil, nil, nil, []string{}},
+		{"should return empty volumeIDS when only non-csi vol sources are defined", nil, nil, []string{"non-az-csi-vol-1", "non-az-csi-vol-2"}, []string{}},
+		{"should return azure disk vol sources when defined", []string{"az-disk-1", "az-disk-2"}, nil, []string{"non-az-csi-vol-1"}, []string{"az-disk-1", "az-disk-2"}},
+		{"should return azure csi vol sources when defined", nil, []string{"az-csi-vol-1", "az-csi-vol-2"}, []string{"non-az-csi-vol-1"}, []string{"az-csi-vol-1", "az-csi-vol-2"}},
+		{"should return azure disk and csi vol sources when defined", []string{"az-disk-1", "az-disk-2"}, []string{"az-csi-vol-1", "az-csi-vol-2"}, []string{"non-az-csi-vol-1"}, []string{"az-disk-1", "az-disk-2", "az-csi-vol-1", "az-csi-vol-2"}},
+	}
+
+	g := NewWithT(t)
+	ctx := context.Background()
+	for _, entry := range table {
+		t.Run(entry.description, func(t *testing.T) {
+			var pvSpecs []*corev1.PersistentVolumeSpec
+			for _, diskVolSrcName := range entry.existingAzureDiskVolSourceNames {
+				pvSpec := &corev1.PersistentVolumeSpec{
+					PersistentVolumeSource: testhelp.CreateAzureDiskPVSource(testResourceGroupName, diskVolSrcName),
+				}
+				pvSpecs = append(pvSpecs, pvSpec)
+			}
+			for _, azCSIVolHandle := range entry.existingAzureCSIVolHandles {
+				pvSpec := &corev1.PersistentVolumeSpec{
+					PersistentVolumeSource: testhelp.CreateCSIPVSource(utils.AzureCSIDriverName, azCSIVolHandle),
+				}
+				pvSpecs = append(pvSpecs, pvSpec)
+			}
+			for _, nonAzCSIVolHandle := range entry.existingNonAzureCSIVolHandles {
+				pvSpec := &corev1.PersistentVolumeSpec{
+					PersistentVolumeSource: testhelp.CreateCSIPVSource("test-non-az-driver", nonAzCSIVolHandle),
+				}
+				pvSpecs = append(pvSpecs, pvSpec)
+			}
+			testDriver := NewDefaultDriver(fakes.NewFactory(testResourceGroupName))
+			resp, err := testDriver.GetVolumeIDs(ctx, &driver.GetVolumeIDsRequest{PVSpecs: pvSpecs})
+			g.Expect(err).To(BeNil())
+			g.Expect(testhelp.ActualSliceEqualsExpectedSlice(resp.VolumeIDs, entry.expectedVolumeIDs))
 		})
 	}
 }

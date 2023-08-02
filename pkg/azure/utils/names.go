@@ -7,9 +7,10 @@ import (
 )
 
 const (
-	nicSuffix      = "-nic"
-	osDiskSuffix   = "-os-disk"
-	dataDiskSuffix = "-data-disk"
+	nicSuffix          = "-nic"
+	osDiskSuffix       = "-os-disk"
+	dataDiskSuffix     = "-data-disk"
+	AzureCSIDriverName = "disk.csi.azure.com"
 )
 
 func CreateNICName(vmName string) string {
