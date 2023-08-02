@@ -7,18 +7,28 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
+)
+
+const (
+	ResourceQuotaExceededAzErrorCode = "ResourceQuotaExceeded"
+	//OverConstrainedAllocationRequest
+	CorrelationRequestIDAzHeaderKey = "x-ms-correlation-request-id"
+	RequestIDAzHeaderKey            = "x-ms-request-id"
+	ErrorCodeAzHeaderKey            = "x-ms-error-code"
+	ClientRequestIDAzHeaderKey      = "x-ms-client-request-id"
 )
 
 var (
 	// Raised https://github.com/Azure/azure-sdk-for-go/issues/21094 to prevent hard coding these here and instead
 	// use well-maintained constants defined in the Azure SDK.
 	lookupResponseHeaderKeys = sets.New(
-		"x-ms-correlation-request-id",
-		"x-ms-request-id",
-		"x-ms-error-code",
-		"x-ms-client-request-id",
+		CorrelationRequestIDAzHeaderKey,
+		RequestIDAzHeaderKey,
+		ErrorCodeAzHeaderKey,
+		ClientRequestIDAzHeaderKey,
 	)
 )
 
@@ -58,4 +68,19 @@ func traceResponseHeaders(err error) map[string]string {
 		}
 	}
 	return headers
+}
+
+// GetMatchingErrorCode gets a matching codes.Code for the given azure error code.
+func GetMatchingErrorCode(err error) codes.Code {
+	azHeaders := traceResponseHeaders(err)
+	azErrorCode, ok := azHeaders[ErrorCodeAzHeaderKey]
+	if ok {
+		switch azErrorCode {
+		case ResourceQuotaExceededAzErrorCode:
+			return codes.ResourceExhausted
+		default:
+			return codes.Internal
+		}
+	}
+	return codes.Internal
 }

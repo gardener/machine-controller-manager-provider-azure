@@ -16,6 +16,7 @@ const (
 	ErrorOperationNotAllowed       = "OperationNotAllowed"
 	ErrorBadRequest                = "BadRequest"
 	ErrorCodeVMImageNotFound       = "NotFound"
+	ErrorCodeSubnetNotFound        = "NotFound"
 )
 
 func ContextTimeoutError(parentCtx context.Context, timeout time.Duration) error {
@@ -58,5 +59,15 @@ func InternalServerError(errorCode string) error {
 		Header:     headers,
 	}
 	return runtime.NewResponseError(resp)
+}
 
+func BadRequestError(errorCode string) error {
+	headers := http.Header{}
+	headers.Set("x-ms-error-code", errorCode)
+	resp := &http.Response{
+		Status:     "400 Bad Request",
+		StatusCode: 400,
+		Header:     headers,
+	}
+	return runtime.NewResponseError(resp)
 }

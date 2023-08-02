@@ -16,6 +16,7 @@ const (
 	NetworkInterfacesResourceType ResourceType = "microsoft.network/networkinterfaces" //as defined in azure
 	VMImageResourceType           ResourceType = "Microsoft.Compute/VMImage"           // this is not defined in azure, however we have created this to allow defining API behavior for VM Images // this is not defined in azure, however we have created this to allow defining API behavior for VM Images.
 	MarketPlaceOrderingOfferType  ResourceType = "Microsoft.MarketplaceOrdering/offertypes"
+	SubnetResourceType            ResourceType = "Microsoft.Network/virtualNetworks/subnets"
 )
 
 // APIBehaviorSpec allows tests to define custom behavior either for a specific resource or a resource type.

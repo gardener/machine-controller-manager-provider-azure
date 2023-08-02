@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
 	"golang.org/x/crypto/ssh"
 	"k8s.io/utils/pointer"
 
@@ -356,7 +357,8 @@ func CreateOrUpdateVM(ctx context.Context, factory access.Factory, connectConfig
 	}
 	vm, err := accesshelpers.CreateVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmCreationParams)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to create VirtualMachine: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+		errCode := accesserrors.GetMatchingErrorCode(err)
+		return nil, status.Error(errCode, fmt.Sprintf("Failed to create VirtualMachine: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
 	}
 	klog.Infof("Successfully created VM: [ResourceGroup: %s, Name: %s]", providerSpec.ResourceGroup, vmName)
 	return vm, nil

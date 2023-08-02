@@ -32,7 +32,7 @@ func (b *ImageAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpe
 func (b *ImageAccessBuilder) withGet() *ImageAccessBuilder {
 	b.server.Get = func(ctx context.Context, location string, publisherName string, offer string, skus string, version string, options *armcompute.VirtualMachineImagesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachineImagesClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ResourceGroup, to.Ptr(VMImageResourceType), testhelp.AccessMethodGet)
+			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.providerSpec.ResourceGroup, to.Ptr(VMImageResourceType), testhelp.AccessMethodGet)
 			if err != nil {
 				errResp.SetError(err)
 				return

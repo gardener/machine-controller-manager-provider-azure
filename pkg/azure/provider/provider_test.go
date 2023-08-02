@@ -112,7 +112,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			providerSpec := providerSpecBuilder.Build()
 
 			// create cluster state
-			clusterState := fakes.NewClusterState(providerSpec.ResourceGroup)
+			clusterState := fakes.NewClusterState(providerSpec)
 			for _, vmName := range entry.existingVMNames {
 				clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).WithCascadeDeleteOptions(entry.cascadeDeleteOpts).BuildAllResources())
 			}
@@ -221,7 +221,7 @@ func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 			providerSpec := providerSpecBuilder.Build()
 
 			// create cluster state
-			clusterState := fakes.NewClusterState(providerSpec.ResourceGroup)
+			clusterState := fakes.NewClusterState(providerSpec)
 			clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).BuildWith(false, entry.nicPresent, entry.osDiskPresent, entry.numDataDisks > 0, entry.vmID))
 
 			// create fake factory
@@ -335,7 +335,7 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 			// initialize cluster state
 			//----------------------------------------------------------------------------
 			// create cluster state
-			clusterState := fakes.NewClusterState(providerSpec.ResourceGroup)
+			clusterState := fakes.NewClusterState(providerSpec)
 			clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).WithCascadeDeleteOptions(entry.cascadeDeleteOpts).BuildWith(entry.vmExists, true, true, false, nil))
 
 			// create fake factory
@@ -420,7 +420,7 @@ func TestGetMachineStatus(t *testing.T) {
 			// initialize cluster state
 			//----------------------------------------------------------------------------
 			// create cluster state
-			clusterState := fakes.NewClusterState(providerSpec.ResourceGroup)
+			clusterState := fakes.NewClusterState(providerSpec)
 			for _, vmName := range entry.existingVMNames {
 				clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).BuildAllResources())
 			}
@@ -504,7 +504,7 @@ func TestListMachines(t *testing.T) {
 			// initialize cluster state
 			//----------------------------------------------------------------------------
 			// create cluster state
-			clusterState := fakes.NewClusterState(providerSpec.ResourceGroup)
+			clusterState := fakes.NewClusterState(providerSpec)
 			if entry.mrTestSpecs != nil {
 				for _, mrTestSpec := range entry.mrTestSpecs {
 					var testVMID *string

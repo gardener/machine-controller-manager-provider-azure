@@ -38,7 +38,7 @@ func (b *VMAccessBuilder) withGet() *VMAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.ResourceGroup != resourceGroupName {
+		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
@@ -63,7 +63,7 @@ func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.ResourceGroup != resourceGroupName {
+		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
@@ -71,6 +71,27 @@ func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
 		b.clusterState.DeleteVM(vmName)
 		// Azure API VM deletion does not fail if the VM does not exist. It still returns 200 Ok.
 		resp.SetTerminalResponse(200, armcompute.VirtualMachinesClientDeleteResponse{}, nil)
+		return
+	}
+	return b
+}
+
+func (b *VMAccessBuilder) withBeginCreateOrUpdate() *VMAccessBuilder {
+	b.server.BeginCreateOrUpdate = func(ctx context.Context, resourceGroupName string, vmName string, parameters armcompute.VirtualMachine, options *armcompute.VirtualMachinesClientBeginCreateOrUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientCreateOrUpdateResponse], errResp azfake.ErrorResponder) {
+		if b.apiBehaviorSpec != nil {
+			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, vmName, testhelp.AccessMethodBeginCreateOrUpdate)
+			if err != nil {
+				errResp.SetError(err)
+				return
+			}
+		}
+		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
+			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
+			return
+		}
+
+		vm := b.clusterState.CreateVM(resourceGroupName, parameters)
+		resp.SetTerminalResponse(http.StatusOK, armcompute.VirtualMachinesClientCreateOrUpdateResponse{VirtualMachine: *vm}, nil)
 		return
 	}
 	return b
@@ -85,7 +106,7 @@ func (b *VMAccessBuilder) withBeginUpdate() *VMAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.ResourceGroup != resourceGroupName {
+		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}

@@ -41,7 +41,7 @@ func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder
 			resType = getResourceType(*query.Query)
 		}
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ResourceGroup, resType, testhelp.AccessMethodGet)
+			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.providerSpec.ResourceGroup, resType, testhelp.AccessMethodGet)
 			if err != nil {
 				errResp.SetError(err)
 				return

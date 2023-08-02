@@ -9,15 +9,27 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 type ClusterState struct {
 	mutex               sync.RWMutex
-	ResourceGroup       string
+	providerSpec        api.AzureProviderSpec
 	MachineResourcesMap map[string]MachineResources
-	vmImageSpec         *VMImageSpec
-	agreementTerms      *armmarketplaceordering.AgreementTerms
+	// currently we support only one vm image as that is sufficient for unit testing.
+	vmImageSpec *VMImageSpec
+	// currently we support only one agreement terms as that is sufficient for unit testing.
+	agreementTerms *armmarketplaceordering.AgreementTerms
+	// currently we only support one subnet as that is sufficient for unit testing.
+	subnetSpec *subnetSpec
+}
+
+type subnetSpec struct {
+	resourceGroup string // this can be different from the ClusterState.ResourceGroup
+	subnetName    string
+	vnetName      string
 }
 
 type VMImageSpec struct {
@@ -35,9 +47,16 @@ const (
 	DiskTypeData DiskType = "DataDisk"
 )
 
-func NewClusterState(resourceGroup string) *ClusterState {
+//func NewClusterState(resourceGroup string) *ClusterState {
+//	return &ClusterState{
+//		ResourceGroup:       resourceGroup,
+//		MachineResourcesMap: make(map[string]MachineResources),
+//	}
+//}
+
+func NewClusterState(providerSpec api.AzureProviderSpec) *ClusterState {
 	return &ClusterState{
-		ResourceGroup:       resourceGroup,
+		providerSpec:        providerSpec,
 		MachineResourcesMap: make(map[string]MachineResources),
 	}
 }
@@ -74,6 +93,19 @@ func (c *ClusterState) WithAgreementTerms(accepted bool) *ClusterState {
 		Type: to.Ptr(string(MarketPlaceOrderingOfferType)),
 	}
 	return c
+}
+
+func (c *ClusterState) WithSubnet(resourceGroup, subnetName, vnetName string) *ClusterState {
+	c.subnetSpec = &subnetSpec{
+		resourceGroup: resourceGroup,
+		subnetName:    subnetName,
+		vnetName:      vnetName,
+	}
+	return c
+}
+
+func (c *ClusterState) ResourceGroupExists(resourceGroupName string) bool {
+	return c.providerSpec.ResourceGroup == resourceGroupName || (c.subnetSpec != nil && c.subnetSpec.resourceGroup == resourceGroupName)
 }
 
 func (c *ClusterState) GetVMImage(vmImageSpec VMImageSpec) *armcompute.VirtualMachineImage {
@@ -113,15 +145,34 @@ func (c *ClusterState) GetVMImage(vmImageSpec VMImageSpec) *armcompute.VirtualMa
 	}
 }
 
-func (c *ClusterState) GetAgreementTerms(offerType armmarketplaceordering.OfferType, publisherID string, offerID string, planID string) *armmarketplaceordering.AgreementTerms {
+func (c *ClusterState) GetAgreementTerms(offerType armmarketplaceordering.OfferType, publisherID string, offerID string) *armmarketplaceordering.AgreementTerms {
 	if c.agreementTerms == nil || c.vmImageSpec == nil {
 		return nil
 	}
 	if offerType == armmarketplaceordering.OfferTypeVirtualmachine &&
 		publisherID == c.vmImageSpec.Publisher &&
-		offerID == c.vmImageSpec.Offer &&
-		planID == c.vmImageSpec.SKU {
+		offerID == c.vmImageSpec.Offer {
 		return c.agreementTerms
+	}
+	return nil
+}
+
+func (c *ClusterState) GetSubnet(resourceGroup, subnetName, vnetName string) *armnetwork.Subnet {
+	if c.subnetSpec != nil &&
+		c.subnetSpec.resourceGroup == resourceGroup &&
+		c.subnetSpec.subnetName == subnetName &&
+		c.subnetSpec.vnetName == vnetName {
+		id := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/virtualNetworks/%s/subnets/%s", testhelp.SubscriptionID, resourceGroup, vnetName, subnetName)
+		return &armnetwork.Subnet{
+			ID:   to.Ptr(id),
+			Name: to.Ptr(subnetName),
+			Properties: &armnetwork.SubnetPropertiesFormat{
+				PrivateEndpointNetworkPolicies:    to.Ptr(armnetwork.VirtualNetworkPrivateEndpointNetworkPoliciesEnabled),
+				PrivateLinkServiceNetworkPolicies: to.Ptr(armnetwork.VirtualNetworkPrivateLinkServiceNetworkPoliciesEnabled),
+				ProvisioningState:                 to.Ptr(armnetwork.ProvisioningStateSucceeded),
+			},
+			Type: to.Ptr(string(SubnetResourceType)),
+		}
 	}
 	return nil
 }
@@ -157,6 +208,23 @@ func (c *ClusterState) DeleteVM(vmName string) {
 	}
 }
 
+func (c *ClusterState) CreateVM(resourceGroup string, vmParams armcompute.VirtualMachine) *armcompute.VirtualMachine {
+	vmName := *vmParams.Name
+	machineResources, ok := c.MachineResourcesMap[vmName]
+	if ok {
+		newVM := vmParams
+		newVM.ID = to.Ptr(testhelp.CreateVirtualMachineID(testhelp.SubscriptionID, resourceGroup, vmName))
+		machineResources.VM = &newVM
+		c.MachineResourcesMap[vmName] = machineResources
+		return machineResources.VM
+	}
+	dataDisksConfigured := !utils.IsSliceNilOrEmpty(c.providerSpec.Properties.StorageProfile.DataDisks)
+	machineResources = NewMachineResourcesBuilder(c.providerSpec, vmName).BuildWith(true, false, true, dataDisksConfigured, nil)
+	c.MachineResourcesMap[vmName] = machineResources
+
+	return machineResources.VM
+}
+
 func (c *ClusterState) GetNIC(nicName string) *armnetwork.Interface {
 	for _, m := range c.MachineResourcesMap {
 		if m.NIC != nil && *m.NIC.Name == nicName {
@@ -184,6 +252,19 @@ loop:
 		}
 		c.MachineResourcesMap[targetMachineResources.Name] = *targetMachineResources
 	}
+}
+
+func (c *ClusterState) CreateNIC(nicName string, nic *armnetwork.Interface) *armnetwork.Interface {
+	vmName := utils.ExtractVMNameFromNICName(nicName)
+	machineResources, ok := c.MachineResourcesMap[vmName]
+	if !ok {
+		machineResources = MachineResources{}
+	}
+	nicID := testhelp.CreateNetworkInterfaceID(testhelp.SubscriptionID, c.providerSpec.ResourceGroup, nicName)
+	machineResources.NIC = nic
+	machineResources.NIC.ID = &nicID
+	c.MachineResourcesMap[vmName] = machineResources
+	return machineResources.NIC
 }
 
 func (c *ClusterState) GetDisk(diskName string) *armcompute.Disk {
