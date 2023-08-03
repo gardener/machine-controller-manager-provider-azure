@@ -196,7 +196,8 @@ func GetSubnet(ctx context.Context, factory access.Factory, connectConfig access
 	}
 	subnet, err := accesshelpers.GetSubnet(ctx, subnetAccess, vnetResourceGroup, providerSpec.SubnetInfo.VnetName, providerSpec.SubnetInfo.SubnetName)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get subnet: [ResourceGroup: %s, Name: %s, VNetName: %s], Err: %v", vnetResourceGroup, providerSpec.SubnetInfo.SubnetName, providerSpec.SubnetInfo.VnetName, err))
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("failed to get subnet: [ResourceGroup: %s, Name: %s, VNetName: %s], Err: %v", vnetResourceGroup, providerSpec.SubnetInfo.SubnetName, providerSpec.SubnetInfo.VnetName, err), err)
+		//return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get subnet: [ResourceGroup: %s, Name: %s, VNetName: %s], Err: %v", vnetResourceGroup, providerSpec.SubnetInfo.SubnetName, providerSpec.SubnetInfo.VnetName, err))
 	}
 	klog.Infof("Retrieved Subnet: [ResourceGroup: %s, Name:%s, VNetName: %s]", vnetResourceGroup, providerSpec.SubnetInfo.SubnetName, providerSpec.SubnetInfo.VnetName)
 	return subnet, nil
@@ -320,7 +321,10 @@ func getVirtualMachineImage(ctx context.Context, factory access.Factory, connect
 	}
 	vmImage, err := accesshelpers.GetVMImage(ctx, vmImagesAccess, location, imageReference)
 	if err != nil {
-		return nil, err
+		if accesserrors.IsNotFoundAzAPIError(err) {
+			return nil, status.WrapError(codes.NotFound, fmt.Sprintf("VM Image %v does not exist", imageReference), err)
+		}
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to retrieve VM Image: %v", imageReference), err)
 	}
 	return vmImage, nil
 }

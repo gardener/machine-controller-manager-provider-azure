@@ -38,7 +38,7 @@ func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
+		if b.clusterState.ProviderSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
@@ -63,7 +63,7 @@ func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
+		if b.clusterState.ProviderSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}

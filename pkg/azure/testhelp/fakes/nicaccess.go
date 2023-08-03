@@ -38,7 +38,7 @@ func (b *NICAccessBuilder) withGet() *NICAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
+		if b.clusterState.ProviderSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
@@ -63,7 +63,7 @@ func (b *NICAccessBuilder) withBeginDelete() *NICAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
+		if b.clusterState.ProviderSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
@@ -89,7 +89,7 @@ func (b *NICAccessBuilder) withBeginCreateOrUpdate() *NICAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
+		if b.clusterState.ProviderSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}

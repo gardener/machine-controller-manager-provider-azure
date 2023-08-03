@@ -1,16 +1,17 @@
-package testhelp
+package fakes
 
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -21,10 +22,10 @@ func CreateProviderSecret() *corev1.Secret {
 		TypeMeta:   metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{},
 		Data: map[string][]byte{
-			api.ClientID:       []byte(ClientID),
-			api.ClientSecret:   []byte(ClientSecret),
-			api.SubscriptionID: []byte(SubscriptionID),
-			api.TenantID:       []byte(TenantID),
+			api.ClientID:       []byte(testhelp.ClientID),
+			api.ClientSecret:   []byte(testhelp.ClientSecret),
+			api.SubscriptionID: []byte(testhelp.SubscriptionID),
+			api.TenantID:       []byte(testhelp.TenantID),
 		},
 	}
 }
@@ -39,6 +40,10 @@ func CreateNetworkInterfaceID(subscriptionID, resourceGroup, nicName string) str
 
 func CreateIPConfigurationID(subscriptionID, resourceGroup, nicName, ipConfigName string) string {
 	return fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkInterfaces/%s/ipConfigurations/%s", subscriptionID, resourceGroup, nicName, ipConfigName)
+}
+
+func CreateSubnetName(shootNs string) string {
+	return fmt.Sprintf("%s-nodes", shootNs)
 }
 
 func CreateMachineClass(providerSpec api.AzureProviderSpec, resourceGroup *string) (*v1alpha1.MachineClass, error) {
@@ -104,27 +109,8 @@ func GetCascadeDeleteOptForDataDisks(vm armcompute.VirtualMachine) map[string]*a
 	return deleteOpts
 }
 
-func ActualSliceEqualsExpectedSlice[T comparable](actual []T, expected []T) bool {
-	actualSet := sets.New[T](actual...)
-	expectedSet := sets.New[T](expected...)
-	return len(actualSet.Difference(expectedSet)) == 0 && len(expectedSet.Difference(actualSet)) == 0
-}
-
-func CreatePersistentVolumeSpec(pvSource corev1.PersistentVolumeSource) corev1.PersistentVolumeSpec {
-	return corev1.PersistentVolumeSpec{
-		Capacity: map[corev1.ResourceName]resource.Quantity{
-			corev1.ResourceStorage: resource.MustParse("30Gi"),
-		},
-		PersistentVolumeSource:        pvSource,
-		AccessModes:                   []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-		PersistentVolumeReclaimPolicy: "Delete",
-		StorageClassName:              "gardener.cloud-fast",
-		VolumeMode:                    to.Ptr(corev1.PersistentVolumeFilesystem),
-	}
-}
-
 func CreateAzureDiskPVSource(resourceGroup, diskName string) corev1.PersistentVolumeSource {
-	diskURI := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/disks/%s", SubscriptionID, resourceGroup, diskName)
+	diskURI := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/disks/%s", testhelp.SubscriptionID, resourceGroup, diskName)
 	return corev1.PersistentVolumeSource{
 		AzureDisk: &corev1.AzureDiskVolumeSource{
 			DiskName:    diskName,
@@ -144,4 +130,29 @@ func CreateCSIPVSource(driverName, volumeName string) corev1.PersistentVolumeSou
 			ReadOnly:     false,
 			FSType:       "ext4",
 		}}
+}
+
+func GetDefaultVMImageParts() (publisher string, offer string, sku string, version string) {
+	urnParts := strings.Split(testhelp.DefaultImageRefURN, ":")
+	publisher = urnParts[0]
+	offer = urnParts[1]
+	sku = urnParts[2]
+	version = urnParts[3]
+	return
+}
+
+func ActualSliceEqualsExpectedSlice[T comparable](actual []T, expected []T) bool {
+	actualSet := sets.New[T](actual...)
+	expectedSet := sets.New[T](expected...)
+	return len(actualSet.Difference(expectedSet)) == 0 && len(expectedSet.Difference(actualSet)) == 0
+}
+
+func IsSubnetURIPath(uriPath string, subscriptionID string, subnetSpec SubnetSpec) bool {
+	expectedSubnetURIPath := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/virtualNetworks/%s/subnets/%s", subscriptionID, subnetSpec.ResourceGroup, subnetSpec.VnetName, subnetSpec.SubnetName)
+	return uriPath == expectedSubnetURIPath
+}
+
+func IsVMImageURIPath(uriPath string, subscriptionID, location string, vmImageSpec VMImageSpec) bool {
+	expectedVMImageURIPath := fmt.Sprintf("/subscriptions/%s/providers/Microsoft.Compute/locations/%s/publishers/%s/artifacttypes/vmimage/offers/%s/skus/%s/versions/%s", subscriptionID, location, vmImageSpec.Publisher, vmImageSpec.Offer, vmImageSpec.SKU, vmImageSpec.Version)
+	return uriPath == expectedVMImageURIPath
 }

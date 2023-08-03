@@ -38,7 +38,7 @@ func (b *VMAccessBuilder) withGet() *VMAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
+		if b.clusterState.ProviderSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
@@ -63,7 +63,7 @@ func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
+		if b.clusterState.ProviderSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
@@ -85,7 +85,7 @@ func (b *VMAccessBuilder) withBeginCreateOrUpdate() *VMAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
+		if b.clusterState.ProviderSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}
@@ -106,7 +106,7 @@ func (b *VMAccessBuilder) withBeginUpdate() *VMAccessBuilder {
 				return
 			}
 		}
-		if b.clusterState.providerSpec.ResourceGroup != resourceGroupName {
+		if b.clusterState.ProviderSpec.ResourceGroup != resourceGroupName {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceGroupNotFound))
 			return
 		}

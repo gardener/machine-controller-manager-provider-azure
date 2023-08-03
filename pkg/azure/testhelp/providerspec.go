@@ -75,7 +75,7 @@ func (b *ProviderSpecBuilder) WithDefaultHardwareProfile() *ProviderSpecBuilder 
 
 func (b *ProviderSpecBuilder) WithDefaultStorageProfile() *ProviderSpecBuilder {
 	b.spec.Properties.StorageProfile.ImageReference = api.AzureImageReference{
-		URN: to.Ptr(ImageRefURN),
+		URN: to.Ptr(DefaultImageRefURN),
 	}
 	b.spec.Properties.StorageProfile.OsDisk = api.AzureOSDisk{
 		Caching: "None",

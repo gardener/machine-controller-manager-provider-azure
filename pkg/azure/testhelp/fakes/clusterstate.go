@@ -16,20 +16,20 @@ import (
 
 type ClusterState struct {
 	mutex               sync.RWMutex
-	providerSpec        api.AzureProviderSpec
+	ProviderSpec        api.AzureProviderSpec
 	MachineResourcesMap map[string]MachineResources
 	// currently we support only one vm image as that is sufficient for unit testing.
-	vmImageSpec *VMImageSpec
+	VMImageSpec *VMImageSpec
 	// currently we support only one agreement terms as that is sufficient for unit testing.
-	agreementTerms *armmarketplaceordering.AgreementTerms
+	AgreementTerms *armmarketplaceordering.AgreementTerms
 	// currently we only support one subnet as that is sufficient for unit testing.
-	subnetSpec *subnetSpec
+	SubnetSpec *SubnetSpec
 }
 
-type subnetSpec struct {
-	resourceGroup string // this can be different from the ClusterState.ResourceGroup
-	subnetName    string
-	vnetName      string
+type SubnetSpec struct {
+	ResourceGroup string // this can be different from the ClusterState.ResourceGroup
+	SubnetName    string
+	VnetName      string
 }
 
 type VMImageSpec struct {
@@ -37,14 +37,15 @@ type VMImageSpec struct {
 	Offer     string
 	SKU       string
 	Version   string
-	OfferType string
+	OfferType armmarketplaceordering.OfferType
 }
 
 type DiskType string
 
 const (
-	DiskTypeOS   DiskType = "OSDisk"
-	DiskTypeData DiskType = "DataDisk"
+	DiskTypeOS       DiskType = "OSDisk"
+	DiskTypeData     DiskType = "DataDisk"
+	defaultOfferType          = armmarketplaceordering.OfferTypeVirtualmachine
 )
 
 //func NewClusterState(resourceGroup string) *ClusterState {
@@ -56,7 +57,7 @@ const (
 
 func NewClusterState(providerSpec api.AzureProviderSpec) *ClusterState {
 	return &ClusterState{
-		providerSpec:        providerSpec,
+		ProviderSpec:        providerSpec,
 		MachineResourcesMap: make(map[string]MachineResources),
 	}
 }
@@ -66,7 +67,19 @@ func (c *ClusterState) AddMachineResources(m MachineResources) {
 }
 
 func (c *ClusterState) WithVMImageSpec(vmImageSpec VMImageSpec) *ClusterState {
-	c.vmImageSpec = &vmImageSpec
+	c.VMImageSpec = &vmImageSpec
+	return c
+}
+
+func (c *ClusterState) WithDefaultVMImageSpec() *ClusterState {
+	publisher, offer, sku, version := GetDefaultVMImageParts()
+	c.VMImageSpec = &VMImageSpec{
+		Publisher: publisher,
+		Offer:     offer,
+		SKU:       sku,
+		Version:   version,
+		OfferType: defaultOfferType,
+	}
 	return c
 }
 
@@ -75,47 +88,47 @@ func (c *ClusterState) WithVMImageSpec(vmImageSpec VMImageSpec) *ClusterState {
 // it does not make any sense to have an agreement since there will be no purchase plan.
 // It is assumed here that the VMImage is a marketplace image and not a community image.
 func (c *ClusterState) WithAgreementTerms(accepted bool) *ClusterState {
-	if c.vmImageSpec == nil {
+	if c.VMImageSpec == nil {
 		// do not create any agreement terms
 		return c
 	}
 	// compare relevant fields
-	id := fmt.Sprintf("/subscriptions/%s/providers/Microsoft.MarketplaceOrdering/offerTypes/VirtualMachine/publishers/%s/offers/%s/plans/%s/agreements/current", testhelp.SubscriptionID, c.vmImageSpec.Publisher, c.vmImageSpec.Offer, c.vmImageSpec.SKU)
-	c.agreementTerms = &armmarketplaceordering.AgreementTerms{
+	id := fmt.Sprintf("/subscriptions/%s/providers/Microsoft.MarketplaceOrdering/offerTypes/VirtualMachine/publishers/%s/offers/%s/plans/%s/agreements/current", testhelp.SubscriptionID, c.VMImageSpec.Publisher, c.VMImageSpec.Offer, c.VMImageSpec.SKU)
+	c.AgreementTerms = &armmarketplaceordering.AgreementTerms{
 		Properties: &armmarketplaceordering.AgreementProperties{
 			Accepted:  to.Ptr(accepted),
-			Plan:      to.Ptr(c.vmImageSpec.SKU),
-			Product:   to.Ptr(c.vmImageSpec.Offer),
-			Publisher: to.Ptr(c.vmImageSpec.Publisher),
+			Plan:      to.Ptr(c.VMImageSpec.SKU),
+			Product:   to.Ptr(c.VMImageSpec.Offer),
+			Publisher: to.Ptr(c.VMImageSpec.Publisher),
 		},
 		ID:   &id,
-		Name: to.Ptr(c.vmImageSpec.SKU),
+		Name: to.Ptr(c.VMImageSpec.SKU),
 		Type: to.Ptr(string(MarketPlaceOrderingOfferType)),
 	}
 	return c
 }
 
 func (c *ClusterState) WithSubnet(resourceGroup, subnetName, vnetName string) *ClusterState {
-	c.subnetSpec = &subnetSpec{
-		resourceGroup: resourceGroup,
-		subnetName:    subnetName,
-		vnetName:      vnetName,
+	c.SubnetSpec = &SubnetSpec{
+		ResourceGroup: resourceGroup,
+		SubnetName:    subnetName,
+		VnetName:      vnetName,
 	}
 	return c
 }
 
 func (c *ClusterState) ResourceGroupExists(resourceGroupName string) bool {
-	return c.providerSpec.ResourceGroup == resourceGroupName || (c.subnetSpec != nil && c.subnetSpec.resourceGroup == resourceGroupName)
+	return c.ProviderSpec.ResourceGroup == resourceGroupName || (c.SubnetSpec != nil && c.SubnetSpec.ResourceGroup == resourceGroupName)
 }
 
 func (c *ClusterState) GetVMImage(vmImageSpec VMImageSpec) *armcompute.VirtualMachineImage {
-	if c.vmImageSpec == nil || !reflect.DeepEqual(vmImageSpec, c.vmImageSpec) {
+	if c.VMImageSpec == nil || !reflect.DeepEqual(vmImageSpec, *c.VMImageSpec) {
 		return nil
 	}
-	id := fmt.Sprintf("/Subscriptions/%s/Providers/Microsoft.Compute/Locations/%s/Publishers/%s/ArtifactTypes/VMImage/Offers/%s/Skus/%s/Versions/%s", testhelp.SubscriptionID, testhelp.Location, c.vmImageSpec.Publisher, c.vmImageSpec.Offer, c.vmImageSpec.SKU, c.vmImageSpec.Version)
+	id := fmt.Sprintf("/Subscriptions/%s/Providers/Microsoft.Compute/Locations/%s/Publishers/%s/ArtifactTypes/VMImage/Offers/%s/Skus/%s/Versions/%s", testhelp.SubscriptionID, testhelp.Location, c.VMImageSpec.Publisher, c.VMImageSpec.Offer, c.VMImageSpec.SKU, c.VMImageSpec.Version)
 	return &armcompute.VirtualMachineImage{
 		Location: to.Ptr(testhelp.Location),
-		Name:     to.Ptr(c.vmImageSpec.Version),
+		Name:     to.Ptr(c.VMImageSpec.Version),
 		ID:       &id,
 		Properties: &armcompute.VirtualMachineImageProperties{
 			Architecture:                 to.Ptr(armcompute.ArchitectureTypesX64),
@@ -137,31 +150,31 @@ func (c *ClusterState) GetVMImage(vmImageSpec VMImageSpec) *armcompute.VirtualMa
 			ImageDeprecationStatus: &armcompute.ImageDeprecationStatus{ImageState: to.Ptr(armcompute.ImageStateActive)},
 			OSDiskImage:            &armcompute.OSDiskImage{OperatingSystem: to.Ptr(armcompute.OperatingSystemTypesLinux)},
 			Plan: &armcompute.PurchasePlan{
-				Name:      to.Ptr(c.vmImageSpec.SKU),
-				Product:   to.Ptr(c.vmImageSpec.Offer),
-				Publisher: to.Ptr(c.vmImageSpec.Publisher),
+				Name:      to.Ptr(c.VMImageSpec.SKU),
+				Product:   to.Ptr(c.VMImageSpec.Offer),
+				Publisher: to.Ptr(c.VMImageSpec.Publisher),
 			},
 		},
 	}
 }
 
 func (c *ClusterState) GetAgreementTerms(offerType armmarketplaceordering.OfferType, publisherID string, offerID string) *armmarketplaceordering.AgreementTerms {
-	if c.agreementTerms == nil || c.vmImageSpec == nil {
+	if c.AgreementTerms == nil || c.VMImageSpec == nil {
 		return nil
 	}
 	if offerType == armmarketplaceordering.OfferTypeVirtualmachine &&
-		publisherID == c.vmImageSpec.Publisher &&
-		offerID == c.vmImageSpec.Offer {
-		return c.agreementTerms
+		publisherID == c.VMImageSpec.Publisher &&
+		offerID == c.VMImageSpec.Offer {
+		return c.AgreementTerms
 	}
 	return nil
 }
 
 func (c *ClusterState) GetSubnet(resourceGroup, subnetName, vnetName string) *armnetwork.Subnet {
-	if c.subnetSpec != nil &&
-		c.subnetSpec.resourceGroup == resourceGroup &&
-		c.subnetSpec.subnetName == subnetName &&
-		c.subnetSpec.vnetName == vnetName {
+	if c.SubnetSpec != nil &&
+		c.SubnetSpec.ResourceGroup == resourceGroup &&
+		c.SubnetSpec.SubnetName == subnetName &&
+		c.SubnetSpec.VnetName == vnetName {
 		id := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/virtualNetworks/%s/subnets/%s", testhelp.SubscriptionID, resourceGroup, vnetName, subnetName)
 		return &armnetwork.Subnet{
 			ID:   to.Ptr(id),
@@ -213,13 +226,13 @@ func (c *ClusterState) CreateVM(resourceGroup string, vmParams armcompute.Virtua
 	machineResources, ok := c.MachineResourcesMap[vmName]
 	if ok {
 		newVM := vmParams
-		newVM.ID = to.Ptr(testhelp.CreateVirtualMachineID(testhelp.SubscriptionID, resourceGroup, vmName))
+		newVM.ID = to.Ptr(CreateVirtualMachineID(testhelp.SubscriptionID, resourceGroup, vmName))
 		machineResources.VM = &newVM
 		c.MachineResourcesMap[vmName] = machineResources
 		return machineResources.VM
 	}
-	dataDisksConfigured := !utils.IsSliceNilOrEmpty(c.providerSpec.Properties.StorageProfile.DataDisks)
-	machineResources = NewMachineResourcesBuilder(c.providerSpec, vmName).BuildWith(true, false, true, dataDisksConfigured, nil)
+	dataDisksConfigured := !utils.IsSliceNilOrEmpty(c.ProviderSpec.Properties.StorageProfile.DataDisks)
+	machineResources = NewMachineResourcesBuilder(c.ProviderSpec, vmName).BuildWith(true, false, true, dataDisksConfigured, nil)
 	c.MachineResourcesMap[vmName] = machineResources
 
 	return machineResources.VM
@@ -260,7 +273,7 @@ func (c *ClusterState) CreateNIC(nicName string, nic *armnetwork.Interface) *arm
 	if !ok {
 		machineResources = MachineResources{}
 	}
-	nicID := testhelp.CreateNetworkInterfaceID(testhelp.SubscriptionID, c.providerSpec.ResourceGroup, nicName)
+	nicID := CreateNetworkInterfaceID(testhelp.SubscriptionID, c.ProviderSpec.ResourceGroup, nicName)
 	machineResources.NIC = nic
 	machineResources.NIC.ID = &nicID
 	c.MachineResourcesMap[vmName] = machineResources

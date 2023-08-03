@@ -3,8 +3,10 @@ package provider
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
@@ -121,10 +123,10 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			fakeFactory := createDefaultFakeFactoryForMachineDelete(g, providerSpec.ResourceGroup, clusterState)
 
 			// Create machine and machine class to be used to create DeleteMachineRequest
-			machineClass, err := testhelp.CreateMachineClass(providerSpec, entry.machineClassResourceGroup)
+			machineClass, err := fakes.CreateMachineClass(providerSpec, entry.machineClassResourceGroup)
 			g.Expect(err).To(BeNil())
 			machine := &v1alpha1.Machine{
-				ObjectMeta: testhelp.NewMachineObjectMeta(testShootNs, entry.targetVMNameToDelete),
+				ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, entry.targetVMNameToDelete),
 			}
 
 			// Test environment before running actual test
@@ -138,7 +140,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 				Machine:      machine,
 				MachineClass: machineClass,
-				Secret:       testhelp.CreateProviderSecret(),
+				Secret:       fakes.CreateProviderSecret(),
 			})
 			g.Expect(err == nil).To(Equal(entry.shouldDeleteMachineSucceed))
 
@@ -150,7 +152,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 
 func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 	const vmName = "test-vm-0"
-	testVMID := testhelp.CreateVirtualMachineID(testhelp.SubscriptionID, testResourceGroupName, vmName)
+	testVMID := fakes.CreateVirtualMachineID(testhelp.SubscriptionID, testResourceGroupName, vmName)
 
 	table := []struct {
 		description                string
@@ -229,10 +231,10 @@ func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 			fakeFactory := createDefaultFakeFactoryForMachineDelete(g, providerSpec.ResourceGroup, clusterState)
 
 			// Create machine and machine class to be used to create DeleteMachineRequest
-			machineClass, err := testhelp.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+			machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
 			g.Expect(err).To(BeNil())
 			machine := &v1alpha1.Machine{
-				ObjectMeta: testhelp.NewMachineObjectMeta(testShootNs, vmName),
+				ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
 			}
 
 			// Test
@@ -241,7 +243,7 @@ func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 			_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 				Machine:      machine,
 				MachineClass: machineClass,
-				Secret:       testhelp.CreateProviderSecret(),
+				Secret:       fakes.CreateProviderSecret(),
 			})
 			g.Expect(err == nil).To(Equal(entry.shouldDeleteMachineSucceed))
 
@@ -340,13 +342,13 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 			clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).WithCascadeDeleteOptions(entry.cascadeDeleteOpts).BuildWith(entry.vmExists, true, true, false, nil))
 
 			// create fake factory
-			fakeFactory := createFakeFactoryForMachineDeleteWithAPIBehaviorSpecs(g, providerSpec.ResourceGroup, clusterState, entry.rgAccessAPIBehaviorSpec, entry.vmAccessAPIBehaviorSpec, entry.diskAccessAPIBehaviorSpec, entry.nicAccessAPIBehaviorSpec)
+			fakeFactory := createFakeFactoryForDeleteMachineWithAPIBehaviorSpecs(g, providerSpec.ResourceGroup, clusterState, entry.rgAccessAPIBehaviorSpec, entry.vmAccessAPIBehaviorSpec, entry.diskAccessAPIBehaviorSpec, entry.nicAccessAPIBehaviorSpec)
 
 			// Create machine and machine class to be used to create DeleteMachineRequest
-			machineClass, err := testhelp.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+			machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
 			g.Expect(err).To(BeNil())
 			machine := &v1alpha1.Machine{
-				ObjectMeta: testhelp.NewMachineObjectMeta(testShootNs, vmName),
+				ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
 			}
 			// Test
 			//----------------------------------------------------------------------------
@@ -354,7 +356,7 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 			_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 				Machine:      machine,
 				MachineClass: machineClass,
-				Secret:       testhelp.CreateProviderSecret(),
+				Secret:       fakes.CreateProviderSecret(),
 			})
 			if entry.checkErrorFn != nil {
 				entry.checkErrorFn(g, err)
@@ -373,16 +375,16 @@ func TestDeleteMachineWhenProviderIsNotAzure(t *testing.T) {
 	fakeFactory := fakes.NewFactory(testResourceGroupName)
 	testDriver := NewDefaultDriver(fakeFactory)
 	providerSpec := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().Build()
-	machineClass, err := testhelp.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+	machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
 	g.Expect(err).To(BeNil())
 	machineClass.Provider = "aws" //set an incorrect provider
 	machine := &v1alpha1.Machine{
-		ObjectMeta: testhelp.NewMachineObjectMeta(testShootNs, vmName),
+		ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
 	}
 	_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 		Machine:      machine,
 		MachineClass: machineClass,
-		Secret:       testhelp.CreateProviderSecret(),
+		Secret:       fakes.CreateProviderSecret(),
 	})
 	g.Expect(err).ToNot(BeNil())
 	var statusErr *status.Status
@@ -432,10 +434,10 @@ func TestGetMachineStatus(t *testing.T) {
 			fakeFactory.WithVirtualMachineAccess(vmAccess)
 
 			// Create machine and machine class to be used to create DeleteMachineRequest
-			machineClass, err := testhelp.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+			machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
 			g.Expect(err).To(BeNil())
 			machine := &v1alpha1.Machine{
-				ObjectMeta: testhelp.NewMachineObjectMeta(testShootNs, entry.targetVMName),
+				ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, entry.targetVMName),
 			}
 
 			// Test
@@ -444,7 +446,7 @@ func TestGetMachineStatus(t *testing.T) {
 			getMachineStatusResp, err := testDriver.GetMachineStatus(ctx, &driver.GetMachineStatusRequest{
 				Machine:      machine,
 				MachineClass: machineClass,
-				Secret:       testhelp.CreateProviderSecret(),
+				Secret:       fakes.CreateProviderSecret(),
 			})
 			g.Expect(err == nil).To(Equal(entry.shouldOperationSucceed))
 			if err == nil {
@@ -510,7 +512,7 @@ func TestListMachines(t *testing.T) {
 				for _, mrTestSpec := range entry.mrTestSpecs {
 					var testVMID *string
 					if !mrTestSpec.vmPresent {
-						testVMID = to.Ptr(testhelp.CreateVirtualMachineID(testhelp.SubscriptionID, testResourceGroupName, mrTestSpec.vmName))
+						testVMID = to.Ptr(fakes.CreateVirtualMachineID(testhelp.SubscriptionID, testResourceGroupName, mrTestSpec.vmName))
 					}
 					clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, mrTestSpec.vmName).BuildWith(mrTestSpec.vmPresent, mrTestSpec.nicPresent, mrTestSpec.osDiskPresent, false, testVMID))
 				}
@@ -523,7 +525,7 @@ func TestListMachines(t *testing.T) {
 			fakeFactory.WithResourceGraphAccess(resourceGraphAccess)
 
 			// Create machine and machine class to be used to create DeleteMachineRequest
-			machineClass, err := testhelp.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+			machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
 			g.Expect(err).To(BeNil())
 
 			// Test
@@ -531,10 +533,10 @@ func TestListMachines(t *testing.T) {
 			testDriver := NewDefaultDriver(fakeFactory)
 			listMachinesResp, err := testDriver.ListMachines(ctx, &driver.ListMachinesRequest{
 				MachineClass: machineClass,
-				Secret:       testhelp.CreateProviderSecret(),
+				Secret:       fakes.CreateProviderSecret(),
 			})
 			g.Expect(err != nil).To(Equal(entry.expectedErr))
-			g.Expect(testhelp.ActualSliceEqualsExpectedSlice(getVMNamesFromListMachineResponse(listMachinesResp), entry.expectedResult)).To(BeTrue())
+			g.Expect(fakes.ActualSliceEqualsExpectedSlice(getVMNamesFromListMachineResponse(listMachinesResp), entry.expectedResult)).To(BeTrue())
 		})
 	}
 }
@@ -561,26 +563,197 @@ func TestGetVolumeIDs(t *testing.T) {
 			var pvSpecs []*corev1.PersistentVolumeSpec
 			for _, diskVolSrcName := range entry.existingAzureDiskVolSourceNames {
 				pvSpec := &corev1.PersistentVolumeSpec{
-					PersistentVolumeSource: testhelp.CreateAzureDiskPVSource(testResourceGroupName, diskVolSrcName),
+					PersistentVolumeSource: fakes.CreateAzureDiskPVSource(testResourceGroupName, diskVolSrcName),
 				}
 				pvSpecs = append(pvSpecs, pvSpec)
 			}
 			for _, azCSIVolHandle := range entry.existingAzureCSIVolHandles {
 				pvSpec := &corev1.PersistentVolumeSpec{
-					PersistentVolumeSource: testhelp.CreateCSIPVSource(utils.AzureCSIDriverName, azCSIVolHandle),
+					PersistentVolumeSource: fakes.CreateCSIPVSource(utils.AzureCSIDriverName, azCSIVolHandle),
 				}
 				pvSpecs = append(pvSpecs, pvSpec)
 			}
 			for _, nonAzCSIVolHandle := range entry.existingNonAzureCSIVolHandles {
 				pvSpec := &corev1.PersistentVolumeSpec{
-					PersistentVolumeSource: testhelp.CreateCSIPVSource("test-non-az-driver", nonAzCSIVolHandle),
+					PersistentVolumeSource: fakes.CreateCSIPVSource("test-non-az-driver", nonAzCSIVolHandle),
 				}
 				pvSpecs = append(pvSpecs, pvSpec)
 			}
 			testDriver := NewDefaultDriver(fakes.NewFactory(testResourceGroupName))
 			resp, err := testDriver.GetVolumeIDs(ctx, &driver.GetVolumeIDsRequest{PVSpecs: pvSpecs})
 			g.Expect(err).To(BeNil())
-			g.Expect(testhelp.ActualSliceEqualsExpectedSlice(resp.VolumeIDs, entry.expectedVolumeIDs))
+			g.Expect(fakes.ActualSliceEqualsExpectedSlice(resp.VolumeIDs, entry.expectedVolumeIDs))
+		})
+	}
+}
+
+/*
+	List of tests:
+ 	1. Subnet is not there, should fail machine creation. No resource should be created.
+	2. VM Image is not there, should fail machine creation. No resource should be created.
+	3. VM Image is there with a mkt place plan but there is no agreement. No resource should be created.
+	4. Update of agreement fails. No resource should be created.
+	5. Getting VM Image failed. No resource should be created.
+	6. Getting Subnet failed. No resource should be created.
+	7.
+
+
+	Use Subnet with a different resource group exists.
+*/
+
+// TestCreateMachineWhenPrerequisitesFail tests all cases where one or more Azure API calls made to get prerequisite
+// resources fail.
+func TestCreateMachineWhenPrerequisitesFail(t *testing.T) {
+	const vmName = "vm-0"
+	subnetName := fakes.CreateSubnetName(testShootNs)
+	vnetName := testShootNs
+	table := []struct {
+		description                        string
+		subnetName                         string
+		vnetName                           string
+		subnetResourceGroup                *string // If specified then this resource-group will be used to create a subnet resource in ClusterState
+		providerSpecVnetResourceGroup      *string // If specified this will be used to set the vnet resource group in provider spec, else resource group at the providerSpec will be used.
+		subnetExists                       bool
+		vmImageExists                      bool
+		agreementExists                    bool
+		agreementAccepted                  bool
+		vmAccessAPIBehavior                *fakes.APIBehaviorSpec
+		subnetAccessAPIBehavior            *fakes.APIBehaviorSpec
+		vmImageAccessAPIBehavior           *fakes.APIBehaviorSpec
+		mktPlaceAgreementAccessAPIBehavior *fakes.APIBehaviorSpec
+		checkMachineResourcesFn            func(g *WithT, ctx context.Context, factory fakes.Factory)
+		checkErrorFn                       func(g *WithT, clusterState *fakes.ClusterState, err error)
+	}{
+		{
+			"should fail machine creation when no subnet with given name exists, no resources should be created", subnetName, vnetName, nil, nil,
+			false, true, true, true,
+			nil, nil, nil, nil,
+			func(g *WithT, ctx context.Context, factory fakes.Factory) {
+				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, false)
+			},
+			func(g *WithT, clusterState *fakes.ClusterState, err error) {
+				azRespErr := checkAndGetWrapperAzResponseError(g, err)
+				g.Expect(azRespErr.StatusCode).To(Equal(http.StatusNotFound))
+				g.Expect(azRespErr.ErrorCode).To(Equal(testhelp.ErrorCodeSubnetNotFound))
+				g.Expect(azRespErr.RawResponse.Request.Method).To(Equal(http.MethodGet))
+				g.Expect(fakes.IsSubnetURIPath(azRespErr.RawResponse.Request.URL.Path, testhelp.SubscriptionID, fakes.SubnetSpec{
+					ResourceGroup: clusterState.ProviderSpec.ResourceGroup,
+					SubnetName:    subnetName,
+					VnetName:      vnetName,
+				})).To(BeTrue())
+			},
+		},
+		{
+			"should fail machine creation when subnet GET fails, no resources should be created", subnetName, vnetName, nil, nil,
+			true, true, true, true,
+			nil, fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(fakes.SubnetResourceType, testhelp.AccessMethodGet, testhelp.InternalServerError("test-error-code")), nil, nil,
+			func(g *WithT, ctx context.Context, factory fakes.Factory) {
+				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, false)
+			},
+			func(g *WithT, clusterState *fakes.ClusterState, err error) {
+				azRespErr := checkAndGetWrapperAzResponseError(g, err)
+				g.Expect(azRespErr.StatusCode).To(Equal(http.StatusInternalServerError))
+				g.Expect(azRespErr.ErrorCode).To(Equal("test-error-code"))
+				g.Expect(azRespErr.RawResponse.Request.Method).To(Equal(http.MethodGet))
+				g.Expect(fakes.IsSubnetURIPath(azRespErr.RawResponse.Request.URL.Path, testhelp.SubscriptionID, *clusterState.SubnetSpec)).To(BeTrue())
+			},
+		},
+		{
+			"should fail machine creation when resource group for subnet does not exist, no resources should be created", subnetName, vnetName, to.Ptr("vnet-rg"), to.Ptr("provider-spec-vnet-rg"),
+			true, true, true, true,
+			nil, nil, nil, nil,
+			func(g *WithT, ctx context.Context, factory fakes.Factory) {
+				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, false)
+			},
+			func(g *WithT, clusterState *fakes.ClusterState, err error) {
+				azRespErr := checkAndGetWrapperAzResponseError(g, err)
+				g.Expect(azRespErr.StatusCode).To(Equal(http.StatusNotFound))
+				g.Expect(azRespErr.ErrorCode).To(Equal(testhelp.ErrorCodeResourceGroupNotFound))
+				g.Expect(azRespErr.RawResponse.Request.Method).To(Equal(http.MethodGet))
+				subnetSpec := *clusterState.SubnetSpec
+				subnetSpec.ResourceGroup = "provider-spec-vnet-rg"
+				g.Expect(fakes.IsSubnetURIPath(azRespErr.RawResponse.Request.URL.Path, testhelp.SubscriptionID, subnetSpec)).To(BeTrue())
+			},
+		},
+		{
+			"should fail machine creation when VM Image is not found, no resources should be created", subnetName, vnetName, nil, nil,
+			true, false, false, false,
+			nil, nil, nil, nil,
+			func(g *WithT, ctx context.Context, factory fakes.Factory) {
+				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, false)
+			},
+			func(g *WithT, clusterState *fakes.ClusterState, err error) {
+				azRespErr := checkAndGetWrapperAzResponseError(g, err)
+				g.Expect(azRespErr.StatusCode).To(Equal(http.StatusNotFound))
+				g.Expect(azRespErr.ErrorCode).To(Equal(testhelp.ErrorCodeVMImageNotFound))
+				g.Expect(azRespErr.RawResponse.Request.Method).To(Equal(http.MethodGet))
+				publisher, offer, sku, version := fakes.GetDefaultVMImageParts()
+				g.Expect(fakes.IsVMImageURIPath(azRespErr.RawResponse.Request.URL.Path, testhelp.SubscriptionID, clusterState.ProviderSpec.Location, fakes.VMImageSpec{
+					Publisher: publisher,
+					Offer:     offer,
+					SKU:       sku,
+					Version:   version,
+				})).To(BeTrue())
+			},
+		},
+	}
+
+	g := NewWithT(t)
+	ctx := context.Background()
+
+	for _, entry := range table {
+		t.Run(entry.description, func(t *testing.T) {
+			// create provider spec
+			providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
+			if entry.providerSpecVnetResourceGroup != nil {
+				providerSpecBuilder.WithSubnetInfo(*entry.providerSpecVnetResourceGroup)
+			}
+			providerSpec := providerSpecBuilder.Build()
+
+			// initialize cluster state
+			//----------------------------------------------------------------------------
+			// create cluster state
+			clusterState := fakes.NewClusterState(providerSpec)
+			if entry.vmImageExists {
+				clusterState.WithDefaultVMImageSpec()
+			}
+			if entry.agreementExists {
+				clusterState.WithAgreementTerms(entry.agreementAccepted)
+			}
+			if entry.subnetExists {
+				vnetResourceGroup := providerSpec.ResourceGroup
+				if entry.subnetResourceGroup != nil {
+					vnetResourceGroup = *entry.subnetResourceGroup
+				}
+				clusterState.WithSubnet(vnetResourceGroup, entry.subnetName, entry.vnetName)
+			}
+			// create fake factory
+			fakeFactory := createFakeFactoryForCreateMachineWithAPIBehaviorSpecs(g, providerSpec.ResourceGroup, clusterState, entry.vmAccessAPIBehavior, entry.subnetAccessAPIBehavior, entry.vmImageAccessAPIBehavior, entry.mktPlaceAgreementAccessAPIBehavior)
+
+			// Create machine and machine class to be used to create DeleteMachineRequest
+			machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+			g.Expect(err).To(BeNil())
+			machine := &v1alpha1.Machine{
+				ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
+			}
+			// Test
+			//----------------------------------------------------------------------------
+			testDriver := NewDefaultDriver(fakeFactory)
+			resp, err := testDriver.CreateMachine(ctx, &driver.CreateMachineRequest{
+				Machine:      machine,
+				MachineClass: machineClass,
+				Secret:       fakes.CreateProviderSecret(),
+			})
+			if err == nil {
+				g.Expect(resp).ToNot(BeNil())
+				g.Expect(resp.NodeName).To(Equal(vmName))
+			}
+			if entry.checkMachineResourcesFn != nil {
+				entry.checkMachineResourcesFn(g, ctx, *fakeFactory)
+			}
+			if entry.checkErrorFn != nil {
+				entry.checkErrorFn(g, clusterState, err)
+			}
 		})
 	}
 }
@@ -615,17 +788,17 @@ func createFactoryAndCheckClusterState(g *WithT, ctx context.Context, resourceGr
 func checkCascadeDeleteOptions(t *testing.T, vm armcompute.VirtualMachine, expectedCascadeDeleteOpts fakes.CascadeDeleteOpts) {
 	g := NewWithT(t)
 	if expectedCascadeDeleteOpts.NIC != nil {
-		actualNICDeleteOpt := testhelp.GetCascadeDeleteOptForNIC(vm)
+		actualNICDeleteOpt := fakes.GetCascadeDeleteOptForNIC(vm)
 		g.Expect(actualNICDeleteOpt).ToNot(BeNil())
 		g.Expect(*actualNICDeleteOpt).To(Equal(*expectedCascadeDeleteOpts.NIC))
 	}
 	if expectedCascadeDeleteOpts.OSDisk != nil {
-		actualOsDiskDeleteOpt := testhelp.GetCascadeDeleteOptForOsDisk(vm)
+		actualOsDiskDeleteOpt := fakes.GetCascadeDeleteOptForOsDisk(vm)
 		g.Expect(actualOsDiskDeleteOpt).ToNot(BeNil())
 		g.Expect(*actualOsDiskDeleteOpt).To(Equal(*expectedCascadeDeleteOpts.OSDisk))
 	}
 	if expectedCascadeDeleteOpts.DataDisk != nil {
-		deleteOpts := testhelp.GetCascadeDeleteOptForDataDisks(vm)
+		deleteOpts := fakes.GetCascadeDeleteOptForDataDisks(vm)
 		for dataDiskName, actualDeleteOpt := range deleteOpts {
 			t.Logf("comparing disk delete option for data disk %s", dataDiskName)
 			g.Expect(*actualDeleteOpt).To(Equal(*expectedCascadeDeleteOpts.DataDisk))
@@ -678,31 +851,61 @@ func checkAndGetOSDisk(g *WithT, ctx context.Context, factory fakes.Factory, vmN
 }
 
 func createDefaultFakeFactoryForMachineDelete(g *WithT, resourceGroup string, clusterState *fakes.ClusterState) *fakes.Factory {
-	return createFakeFactoryForMachineDeleteWithAPIBehaviorSpecs(g, resourceGroup, clusterState, nil, nil, nil, nil)
+	return createFakeFactoryForDeleteMachineWithAPIBehaviorSpecs(g, resourceGroup, clusterState, nil, nil, nil, nil)
 }
 
-func createFakeFactoryForMachineDeleteWithAPIBehaviorSpecs(g *WithT, resourceGroup string, clusterState *fakes.ClusterState,
+func createFakeFactoryForDeleteMachineWithAPIBehaviorSpecs(g *WithT, resourceGroup string, clusterState *fakes.ClusterState,
 	rgAccessAPIBehaviorSpec *fakes.APIBehaviorSpec,
 	vmAccessAPIBehaviorSpec *fakes.APIBehaviorSpec,
 	diskAccessAPIBehaviorSpec *fakes.APIBehaviorSpec,
 	nicAccessAPIBehaviorSpec *fakes.APIBehaviorSpec) *fakes.Factory {
 
-	fakeFactory := fakes.NewFactory(resourceGroup)
-	vmAccess, err := fakeFactory.NewVirtualMachineAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(vmAccessAPIBehaviorSpec).Build()
+	factory := fakes.NewFactory(resourceGroup)
+	vmAccess, err := factory.NewVirtualMachineAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(vmAccessAPIBehaviorSpec).Build()
 	g.Expect(err).To(BeNil())
-	nicAccess, err := fakeFactory.NewNICAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(nicAccessAPIBehaviorSpec).Build()
+	nicAccess, err := factory.NewNICAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(nicAccessAPIBehaviorSpec).Build()
 	g.Expect(err).To(BeNil())
-	rgAccess, err := fakeFactory.NewResourceGroupsAccessBuilder().WithAPIBehaviorSpec(rgAccessAPIBehaviorSpec).Build()
+	rgAccess, err := factory.NewResourceGroupsAccessBuilder().WithAPIBehaviorSpec(rgAccessAPIBehaviorSpec).Build()
 	g.Expect(err).To(BeNil())
-	diskAccess, err := fakeFactory.NewDiskAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(diskAccessAPIBehaviorSpec).Build()
+	diskAccess, err := factory.NewDiskAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(diskAccessAPIBehaviorSpec).Build()
 	g.Expect(err).To(BeNil())
-	fakeFactory.
+	factory.
 		WithVirtualMachineAccess(vmAccess).
 		WithResourceGroupsAccess(rgAccess).
 		WithNetworkInterfacesAccess(nicAccess).
 		WithDisksAccess(diskAccess)
 
-	return fakeFactory
+	return factory
+}
+
+func createFakeFactoryForCreateMachineWithAPIBehaviorSpecs(g *WithT, resourceGroup string, clusterState *fakes.ClusterState,
+	vmAccessAPIBehaviorSpec *fakes.APIBehaviorSpec,
+	subnetAccessAPIBehaviorSpec *fakes.APIBehaviorSpec,
+	vmImageAccessAPIBehaviorSpec *fakes.APIBehaviorSpec,
+	mktPlaceAgreementAccessAPIBehaviorSpec *fakes.APIBehaviorSpec) *fakes.Factory {
+
+	factory := fakes.NewFactory(resourceGroup)
+	vmAccess, err := factory.NewVirtualMachineAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(vmAccessAPIBehaviorSpec).Build()
+	g.Expect(err).To(BeNil())
+	vmImageAccess, err := factory.NewImageAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(vmImageAccessAPIBehaviorSpec).Build()
+	g.Expect(err).To(BeNil())
+	subnetAccess, err := factory.NewSubnetAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(subnetAccessAPIBehaviorSpec).Build()
+	g.Expect(err).To(BeNil())
+	mktPlaceAgreementAccess, err := factory.NewMarketPlaceAgreementAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(mktPlaceAgreementAccessAPIBehaviorSpec).Build()
+	g.Expect(err).To(BeNil())
+	nicAccess, err := factory.NewNICAccessBuilder().WithClusterState(clusterState).Build()
+	g.Expect(err).To(BeNil())
+	diskAccess, err := factory.NewDiskAccessBuilder().WithClusterState(clusterState).Build()
+	g.Expect(err).To(BeNil())
+	factory.
+		WithVirtualMachineAccess(vmAccess).
+		WithVirtualMachineImagesAccess(vmImageAccess).
+		WithSubnetAccess(subnetAccess).
+		WithMarketPlaceAgreementsAccess(mktPlaceAgreementAccess).
+		WithNetworkInterfacesAccess(nicAccess).
+		WithDisksAccess(diskAccess)
+
+	return factory
 }
 
 func getVMNamesFromListMachineResponse(response *driver.ListMachinesResponse) []string {
@@ -714,4 +917,13 @@ func getVMNamesFromListMachineResponse(response *driver.ListMachinesResponse) []
 		vmNames = append(vmNames, vmName)
 	}
 	return vmNames
+}
+
+func checkAndGetWrapperAzResponseError(g *WithT, err error) *azcore.ResponseError {
+	var statusErr *status.Status
+	g.Expect(errors.As(err, &statusErr)).To(BeTrue())
+	cause := statusErr.Cause()
+	var azErr *azcore.ResponseError
+	g.Expect(errors.As(cause, &azErr)).To(BeTrue())
+	return azErr
 }

@@ -43,9 +43,9 @@ type CascadeDeleteOpts struct {
 
 func (m *MachineResources) ShouldCascadeDeleteAllAttachedResources() bool {
 	if m.VM != nil {
-		nicDeleteOpt := testhelp.GetCascadeDeleteOptForNIC(*m.VM)                 // A nil value indicates that there is no NIC
-		osDiskDeleteOpt := testhelp.GetCascadeDeleteOptForOsDisk(*m.VM)           // A nil value indicates that there is no OSDisk
-		dataDisksDeleteOptsMap := testhelp.GetCascadeDeleteOptForDataDisks(*m.VM) // An empty map means there are no DataDisks
+		nicDeleteOpt := GetCascadeDeleteOptForNIC(*m.VM)                 // A nil value indicates that there is no NIC
+		osDiskDeleteOpt := GetCascadeDeleteOptForOsDisk(*m.VM)           // A nil value indicates that there is no OSDisk
+		dataDisksDeleteOptsMap := GetCascadeDeleteOptForDataDisks(*m.VM) // An empty map means there are no DataDisks
 
 		cascadeDeleteSetForNIC := nicDeleteOpt == nil || *nicDeleteOpt == armcompute.DeleteOptionsDelete
 		cascadeDeleteSetForOSDisk := osDiskDeleteOpt == nil || *osDiskDeleteOpt == armcompute.DiskDeleteOptionTypesDelete
@@ -58,7 +58,7 @@ func (m *MachineResources) ShouldCascadeDeleteAllAttachedResources() bool {
 
 func (m *MachineResources) HandleNICOnVMDelete() {
 	if m.VM != nil {
-		nicDeleteOpt := testhelp.GetCascadeDeleteOptForNIC(*m.VM)
+		nicDeleteOpt := GetCascadeDeleteOptForNIC(*m.VM)
 		if nicDeleteOpt == nil || *nicDeleteOpt == armcompute.DeleteOptionsDelete {
 			m.NIC = nil
 		} else {
@@ -69,7 +69,7 @@ func (m *MachineResources) HandleNICOnVMDelete() {
 
 func (m *MachineResources) HandleOSDiskOnVMDelete() {
 	if m.VM != nil {
-		osDiskDeleteOpt := testhelp.GetCascadeDeleteOptForOsDisk(*m.VM)
+		osDiskDeleteOpt := GetCascadeDeleteOptForOsDisk(*m.VM)
 		if osDiskDeleteOpt == nil || *osDiskDeleteOpt == armcompute.DiskDeleteOptionTypesDelete {
 			m.OSDisk = nil
 		} else {
@@ -80,7 +80,7 @@ func (m *MachineResources) HandleOSDiskOnVMDelete() {
 
 func (m *MachineResources) HandleDataDisksOnVMDelete() {
 	if m.VM != nil {
-		diskDeleteOptMap := testhelp.GetCascadeDeleteOptForDataDisks(*m.VM)
+		diskDeleteOptMap := GetCascadeDeleteOptForDataDisks(*m.VM)
 		for diskName, deleteOpt := range diskDeleteOptMap {
 			if dataDisk, ok := m.DataDisks[diskName]; ok {
 				if *deleteOpt == armcompute.DiskDeleteOptionTypesDelete {
@@ -233,8 +233,8 @@ func (b *MachineResourcesBuilder) CreateMachineResources(createVM, createNIC, cr
 }
 
 func CreateNICResource(spec api.AzureProviderSpec, vmID *string, nicName string) *armnetwork.Interface {
-	ipConfigID := testhelp.CreateIPConfigurationID(testhelp.SubscriptionID, spec.ResourceGroup, nicName, nicName)
-	interfaceID := testhelp.CreateNetworkInterfaceID(testhelp.SubscriptionID, spec.ResourceGroup, nicName)
+	ipConfigID := CreateIPConfigurationID(testhelp.SubscriptionID, spec.ResourceGroup, nicName, nicName)
+	interfaceID := CreateNetworkInterfaceID(testhelp.SubscriptionID, spec.ResourceGroup, nicName)
 
 	return &armnetwork.Interface{
 		Location: &spec.Location,
@@ -260,7 +260,7 @@ func CreateNICResource(spec api.AzureProviderSpec, vmID *string, nicName string)
 }
 
 func createVMResource(spec api.AzureProviderSpec, vmName string, plan *armcompute.Plan, cascadeDeleteOpts *CascadeDeleteOpts) *armcompute.VirtualMachine {
-	id := testhelp.CreateVirtualMachineID(testhelp.SubscriptionID, spec.ResourceGroup, vmName)
+	id := CreateVirtualMachineID(testhelp.SubscriptionID, spec.ResourceGroup, vmName)
 	return &armcompute.VirtualMachine{
 		Location: to.Ptr(spec.Location),
 		Plan:     plan,

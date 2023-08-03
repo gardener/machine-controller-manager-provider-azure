@@ -32,7 +32,7 @@ func (b *MarketPlaceAgreementAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec 
 func (b *MarketPlaceAgreementAccessBuilder) withGet() *MarketPlaceAgreementAccessBuilder {
 	b.server.Get = func(ctx context.Context, offerType armmarketplaceordering.OfferType, publisherID string, offerID string, planID string, options *armmarketplaceordering.MarketplaceAgreementsClientGetOptions) (resp azfake.Responder[armmarketplaceordering.MarketplaceAgreementsClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.providerSpec.ResourceGroup, to.Ptr(MarketPlaceOrderingOfferType), testhelp.AccessMethodGet)
+			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(MarketPlaceOrderingOfferType), testhelp.AccessMethodGet)
 			if err != nil {
 				errResp.SetError(err)
 				return
@@ -55,7 +55,7 @@ func (b *MarketPlaceAgreementAccessBuilder) withGet() *MarketPlaceAgreementAcces
 func (b *MarketPlaceAgreementAccessBuilder) withCreate() *MarketPlaceAgreementAccessBuilder {
 	b.server.Create = func(ctx context.Context, offerType armmarketplaceordering.OfferType, publisherID string, offerID string, planID string, parameters armmarketplaceordering.AgreementTerms, options *armmarketplaceordering.MarketplaceAgreementsClientCreateOptions) (resp azfake.Responder[armmarketplaceordering.MarketplaceAgreementsClientCreateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.providerSpec.ResourceGroup, to.Ptr(MarketPlaceOrderingOfferType), testhelp.AccessMethodGet)
+			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(MarketPlaceOrderingOfferType), testhelp.AccessMethodGet)
 			if err != nil {
 				errResp.SetError(err)
 				return
@@ -67,7 +67,7 @@ func (b *MarketPlaceAgreementAccessBuilder) withCreate() *MarketPlaceAgreementAc
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeResourceNotFound))
 			return
 		}
-		b.clusterState.agreementTerms = &parameters
+		b.clusterState.AgreementTerms = &parameters
 		resp.SetResponse(http.StatusOK, armmarketplaceordering.MarketplaceAgreementsClientCreateResponse{AgreementTerms: parameters}, nil)
 		return
 	}
@@ -75,6 +75,7 @@ func (b *MarketPlaceAgreementAccessBuilder) withCreate() *MarketPlaceAgreementAc
 }
 
 func (b *MarketPlaceAgreementAccessBuilder) Build() (*armmarketplaceordering.MarketplaceAgreementsClient, error) {
+	b.withGet().withCreate()
 	return armmarketplaceordering.NewMarketplaceAgreementsClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
 		ClientOptions: azcore.ClientOptions{
 			Transport: fakemktplaceordering.NewMarketplaceAgreementsServerTransport(&b.server),

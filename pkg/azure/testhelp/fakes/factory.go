@@ -4,6 +4,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	fakecompute "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5/fake"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering"
+	fakemktplaceordering "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering/fake"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
 	fakenetwork "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3/fake"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph"
@@ -91,6 +92,24 @@ func (f *Factory) NewDiskAccessBuilder() *DiskAccessBuilder {
 func (f *Factory) NewResourceGraphAccessBuilder() *ResourceGraphAccessBuilder {
 	return &ResourceGraphAccessBuilder{
 		server: fakeresourcegraph.Server{},
+	}
+}
+
+func (f *Factory) NewSubnetAccessBuilder() *SubnetAccessBuilder {
+	return &SubnetAccessBuilder{
+		server: fakenetwork.SubnetsServer{},
+	}
+}
+
+func (f *Factory) NewImageAccessBuilder() *ImageAccessBuilder {
+	return &ImageAccessBuilder{
+		server: fakecompute.VirtualMachineImagesServer{},
+	}
+}
+
+func (f *Factory) NewMarketPlaceAgreementAccessBuilder() *MarketPlaceAgreementAccessBuilder {
+	return &MarketPlaceAgreementAccessBuilder{
+		server: fakemktplaceordering.MarketplaceAgreementsServer{},
 	}
 }
 
