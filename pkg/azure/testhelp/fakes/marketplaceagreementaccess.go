@@ -43,6 +43,7 @@ func (b *MarketPlaceAgreementAccessBuilder) withGet() *MarketPlaceAgreementAcces
 		if agreementTerms == nil {
 			// Instead of returning 404 the client returns 400 bad request. See https://github.com/Azure/azure-sdk-for-go/issues/21286
 			errResp.SetError(testhelp.BadRequestError(testhelp.ErrorBadRequest))
+			return
 		}
 		resp.SetResponse(http.StatusOK, armmarketplaceordering.MarketplaceAgreementsClientGetResponse{AgreementTerms: *agreementTerms}, nil)
 		return
@@ -55,7 +56,7 @@ func (b *MarketPlaceAgreementAccessBuilder) withGet() *MarketPlaceAgreementAcces
 func (b *MarketPlaceAgreementAccessBuilder) withCreate() *MarketPlaceAgreementAccessBuilder {
 	b.server.Create = func(ctx context.Context, offerType armmarketplaceordering.OfferType, publisherID string, offerID string, planID string, parameters armmarketplaceordering.AgreementTerms, options *armmarketplaceordering.MarketplaceAgreementsClientCreateOptions) (resp azfake.Responder[armmarketplaceordering.MarketplaceAgreementsClientCreateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(MarketPlaceOrderingOfferType), testhelp.AccessMethodGet)
+			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(MarketPlaceOrderingOfferType), testhelp.AccessMethodCreate)
 			if err != nil {
 				errResp.SetError(err)
 				return

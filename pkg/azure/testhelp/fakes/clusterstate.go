@@ -48,13 +48,6 @@ const (
 	defaultOfferType          = armmarketplaceordering.OfferTypeVirtualmachine
 )
 
-//func NewClusterState(resourceGroup string) *ClusterState {
-//	return &ClusterState{
-//		ResourceGroup:       resourceGroup,
-//		MachineResourcesMap: make(map[string]MachineResources),
-//	}
-//}
-
 func NewClusterState(providerSpec api.AzureProviderSpec) *ClusterState {
 	return &ClusterState{
 		ProviderSpec:        providerSpec,

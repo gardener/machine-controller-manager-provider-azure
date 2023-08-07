@@ -192,7 +192,7 @@ func GetSubnet(ctx context.Context, factory access.Factory, connectConfig access
 	}
 	subnetAccess, err := factory.GetSubnetAccess(connectConfig)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create subnet access, Err: %v", err))
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("failed to create subnet access, Err: %v", err), err)
 	}
 	subnet, err := accesshelpers.GetSubnet(ctx, subnetAccess, vnetResourceGroup, providerSpec.SubnetInfo.VnetName, providerSpec.SubnetInfo.SubnetName)
 	if err != nil {
@@ -206,12 +206,12 @@ func GetSubnet(ctx context.Context, factory access.Factory, connectConfig access
 func CreateNICIfNotExists(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, subnet *armnetwork.Subnet, nicName string) (string, error) {
 	nicAccess, err := factory.GetNetworkInterfacesAccess(connectConfig)
 	if err != nil {
-		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create nic access, Err: %v", err))
+		return "", status.WrapError(codes.Internal, fmt.Sprintf("failed to create nic access, Err: %v", err), err)
 	}
 	resourceGroup := providerSpec.ResourceGroup
 	existingNIC, err := accesshelpers.GetNIC(ctx, nicAccess, resourceGroup, nicName)
 	if err != nil {
-		return "", status.Error(codes.Internal, fmt.Sprintf("Failed to get NIC: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, nicName, err))
+		return "", status.WrapError(codes.Internal, fmt.Sprintf("Failed to get NIC: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, nicName, err), err)
 	}
 	if existingNIC != nil {
 		klog.Infof("[ResourceGroup: %s, NIC: [Name: %s, ID: %s]] exists, will skip creation of the NIC", resourceGroup, nicName, *existingNIC.ID)
@@ -221,7 +221,7 @@ func CreateNICIfNotExists(ctx context.Context, factory access.Factory, connectCo
 	nicCreationParams := createNICParams(providerSpec, subnet, nicName)
 	nic, err := accesshelpers.CreateNIC(ctx, nicAccess, providerSpec.ResourceGroup, nicCreationParams, nicName)
 	if err != nil {
-		return "", status.Error(codes.Internal, fmt.Sprintf("failed to create NIC: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, nicName, err))
+		return "", status.WrapError(codes.Internal, fmt.Sprintf("failed to create NIC: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, nicName, err), err)
 	}
 	klog.Infof("Successfully created NIC: [ResourceGroup: %s, NIC: [Name: %s, ID: %s]]", resourceGroup, nicName, *nic.ID)
 	return *nic.ID, nil
@@ -337,13 +337,17 @@ func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Fa
 	plan := *vmImage.Properties.Plan
 	agreementTerms, err := accesshelpers.GetAgreementTerms(ctx, agreementsAccess, plan)
 	if err != nil {
-		return err
+		if accesserrors.IsNotFoundAzAPIError(err) {
+			return status.WrapError(codes.NotFound, fmt.Sprintf("Marketplace Image Agreement for Plan [Name: %s, Product: %s, Publisher: %s] does not exist", *plan.Name, *plan.Product, *plan.Publisher), err)
+		}
+		return status.WrapError(codes.Internal, fmt.Sprintf("Failed to retrieve Marketplace Image Agreement for Plan [Name: %s, Product: %s, Publisher: %s]", *plan.Name, *plan.Product, *plan.Publisher), err)
+
 	}
 	klog.Infof("Retrieved Marketplace Image Agreement for Plan [Name: %s, Product: %s, Publisher: %s]", *plan.Name, *plan.Product, *plan.Publisher)
 	if agreementTerms.Properties.Accepted == nil || !*agreementTerms.Properties.Accepted {
 		err = accesshelpers.AcceptAgreement(ctx, agreementsAccess, *vmImage.Properties.Plan, *agreementTerms)
 		if err != nil {
-			return status.Error(codes.Internal, fmt.Sprintf("Failed to accept agreement for [VMName: %s, VMImageID: %s] Err: %v", vmName, *vmImage.ID, err))
+			return status.WrapError(codes.Internal, fmt.Sprintf("Failed to accept agreement for [VMName: %s, VMImageID: %s, Plan: {Name: %s, Product: %s, Publisher: %s}] Err: %v", vmName, *vmImage.ID, *plan.Name, *plan.Product, *plan.Publisher, err), err)
 		}
 	}
 	klog.Infof("Successfully validated/updated agreement terms as accepted for [VMName: %s, VMImage: %s, AgreementID: %s]", vmName, *vmImage.ID, *agreementTerms.ID)
@@ -353,16 +357,16 @@ func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Fa
 func CreateOrUpdateVM(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID string, vmName string) (*armcompute.VirtualMachine, error) {
 	vmAccess, err := factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", providerSpec.ResourceGroup, vmName, err), err)
 	}
 	vmCreationParams, err := createVMCreationParams(providerSpec, imageRef, plan, secret, nicID, vmName)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to create virtual machine parameters to create VM: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create virtual machine parameters to create VM: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err), err)
 	}
 	vm, err := accesshelpers.CreateVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmCreationParams)
 	if err != nil {
 		errCode := accesserrors.GetMatchingErrorCode(err)
-		return nil, status.Error(errCode, fmt.Sprintf("Failed to create VirtualMachine: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err))
+		return nil, status.WrapError(errCode, fmt.Sprintf("Failed to create VirtualMachine: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err), err)
 	}
 	klog.Infof("Successfully created VM: [ResourceGroup: %s, Name: %s]", providerSpec.ResourceGroup, vmName)
 	return vm, nil

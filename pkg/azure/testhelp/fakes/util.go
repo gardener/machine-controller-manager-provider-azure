@@ -156,3 +156,18 @@ func IsVMImageURIPath(uriPath string, subscriptionID, location string, vmImageSp
 	expectedVMImageURIPath := fmt.Sprintf("/subscriptions/%s/providers/Microsoft.Compute/locations/%s/publishers/%s/artifacttypes/vmimage/offers/%s/skus/%s/versions/%s", subscriptionID, location, vmImageSpec.Publisher, vmImageSpec.Offer, vmImageSpec.SKU, vmImageSpec.Version)
 	return uriPath == expectedVMImageURIPath
 }
+
+func IsMktPlaceAgreementURIPath(uriPath string, subscriptionID string, vmImageSpec VMImageSpec) bool {
+	expectedAgreementURIPath := fmt.Sprintf("/subscriptions/%s/providers/Microsoft.MarketplaceOrdering/offerTypes/virtualmachine/publishers/%s/offers/%s/plans/%s/agreements/current", subscriptionID, vmImageSpec.Publisher, vmImageSpec.Offer, vmImageSpec.SKU)
+	return uriPath == expectedAgreementURIPath
+}
+
+func IsNicURIPath(uriPath, subscriptionID, resourceGroup, nicName string) bool {
+	expectNicURIPath := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkInterfaces/%s", subscriptionID, resourceGroup, nicName)
+	return uriPath == expectNicURIPath
+}
+
+func IsVMURIPath(uriPath, subscriptionID, resourceGroup, vmName string) bool {
+	expectedVmURIPath := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s", subscriptionID, resourceGroup, vmName)
+	return uriPath == expectedVmURIPath
+}
