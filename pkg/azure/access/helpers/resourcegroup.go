@@ -14,6 +14,7 @@ const (
 )
 
 // ResourceGroupExists checks if the given resourceGroup exists.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func ResourceGroupExists(ctx context.Context, client *armresources.ResourceGroupsClient, resourceGroup string) (exists bool, err error) {
 	defer instrument.RecordAzAPIMetric(err, resourceGroupExistsServiceLabel, time.Now())
 	resp, err := client.CheckExistence(ctx, resourceGroup, nil)

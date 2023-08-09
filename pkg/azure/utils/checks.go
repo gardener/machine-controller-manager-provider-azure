@@ -19,6 +19,7 @@ func IsNilOrEmptyStringPtr(s *string) bool {
 	return IsEmptyString(*s)
 }
 
+// IsSliceNilOrEmpty returns true of the slice is nil or has 0 length (empty).
 func IsSliceNilOrEmpty[T any](s []T) bool {
 	return s == nil || len(s) == 0
 }

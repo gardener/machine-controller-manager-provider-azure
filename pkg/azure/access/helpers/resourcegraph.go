@@ -65,6 +65,9 @@ func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, client *armre
 // MapperFn maps a row of result (represented as map[string]interface{}) to any type T.
 type MapperFn[T any] func(map[string]interface{}) *T
 
+// QueryAndMap fires a resource graph KUSTO query constructing it from queryTemplate and templateArgs.
+// The result of the query are then mapped using a mapperFn and the result or an error is returned.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func QueryAndMap[T any](ctx context.Context, client *armresourcegraph.Client, subscriptionID string, mapperFn MapperFn[T], queryTemplate string, templateArgs ...any) (results []T, err error) {
 	defer instrument.RecordAzAPIMetric(err, resourceGraphQueryServiceLabel, time.Now())
 	query := fmt.Sprintf(queryTemplate, templateArgs)

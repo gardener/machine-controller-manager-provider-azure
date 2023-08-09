@@ -9,6 +9,8 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 )
 
+// GetSubnet fetches a Subnet resource given a resourceGroup, virtualNetworkName and subnetName.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func GetSubnet(ctx context.Context, subnetAccess *armnetwork.SubnetsClient, resourceGroup, virtualNetworkName, subnetName string) (subnet *armnetwork.Subnet, err error) {
 	var subnetResp armnetwork.SubnetsClientGetResponse
 	defer instrument.RecordAzAPIMetric(err, subnetGetServiceLabel, time.Now())

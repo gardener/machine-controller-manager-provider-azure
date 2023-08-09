@@ -11,6 +11,8 @@ import (
 
 const vmImageGetServiceLabel = "virtual_machine_image_get"
 
+// GetVMImage fetches the VM Image given a location and image reference.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func GetVMImage(ctx context.Context, vmImagesAccess *armcompute.VirtualMachineImagesClient, location string, imageRef armcompute.ImageReference) (vmImage *armcompute.VirtualMachineImage, err error) {
 	defer instrument.RecordAzAPIMetric(err, vmImageGetServiceLabel, time.Now())
 	resp, err := vmImagesAccess.Get(ctx, location, *imageRef.Publisher, *imageRef.Offer, *imageRef.SKU, *imageRef.Version, nil)

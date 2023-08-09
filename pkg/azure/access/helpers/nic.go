@@ -23,6 +23,8 @@ const (
 	defaultCreateNICTimeout = 15 * time.Minute
 )
 
+// DeleteNIC deletes the NIC identified by a resourceGroup and nicName.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func DeleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) (err error) {
 	defer instrument.RecordAzAPIMetric(err, nicDeleteServiceLabel, time.Now())
 	var poller *runtime.Poller[armnetwork.InterfacesClientDeleteResponse]
@@ -40,6 +42,8 @@ func DeleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourc
 	return
 }
 
+// GetNIC fetches a NIC identified by resourceGroup and nic name.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func GetNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) (nic *armnetwork.Interface, err error) {
 	defer instrument.RecordAzAPIMetric(err, nicGetServiceLabel, time.Now())
 	resp, err := client.Get(ctx, resourceGroup, nicName, nil)
@@ -53,6 +57,8 @@ func GetNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGr
 	return &resp.Interface, nil
 }
 
+// CreateNIC creates a NIC given the resourceGroup, nic name and NIC creation parameters.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func CreateNIC(ctx context.Context, nicAccess *armnetwork.InterfacesClient, resourceGroup string, nicParams armnetwork.Interface, nicName string) (nic *armnetwork.Interface, err error) {
 	defer instrument.RecordAzAPIMetric(err, nicCreateServiceLabel, time.Now())
 	var (

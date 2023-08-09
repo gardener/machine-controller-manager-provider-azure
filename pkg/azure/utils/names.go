@@ -7,24 +7,29 @@ import (
 )
 
 const (
-	nicSuffix          = "-nic"
-	osDiskSuffix       = "-os-disk"
-	dataDiskSuffix     = "-data-disk"
+	nicSuffix      = "-nic"
+	osDiskSuffix   = "-os-disk"
+	dataDiskSuffix = "-data-disk"
+	// AzureCSIDriverName is the name of the CSI driver name for Azure provider
 	AzureCSIDriverName = "disk.csi.azure.com"
 )
 
+// CreateNICName creates a NIC name given a VM name
 func CreateNICName(vmName string) string {
 	return fmt.Sprintf("%s-%s", vmName, nicSuffix)
 }
 
+// ExtractVMNameFromNICName extracts VM Name from NIC name
 func ExtractVMNameFromNICName(nicName string) string {
 	return nicName[:len(nicName)-len(nicSuffix)]
 }
 
+// CreateOSDiskName creates OSDisk name from VM name
 func CreateOSDiskName(vmName string) string {
 	return fmt.Sprintf("%s-%s", vmName, osDiskSuffix)
 }
 
+// CreateDataDiskName creates a name for a DataDisk using VM name and data disk name specified in the provider Spec
 func CreateDataDiskName(vmName string, dataDisk api.AzureDataDisk) string {
 	prefix := vmName
 	infix := getDataDiskInfix(dataDisk)

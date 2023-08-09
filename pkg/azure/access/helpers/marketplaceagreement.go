@@ -16,6 +16,8 @@ const (
 	mktPlaceAgreementCreateServiceLabel = "market_place_agreement_create"
 )
 
+// GetAgreementTerms fetches the agreement terms for the purchase plan.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func GetAgreementTerms(ctx context.Context, mktPlaceAgreementAccess *armmarketplaceordering.MarketplaceAgreementsClient, purchasePlan armcompute.PurchasePlan) (agreementTerms *armmarketplaceordering.AgreementTerms, err error) {
 	defer instrument.RecordAzAPIMetric(err, mktPlaceAgreementGetServiceLabel, time.Now())
 	resp, err := mktPlaceAgreementAccess.Get(ctx, armmarketplaceordering.OfferTypeVirtualmachine, *purchasePlan.Publisher, *purchasePlan.Product, *purchasePlan.Name, nil)
@@ -27,6 +29,8 @@ func GetAgreementTerms(ctx context.Context, mktPlaceAgreementAccess *armmarketpl
 	return
 }
 
+// AcceptAgreement updates the agreementTerms as accepted.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func AcceptAgreement(ctx context.Context, mktPlaceAgreementAccess *armmarketplaceordering.MarketplaceAgreementsClient, purchasePlan armcompute.PurchasePlan, existingAgreement armmarketplaceordering.AgreementTerms) (err error) {
 	defer instrument.RecordAzAPIMetric(err, mktPlaceAgreementCreateServiceLabel, time.Now())
 	updatedAgreement := existingAgreement

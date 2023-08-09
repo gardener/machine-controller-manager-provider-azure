@@ -39,6 +39,8 @@ func RecordAzAPIMetric(err error, azServiceName string, invocationTime time.Time
 	).Observe(elapsed.Seconds())
 }
 
+// RecordDriverAPIMetric records a prometheus metric capturing the total duration of a successful execution for
+// any driver method (e.g. CreateMachine, DeleteMachine etc.).
 func RecordDriverAPIMetric(err error, operation string, invocationTime time.Time) {
 	if err != nil {
 		// currently we only record duration for successful completion of driver methods

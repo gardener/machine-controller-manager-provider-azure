@@ -31,6 +31,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// ExtractProviderSpecAndConnectConfig extracts api.AzureProviderSpec from mcc and access.ConnectConfig from secret.
 func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *corev1.Secret) (api.AzureProviderSpec, access.ConnectConfig, error) {
 	var (
 		err           error
@@ -52,6 +53,7 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 	return providerSpec, connectConfig, nil
 }
 
+// ConstructMachineListResponse constructs response for driver.ListMachines method.
 func ConstructMachineListResponse(location string, vmNames []string) *driver.ListMachinesResponse {
 	listMachineRes := driver.ListMachinesResponse{}
 	instanceIdToVMNameMap := make(map[string]string, len(vmNames))
@@ -65,6 +67,7 @@ func ConstructMachineListResponse(location string, vmNames []string) *driver.Lis
 	return &listMachineRes
 }
 
+// ConstructGetMachineStatusResponse constructs response for driver.GetMachineStatus method.
 func ConstructGetMachineStatusResponse(location string, vmName string) *driver.GetMachineStatusResponse {
 	instanceID := DeriveInstanceID(location, vmName)
 	return &driver.GetMachineStatusResponse{
@@ -73,6 +76,7 @@ func ConstructGetMachineStatusResponse(location string, vmName string) *driver.G
 	}
 }
 
+// ConstructCreateMachineResponse constructs response for driver.CreateMachine method.
 func ConstructCreateMachineResponse(location string, vmName string) *driver.CreateMachineResponse {
 	instanceID := DeriveInstanceID(location, vmName)
 	return &driver.CreateMachineResponse{
@@ -81,6 +85,7 @@ func ConstructCreateMachineResponse(location string, vmName string) *driver.Crea
 	}
 }
 
+// DeriveInstanceID creates an instance ID from location and VM name.
 func DeriveInstanceID(location, vmName string) string {
 	return fmt.Sprintf("azure:///%s/%s", location, vmName)
 }
@@ -101,6 +106,7 @@ func SkipDeleteMachine(ctx context.Context, factory access.Factory, connectConfi
 	return !resGroupExists, nil
 }
 
+// GetDiskNames creates disk names for all configured OSDisk and DataDisk in the provider spec.
 func GetDiskNames(providerSpec api.AzureProviderSpec, vmName string) []string {
 	dataDisks := providerSpec.Properties.StorageProfile.DataDisks
 	diskNames := make([]string, 0, len(dataDisks)+1)
@@ -114,6 +120,8 @@ func GetDiskNames(providerSpec api.AzureProviderSpec, vmName string) []string {
 	return diskNames
 }
 
+// CheckAndDeleteLeftoverNICsAndDisks creates tasks for NIC and DISK deletion and runs them concurrently. It waits for them to complete and then returns a consolidated error if there is any.
+// This method will be called when these resources are left without an associated VM.
 func CheckAndDeleteLeftoverNICsAndDisks(ctx context.Context, factory access.Factory, vmName string, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) error {
 	// Gather the names for NIC, OSDisk and Data Disks that needs to be checked for existence and then deleted if they exist.
 	resourceGroup := providerSpec.ResourceGroup
@@ -142,6 +150,8 @@ func CheckAndDeleteLeftoverNICsAndDisks(ctx context.Context, factory access.Fact
 	return nil
 }
 
+// UpdateCascadeDeleteOptionsAndDeleteVM updates the VirtualMachine properties and sets cascade delete options for NIC's and DISK's if it is not already set.
+// Once that is set then it deletes the VM. This will ensure that no separate calls to delete each NIC and DISK are made as they will get deleted along with the VM in one single atomic call.
 func UpdateCascadeDeleteOptionsAndDeleteVM(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup string, vm *armcompute.VirtualMachine) error {
 	// update the VM and set cascade delete on NIC and Disks (OSDisk and DataDisks) if not already set and then trigger VM deletion.
 	vmName := *vm.Name
@@ -185,6 +195,7 @@ func createDisksDeletionTask(resourceGroup string, diskNames []string, diskAcces
 // Helper functions for driver.CreateMachine
 // ---------------------------------------------------------------------------------------------------------------------
 
+// GetSubnet gets the subnet for the subnet configuration in the provider config.
 func GetSubnet(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) (*armnetwork.Subnet, error) {
 	vnetResourceGroup := providerSpec.ResourceGroup
 	if !utils.IsNilOrEmptyStringPtr(providerSpec.SubnetInfo.VnetResourceGroup) {
@@ -203,6 +214,7 @@ func GetSubnet(ctx context.Context, factory access.Factory, connectConfig access
 	return subnet, nil
 }
 
+// CreateNICIfNotExists creates a NIC if it does not exist.
 func CreateNICIfNotExists(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, subnet *armnetwork.Subnet, nicName string) (string, error) {
 	nicAccess, err := factory.GetNetworkInterfacesAccess(connectConfig)
 	if err != nil {
@@ -257,6 +269,11 @@ func createNICTags(tags map[string]string) map[string]*string {
 	return nicTags
 }
 
+// ProcessVMImageConfiguration gets the image configuration from provider spec. If the VM image configured is a marketplace image then it will additionally do the following:
+// 1. Gets the VM image. If the image does not exist then it will return an error.
+// 2. From the VM Image it checks if there is a plan.
+// 3. If there is a plan then it will check if there is an existing agreement for this plan. If an agreement does not exist then it will return an error.
+// 4. If the agreement has not been accepted yet then it will accept the agreement and update the agreement. If that fails then it will return an error.
 func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
 	imgRef = getImageReference(providerSpec)
 	isMarketPlaceImage := providerSpec.Properties.StorageProfile.ImageReference.URN != nil
@@ -329,6 +346,11 @@ func getVirtualMachineImage(ctx context.Context, factory access.Factory, connect
 	return vmImage, nil
 }
 
+// checkAndAcceptAgreementIfNotAccepted checks if an agreement exists. If it does not exist it returns an error. If it does exist and agreement has not been accepted then it will accept the
+// agreement and if that fails then it will return an error.
+// NOTE: Today agreement needs to be created by the customer. However, if the agreement has not been accepted then we accept the agreement on behalf of the customer. This is not really ideal and is only done
+// for ease of consumption of garden-linux image. This should be done till the point garden-linux VM image is eventually made available as a community image. As of today community gallery is a alpha feature.
+// Once it becomes GA then we should shift to using community image for garden-linux. Then we should remove the code which accepts the agreement on behalf of the customer.
 func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, vmName string, vmImage armcompute.VirtualMachineImage) error {
 	agreementsAccess, err := factory.GetMarketPlaceAgreementsAccess(connectConfig)
 	if err != nil {
@@ -354,6 +376,7 @@ func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Fa
 	return nil
 }
 
+// CreateOrUpdateVM gathers the VM creation parameters and invokes a call to create or update the VM.
 func CreateOrUpdateVM(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID string, vmName string) (*armcompute.VirtualMachine, error) {
 	vmAccess, err := factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
@@ -372,6 +395,10 @@ func CreateOrUpdateVM(ctx context.Context, factory access.Factory, connectConfig
 	return vm, nil
 }
 
+// LogVMCreation is a convenience method which helps to extract relevant details from the created virtual machine and logs it.
+// Today the azure create VM call is atomic only w.r.t creation of VM, OSDisk, DataDisk(s). NIC still has to be created prior to creation of the VM.
+// Therefore, this method produces a log which also prints the OSDisk, DataDisks that are created (which helps in traceability). For completeness it
+// also prints the NIC that now gets associated to this VM.
 func LogVMCreation(location, resourceGroup string, vm *armcompute.VirtualMachine) {
 	msgBuilder := strings.Builder{}
 	vmName := *vm.Name

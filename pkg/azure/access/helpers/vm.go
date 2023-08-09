@@ -29,6 +29,7 @@ const (
 )
 
 // GetVirtualMachine gets a VirtualMachine for the given vm name and resource group.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func GetVirtualMachine(ctx context.Context, vmClient *armcompute.VirtualMachinesClient, resourceGroup, vmName string) (vm *armcompute.VirtualMachine, err error) {
 	var getResp armcompute.VirtualMachinesClientGetResponse
 	defer instrument.RecordAzAPIMetric(err, vmGetServiceLabel, time.Now())
@@ -45,6 +46,7 @@ func GetVirtualMachine(ctx context.Context, vmClient *armcompute.VirtualMachines
 
 // DeleteVirtualMachine deletes the Virtual Machine with the give name and belonging to the passed in resource group.
 // If cascade delete is set for associated NICs and Disks then these resources will also be deleted along with the VM.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func DeleteVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup, vmName string) (err error) {
 	defer instrument.RecordAzAPIMetric(err, vmDeleteServiceLabel, time.Now())
 	delCtx, cancelFn := context.WithTimeout(ctx, defaultDeleteVMTimeout)
@@ -62,6 +64,8 @@ func DeleteVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachi
 	return
 }
 
+// CreateVirtualMachine creates a Virtual Machine given a resourceGroup and virtual machine creation parameters.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func CreateVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup string, vmCreationParams armcompute.VirtualMachine) (vm *armcompute.VirtualMachine, err error) {
 	defer instrument.RecordAzAPIMetric(err, vmCreateServiceLabel, time.Now())
 	createCtx, cancelFn := context.WithTimeout(ctx, defaultCreateVMTimeout)
@@ -82,6 +86,7 @@ func CreateVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachi
 }
 
 // SetCascadeDeleteForNICsAndDisks sets cascade deletion for NICs and Disks (OSDisk and DataDisks) associated to passed virtual machine.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func SetCascadeDeleteForNICsAndDisks(ctx context.Context, vmClient *armcompute.VirtualMachinesClient, resourceGroup string, vm *armcompute.VirtualMachine) (err error) {
 	defer instrument.RecordAzAPIMetric(err, vmUpdateServiceLabel, time.Now())
 	vmUpdateParams := createVMUpdateParamsForCascadeDeleteOptions(vm) // TODO: Rename this method it returns a VM not "params"

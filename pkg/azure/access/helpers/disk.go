@@ -15,6 +15,8 @@ const (
 	diskDeleteServiceLabel = "disk_delete"
 )
 
+// DeleteDisk deletes disk for passed in resourceGroup and diskName.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func DeleteDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string) (err error) {
 	defer instrument.RecordAzAPIMetric(err, diskDeleteServiceLabel, time.Now())
 	var poller *runtime.Poller[armcompute.DisksClientDeleteResponse]
