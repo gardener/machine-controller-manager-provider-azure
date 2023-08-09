@@ -103,19 +103,22 @@ func validateSubnetInfo(subnetInfo api.AzureSubnetInfo, fldPath *field.Path) fie
 
 func validateProperties(properties api.AzureVirtualMachineProperties, fldPath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
-
 	// validate HardwareProfile
-	if utils.IsEmptyString(properties.HardwareProfile.VMSize) {
-		allErrs = append(allErrs, field.Required(fldPath.Child("vmSize"), "must provide vmSize"))
-	}
+	allErrs = append(allErrs, validateHardwareProfile(properties.HardwareProfile, fldPath.Child("hardwareProfile"))...)
 	// validate StorageProfile
 	allErrs = append(allErrs, validateStorageProfile(properties.StorageProfile, fldPath.Child("storageProfile"))...)
 	// validate OSProfile
-	if utils.IsEmptyString(properties.OsProfile.AdminUsername) {
-		allErrs = append(allErrs, field.Required(fldPath.Child("osProfile.adminUsername"), "adminUsername must be provided"))
-	}
+	allErrs = append(allErrs, validateOSProfile(properties.OsProfile, fldPath.Child("osProfile"))...)
+	// validate availability set and vmss
 	allErrs = append(allErrs, validateAvailabilityAndScalingConfig(properties, fldPath)...)
+	return allErrs
+}
 
+func validateHardwareProfile(hwProfile api.AzureHardwareProfile, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	if utils.IsEmptyString(hwProfile.VMSize) {
+		allErrs = append(allErrs, field.Required(fldPath.Child("vmSize"), "must provide vmSize"))
+	}
 	return allErrs
 }
 
@@ -124,6 +127,14 @@ func validateStorageProfile(storageProfile api.AzureStorageProfile, fldPath *fie
 	allErrs = append(allErrs, validateStorageImageRef(storageProfile.ImageReference, fldPath.Child("imageReference"))...)
 	allErrs = append(allErrs, validateOSDisk(storageProfile.OsDisk, fldPath.Child("osDisk"))...)
 	allErrs = append(allErrs, validateDataDisks(storageProfile.DataDisks, fldPath.Child("dataDisks"))...)
+	return allErrs
+}
+
+func validateOSProfile(osProfile api.AzureOSProfile, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	if utils.IsEmptyString(osProfile.AdminUsername) {
+		allErrs = append(allErrs, field.Required(fldPath.Child("adminUsername"), "adminUsername must be provided"))
+	}
 	return allErrs
 }
 

@@ -40,7 +40,6 @@ func GetDefaultTokenCredentials(connectConfig ConnectConfig) (azcore.TokenCreden
 	return azidentity.NewClientSecretCredential(connectConfig.TenantID, connectConfig.ClientID, connectConfig.ClientSecret, nil)
 }
 
-// GetResourceGroupsAccess creates and returns a new instance of armresources.ResourceGroupsClient.
 func (f defaultFactory) GetResourceGroupsAccess(connectConfig ConnectConfig) (*armresources.ResourceGroupsClient, error) {
 	tokenCredential, err := f.tokenCredentialProvider(connectConfig)
 	if err != nil {
@@ -49,7 +48,6 @@ func (f defaultFactory) GetResourceGroupsAccess(connectConfig ConnectConfig) (*a
 	return armresources.NewResourceGroupsClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
 }
 
-// GetVirtualMachinesAccess creates and returns a new instance of armcompute.VirtualMachinesClient.
 func (f defaultFactory) GetVirtualMachinesAccess(connectConfig ConnectConfig) (*armcompute.VirtualMachinesClient, error) {
 	tokenCredential, err := f.tokenCredentialProvider(connectConfig)
 	if err != nil {
@@ -58,7 +56,6 @@ func (f defaultFactory) GetVirtualMachinesAccess(connectConfig ConnectConfig) (*
 	return armcompute.NewVirtualMachinesClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
 }
 
-// GetNetworkInterfacesAccess creates and returns a new instance of armnetwork.InterfacesClient.
 func (f defaultFactory) GetNetworkInterfacesAccess(connectConfig ConnectConfig) (*armnetwork.InterfacesClient, error) {
 	tokenCredential, err := f.tokenCredentialProvider(connectConfig)
 	if err != nil {
@@ -67,7 +64,6 @@ func (f defaultFactory) GetNetworkInterfacesAccess(connectConfig ConnectConfig) 
 	return armnetwork.NewInterfacesClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
 }
 
-// GetSubnetAccess creates and returns a new instance of armnetwork.SubnetsClient.
 func (f defaultFactory) GetSubnetAccess(connectConfig ConnectConfig) (*armnetwork.SubnetsClient, error) {
 	tokenCredential, err := f.tokenCredentialProvider(connectConfig)
 	if err != nil {
@@ -76,7 +72,6 @@ func (f defaultFactory) GetSubnetAccess(connectConfig ConnectConfig) (*armnetwor
 	return armnetwork.NewSubnetsClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
 }
 
-// GetDisksAccess creates and returns a new instance of armcompute.DisksClient.
 func (f defaultFactory) GetDisksAccess(connectConfig ConnectConfig) (*armcompute.DisksClient, error) {
 	tokenCredential, err := f.tokenCredentialProvider(connectConfig)
 	if err != nil {
@@ -85,7 +80,6 @@ func (f defaultFactory) GetDisksAccess(connectConfig ConnectConfig) (*armcompute
 	return armcompute.NewDisksClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
 }
 
-// GetResourceGraphAccess creates and returns a new instance of armresourcegraph.Client.
 func (f defaultFactory) GetResourceGraphAccess(connectConfig ConnectConfig) (*armresourcegraph.Client, error) {
 	tokenCredential, err := f.tokenCredentialProvider(connectConfig)
 	if err != nil {
@@ -94,7 +88,6 @@ func (f defaultFactory) GetResourceGraphAccess(connectConfig ConnectConfig) (*ar
 	return armresourcegraph.NewClient(tokenCredential, f.clientOptions)
 }
 
-// GetVirtualMachineImagesAccess creates and returns a new instance of armcompute.VirtualMachineImagesClient.
 func (f defaultFactory) GetVirtualMachineImagesAccess(connectConfig ConnectConfig) (*armcompute.VirtualMachineImagesClient, error) {
 	tokenCredential, err := f.tokenCredentialProvider(connectConfig)
 	if err != nil {
@@ -103,7 +96,6 @@ func (f defaultFactory) GetVirtualMachineImagesAccess(connectConfig ConnectConfi
 	return armcompute.NewVirtualMachineImagesClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
 }
 
-// GetMarketPlaceAgreementsAccess creates and returns a new instance of armmarketplaceordering.MarketplaceAgreementsClient.
 func (f defaultFactory) GetMarketPlaceAgreementsAccess(connectConfig ConnectConfig) (*armmarketplaceordering.MarketplaceAgreementsClient, error) {
 	tokenCredential, err := f.tokenCredentialProvider(connectConfig)
 	if err != nil {

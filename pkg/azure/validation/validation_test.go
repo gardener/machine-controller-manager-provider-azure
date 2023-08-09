@@ -80,14 +80,14 @@ func TestValidateProviderSecret(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Log(entry.description)
-		//create the secret
-		secret := createSecret(entry.clientID, entry.clientSecret, entry.subscriptionID, entry.tenantID)
-		errList := ValidateProviderSecret(secret)
-		g.Expect(len(errList)).To(Equal(entry.expectedErrors))
-		if entry.matcher != nil {
-			g.Expect(errList).To(entry.matcher)
-		}
+		t.Run(entry.description, func(t *testing.T) {
+			secret := createSecret(entry.clientID, entry.clientSecret, entry.subscriptionID, entry.tenantID)
+			errList := ValidateProviderSecret(secret)
+			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
+			if entry.matcher != nil {
+				g.Expect(errList).To(entry.matcher)
+			}
+		})
 	}
 }
 
@@ -125,18 +125,81 @@ func TestValidateSubnetInfo(t *testing.T) {
 	}
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Log(entry.description)
-		subnetInfo := api.AzureSubnetInfo{
-			VnetName:   entry.vnetName,
-			SubnetName: entry.subnetName,
-		}
-		errList := validateSubnetInfo(subnetInfo, fldPath)
-		g.Expect(len(errList)).To(Equal(entry.expectedErrors))
-		if entry.matcher != nil {
-			g.Expect(errList).To(entry.matcher)
-		}
+		t.Run(entry.description, func(t *testing.T) {
+			subnetInfo := api.AzureSubnetInfo{
+				VnetName:   entry.vnetName,
+				SubnetName: entry.subnetName,
+			}
+			errList := validateSubnetInfo(subnetInfo, fldPath)
+			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
+			if entry.matcher != nil {
+				g.Expect(errList).To(entry.matcher)
+			}
+		})
 	}
 
+}
+
+func TestValidateHardwareProfile(t *testing.T) {
+	fldPath := field.NewPath("providerSpec.properties.hardwareProfile")
+	hwProfile := api.AzureHardwareProfile{}
+	g := NewWithT(t)
+	errList := validateHardwareProfile(hwProfile, fldPath)
+	g.Expect(len(errList)).To(Equal(1))
+	g.Expect(errList).To(ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.hardwareProfile.vmSize")}))))
+}
+
+func TestValidateOSDisk(t *testing.T) {
+	fldPath := field.NewPath("providerSpec.properties.storageProfile.osDisk")
+	table := []struct {
+		description    string
+		osDisk         api.AzureOSDisk
+		expectedErrors int
+		matcher        gomegatypes.GomegaMatcher
+	}{
+		{
+			"should forbid empty createOption",
+			api.AzureOSDisk{Name: "osdisk-0", DiskSizeGB: 20, CreateOption: ""}, 1,
+			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.storageProfile.osDisk.createOption")}))),
+		},
+		{
+			"should forbid zero osDisk size",
+			api.AzureOSDisk{Name: "osdisk-0", DiskSizeGB: 0, CreateOption: "Create"}, 1,
+			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeInvalid), "Field": Equal("providerSpec.properties.storageProfile.osDisk.diskSizeGB")}))),
+		},
+		{
+			"should forbid negative osDisk size",
+			api.AzureOSDisk{Name: "osdisk-0", DiskSizeGB: -10, CreateOption: "Create"}, 1,
+			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeInvalid), "Field": Equal("providerSpec.properties.storageProfile.osDisk.diskSizeGB")}))),
+		},
+	}
+
+	g := NewWithT(t)
+	for _, entry := range table {
+		t.Run(entry.description, func(t *testing.T) {
+			errList := validateOSDisk(entry.osDisk, fldPath)
+			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
+			if entry.matcher != nil {
+				g.Expect(errList).To(entry.matcher)
+			}
+		})
+	}
+}
+
+func TestValidateOSProfile(t *testing.T) {
+	fldPath := field.NewPath("providerSpec.properties.osProfile")
+	osProfile := api.AzureOSProfile{
+		ComputerName:  "bingo",
+		AdminUsername: "",
+		LinuxConfiguration: api.AzureLinuxConfiguration{
+			DisablePasswordAuthentication: true,
+			SSH:                           api.AzureSSHConfiguration{},
+		},
+	}
+	g := NewWithT(t)
+	errList := validateOSProfile(osProfile, fldPath)
+	g.Expect(len(errList)).To(Equal(1))
+	g.Expect(errList).To(ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.osProfile.adminUsername")}))))
 }
 
 func TestValidateDataDisks(t *testing.T) {
@@ -182,12 +245,13 @@ func TestValidateDataDisks(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Log(entry.description)
-		errList := validateDataDisks(entry.disks, fldPath)
-		g.Expect(len(errList)).To(Equal(entry.expectedErrors))
-		if entry.matcher != nil {
-			g.Expect(errList).To(entry.matcher)
-		}
+		t.Run(entry.description, func(t *testing.T) {
+			errList := validateDataDisks(entry.disks, fldPath)
+			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
+			if entry.matcher != nil {
+				g.Expect(errList).To(entry.matcher)
+			}
+		})
 	}
 }
 
@@ -229,17 +293,18 @@ func TestValidateAvailabilityAndScalingConfig(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Log(entry.description)
-		vmProperties := api.AzureVirtualMachineProperties{
-			AvailabilitySet:        entry.availabilitySet,
-			Zone:                   entry.zone,
-			VirtualMachineScaleSet: entry.vmScaleSet,
-		}
-		errList := validateAvailabilityAndScalingConfig(vmProperties, fldPath)
-		g.Expect(len(errList)).To(Equal(entry.expectedErrors))
-		if entry.matcher != nil {
-			g.Expect(errList).To(entry.matcher)
-		}
+		t.Run(entry.description, func(t *testing.T) {
+			vmProperties := api.AzureVirtualMachineProperties{
+				AvailabilitySet:        entry.availabilitySet,
+				Zone:                   entry.zone,
+				VirtualMachineScaleSet: entry.vmScaleSet,
+			}
+			errList := validateAvailabilityAndScalingConfig(vmProperties, fldPath)
+			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
+			if entry.matcher != nil {
+				g.Expect(errList).To(entry.matcher)
+			}
+		})
 	}
 }
 
@@ -322,20 +387,39 @@ func TestValidateStorageImageRef(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Log(entry.description)
-		storageImageRef := api.AzureImageReference{
-			ID:                      entry.id,
-			URN:                     entry.urn,
-			CommunityGalleryImageID: entry.communityGalleryImageID,
-			SharedGalleryImageID:    entry.sharedGalleryImageID,
-		}
-		errList := validateStorageImageRef(storageImageRef, fldPath)
-		g.Expect(len(errList)).To(Equal(entry.expectedErrors))
-		if entry.matcher != nil {
-			g.Expect(errList).To(entry.matcher)
-		}
+		t.Run(entry.description, func(t *testing.T) {
+			storageImageRef := api.AzureImageReference{
+				ID:                      entry.id,
+				URN:                     entry.urn,
+				CommunityGalleryImageID: entry.communityGalleryImageID,
+				SharedGalleryImageID:    entry.sharedGalleryImageID,
+			}
+			errList := validateStorageImageRef(storageImageRef, fldPath)
+			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
+			if entry.matcher != nil {
+				g.Expect(errList).To(entry.matcher)
+			}
+		})
 	}
+}
 
+func TestValidateTags(t *testing.T) {
+	fldPath := field.NewPath("providerSpec.tags")
+	tags := map[string]string{
+		"Name":                                             "shootns",
+		"worker.gardener.cloud_pool":                       "worker-pool-0",
+		"worker.garden.sapcloud.io_group":                  "worker-pool-0",
+		"worker.gardener.cloud_cri-name":                   "containerd",
+		"worker.gardener.cloud_system-components":          "true",
+		"networking.gardener.cloud_node-local-dns-enabled": "true",
+	}
+	g := NewWithT(t)
+	errList := validateTags(tags, fldPath)
+	g.Expect(len(errList)).To(Equal(2))
+	g.Expect(errList).To(ConsistOf(
+		PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.tags.kubernetes.io-cluster-")})),
+		PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.tags.kubernetes.io-role-")})),
+	))
 }
 
 func createSecret(clientID, clientSecret, subscriptionID, tenantID string) *corev1.Secret {

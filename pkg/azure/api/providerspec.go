@@ -55,11 +55,17 @@ const (
 
 // AzureProviderSpec is the spec to be used while parsing the calls.
 type AzureProviderSpec struct {
-	Location      string                        `json:"location,omitempty"`
-	Tags          map[string]string             `json:"tags,omitempty"`
-	Properties    AzureVirtualMachineProperties `json:"properties,omitempty"`
-	ResourceGroup string                        `json:"resourceGroup,omitempty"`
-	SubnetInfo    AzureSubnetInfo               `json:"subnetInfo,omitempty"`
+	// Location is the name of the region where resources will be created.
+	Location string `json:"location,omitempty"`
+	// Tags is a map of key-value pairs that will be set on resources. Currently the tags are shared across VM, NIC, Disks.
+	// This is not ideal and will change with https://github.com/gardener/machine-controller-manager/blob/master/docs/proposals/hotupdate-instances.md
+	Tags map[string]string `json:"tags,omitempty"`
+	// Properties defines configuration properties for different profiles (hardware, os, network, storage, availability/virtual-machine-scale-set etc.)
+	Properties AzureVirtualMachineProperties `json:"properties,omitempty"`
+	// ResourceGroup is a container that holds related resources for an azure solution. See [https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/overview#resource-groups].
+	ResourceGroup string `json:"resourceGroup,omitempty"`
+	// SubnetInfo contains the configuration for an existing subnet.
+	SubnetInfo AzureSubnetInfo `json:"subnetInfo,omitempty"`
 }
 
 // AzureVirtualMachineProperties describes the properties of a Virtual Machine.
@@ -117,9 +123,14 @@ type AzureMachineSetConfig struct {
 
 // AzureStorageProfile specifies the storage settings for the virtual machine disks.
 type AzureStorageProfile struct {
+	// ImageReference specifies information about the image to use. One can specify information about platform images, marketplace images, or virtual machine images.
 	ImageReference AzureImageReference `json:"imageReference,omitempty"`
-	OsDisk         AzureOSDisk         `json:"osDisk,omitempty"`
-	DataDisks      []AzureDataDisk     `json:"dataDisks,omitempty"`
+	// OsDisk contains the information about the operating system disk used by the VM.
+	// See [https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disks-overview#os-disk].
+	OsDisk AzureOSDisk `json:"osDisk,omitempty"`
+	// DataDisks contains the information about disks that can be added as data-disks to a VM.
+	// See [https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disks-overview#data-disk]
+	DataDisks []AzureDataDisk `json:"dataDisks,omitempty"`
 }
 
 // AzureImageReference specifies information about the image to use. You can specify information about platform images,
@@ -137,37 +148,58 @@ type AzureImageReference struct {
 }
 
 // AzureOSDisk specifies information about the operating system disk used by the virtual machine. <br><br> For more
-// information about disks, see [Introduction to Azure Managed
-// Disks](https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disks-overview).
+// information about disks, see [https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disks-overview].
 type AzureOSDisk struct {
-	Name         string                     `json:"name,omitempty"`
-	Caching      string                     `json:"caching,omitempty"`
-	ManagedDisk  AzureManagedDiskParameters `json:"managedDisk,omitempty"`
-	DiskSizeGB   int32                      `json:"diskSizeGB,omitempty"`
-	CreateOption string                     `json:"createOption,omitempty"`
+	// Name is the name of the OSDisk
+	Name string `json:"name,omitempty"`
+	// Caching specifies the caching requirements. Possible values are: None, ReadOnly, ReadWrite.
+	Caching string `json:"caching,omitempty"`
+	// ManagedDisk specifies the managed disk parameters.
+	ManagedDisk AzureManagedDiskParameters `json:"managedDisk,omitempty"`
+	// DiskSizeGB is the size of an empty disk in gigabytes.
+	DiskSizeGB int32 `json:"diskSizeGB,omitempty"`
+	// CreateOption Specifies how the virtual machine should be created. Possible values are: [Attach, FromImage].
+	// Attach: This value is used when a specialized disk is used to create the virtual machine.
+	// FromImage: This value is used when an image is used to create the virtual machine.
+	CreateOption string `json:"createOption,omitempty"`
 }
 
 // AzureDataDisk specifies information about the data disk used by the virtual machine.
 type AzureDataDisk struct {
-	Name               string `json:"name,omitempty"`
-	Lun                *int32 `json:"lun,omitempty"`
-	Caching            string `json:"caching,omitempty"`
+	// Name is the name of the disk.
+	Name string `json:"name,omitempty"`
+	// Lun specifies the logical unit number of the data disk. This value is used to identify data disks within the VM and
+	// therefore must be unique for each data disk attached to a VM.
+	Lun *int32 `json:"lun,omitempty"`
+	// Caching specifies the caching requirements. Possible values are: None, ReadOnly, ReadWrite.
+	Caching string `json:"caching,omitempty"`
+	// StorageAccountType is the storage account type for a managed disk.
 	StorageAccountType string `json:"storageAccountType,omitempty"`
-	DiskSizeGB         int32  `json:"diskSizeGB,omitempty"`
+	// DiskSizeGB is the size of an empty disk in gigabytes.
+	DiskSizeGB int32 `json:"diskSizeGB,omitempty"`
 }
 
 // AzureManagedDiskParameters is the parameters of a managed disk.
 type AzureManagedDiskParameters struct {
-	ID                 string `json:"id,omitempty"`
+	// ID is a unique resource ID.
+	ID string `json:"id,omitempty"`
+	// StorageAccountType is the storage account type for a managed disk.
 	StorageAccountType string `json:"storageAccountType,omitempty"`
 }
 
 // AzureOSProfile specifies the operating system settings for the virtual machine.
 type AzureOSProfile struct {
-	ComputerName       string                  `json:"computerName,omitempty"`
-	AdminUsername      string                  `json:"adminUsername,omitempty"`
-	AdminPassword      string                  `json:"adminPassword,omitempty"`
-	CustomData         string                  `json:"customData,omitempty"`
+	// ComputerName is the host OS name of the virtual machine in azure. However, in mcm-provider-azure this is set to the name of the VM.
+	ComputerName string `json:"computerName,omitempty"`
+	// AdminUsername is the name of the administrator account.
+	AdminUsername string `json:"adminUsername,omitempty"`
+	// AdminPassword specifies the password for the administrator account.
+	// WARNING: Currently, this property is never used while creating a VM.
+	AdminPassword string `json:"adminPassword,omitempty"`
+	// CustomData is the base64 encoded string of custom data. The base-64 encoded string is decoded to a binary array that is saved
+	// as a file on the Virtual Machine. See [https://azure.microsoft.com/en-us/blog/custom-data-and-cloud-init-on-windows-azure/].
+	CustomData string `json:"customData,omitempty"`
+	// LinuxConfiguration specifies the linux OS settings on the VM.
 	LinuxConfiguration AzureLinuxConfiguration `json:"linuxConfiguration,omitempty"`
 }
 
@@ -175,27 +207,34 @@ type AzureOSProfile struct {
 // supported Linux distributions, see [Linux on Azure-Endorsed
 // Distributions](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/endorsed-distros).
 type AzureLinuxConfiguration struct {
-	DisablePasswordAuthentication bool                  `json:"disablePasswordAuthentication,omitempty"`
-	SSH                           AzureSSHConfiguration `json:"ssh,omitempty"`
+	// DisablePasswordAuthentication specifies if the password authentication should be disabled.
+	DisablePasswordAuthentication bool `json:"disablePasswordAuthentication,omitempty"`
+	// SSH specifies the ssh key configurations for a Linux OS.
+	SSH AzureSSHConfiguration `json:"ssh,omitempty"`
 }
 
 // AzureSSHConfiguration is SSH configuration for Linux based VMs running on Azure.
 type AzureSSHConfiguration struct {
+	// PublicKeys specifies a list of SSH public keys used to authenticate with linux based VMs.
 	PublicKeys AzureSSHPublicKey `json:"publicKeys,omitempty"`
 }
 
 // AzureSSHPublicKey is contains information about SSH certificate public key and the path on the Linux VM where the public
 // key is placed.
 type AzureSSHPublicKey struct {
-	Path    string `json:"path,omitempty"`
+	// Path specifies the full path on the created VM where ssh public key is stored.
+	Path string `json:"path,omitempty"`
+	// KeyData is the SSH public key certificate used to authenticate with the VM through ssh.
+	// The key needs to be at least 2048-bit and in ssh-rsa format.
 	KeyData string `json:"keyData,omitempty"`
 }
 
 // AzureNetworkProfile specifies the network interfaces of the virtual machine.
 type AzureNetworkProfile struct {
-	// Deprecated: This field is currently not used and will be removed in later versions of the API.
-	NetworkInterfaces     AzureNetworkInterfaceReference `json:"networkInterfaces,omitempty"`
-	AcceleratedNetworking *bool                          `json:"acceleratedNetworking,omitempty"`
+	// NetworkInterfaces Deprecated: This field is currently not used and will be removed in later versions of the API.
+	NetworkInterfaces AzureNetworkInterfaceReference `json:"networkInterfaces,omitempty"`
+	// AcceleratedNetworking specifies whether the network interface is accelerated networking-enabled.
+	AcceleratedNetworking *bool `json:"acceleratedNetworking,omitempty"`
 }
 
 // AzureNetworkInterfaceReference describes a network interface reference.
@@ -211,12 +250,17 @@ type AzureNetworkInterfaceReferenceProperties struct {
 
 // AzureSubResource is the Sub Resource definition.
 type AzureSubResource struct {
+	// ID is the resource id.
 	ID string `json:"id,omitempty"`
 }
 
 // AzureSubnetInfo is the information containing the subnet details.
 type AzureSubnetInfo struct {
-	VnetName          string  `json:"vnetName,omitempty"`
+	// VnetName is the virtual network name. See [https://learn.microsoft.com/en-us/azure/virtual-network/virtual-networks-overview].
+	VnetName string `json:"vnetName,omitempty"`
+	// VnetResourceGroup is the resource group within which a virtual network is created. This is optional. If it is not specified then
+	// AzureProviderSpec.ResourceGroup is used instead.
 	VnetResourceGroup *string `json:"vnetResourceGroup,omitempty"`
-	SubnetName        string  `json:"subnetName,omitempty"`
+	// SubnetName is the name of the subnet which is unique within a resource group.
+	SubnetName string `json:"subnetName,omitempty"`
 }
