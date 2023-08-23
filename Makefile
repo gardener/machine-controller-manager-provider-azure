@@ -8,9 +8,9 @@ IMAGE_REPOSITORY    := eu.gcr.io/gardener-project/gardener/machine-controller-ma
 IMAGE_TAG           := $(shell cat VERSION)
 PROVIDER_NAME       := Azure
 PROJECT_NAME        := gardener
-CONTROL_NAMESPACE  := default
-CONTROL_KUBECONFIG := dev/control-kubeconfig.yaml
-TARGET_KUBECONFIG  := dev/target-kubeconfig.yaml
+CONTROL_NAMESPACE  :=  shoot--i034796--trea
+CONTROL_KUBECONFIG :=  dev/kubeconfigs/kubeconfig_control.yaml
+TARGET_KUBECONFIG  :=  dev/kubeconfigs/kubeconfig_target.yaml
 
 
 # Below ones are used in tests
