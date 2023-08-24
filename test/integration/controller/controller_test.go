@@ -9,7 +9,7 @@
 		- Check and create crds ( machineclass, machines, machinesets and machinedeployment ) if required
 		  using file available in kubernetes/crds directory of machine-controller-manager repo
 		- Start the Machine Controller manager ( as goroutine )
-		- apply secret resource for accesing the cloud provider service in the control cluster
+		- apply secret resource for accessing the cloud provider service in the control cluster
 		- Create machineclass resource from file available in kubernetes directory of provider specific repo in control cluster
 	AfterSuite
 		- Delete the control and target clusters // As of now we are reusing the cluster so this is not required
@@ -17,7 +17,7 @@
 	Test: differentRegion Scheduling Strategy Test
         1) Create machine in region other than where the target cluster exists. (e.g machine in eu-west-1 and target cluster exists in us-east-1)
            Expected Output
-			 - should fail because no cluster in same region exists)
+			 - should fail because no cluster in same region exists
 
     Test: sameRegion Scheduling Strategy Test
         1) Create machine in same region/zone as target cluster and attach it to the cluster

@@ -120,7 +120,6 @@ func getMachines(ctx context.Context, factory access.Factory, machineClass *v1al
 }
 
 func getAllDisksForResourceGroup(ctx context.Context, resourceGroup string, disksClient *armcompute.DisksClient) ([]*armcompute.Disk, error) {
-	//var vms []*armcompute.VirtualMachine
 	var disks []*armcompute.Disk
 	for pager := disksClient.NewListByResourceGroupPager(resourceGroup, nil); pager.More(); {
 		page, err := pager.NextPage(ctx)

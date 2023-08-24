@@ -12,12 +12,12 @@ import (
 var (
 	// ITResourceTagKey is specifically used for integration test
 	// primarily to avoid orphan collection of resources when the control cluster is
-	// non seed cluster
+	// non-seed cluster
 	ITResourceTagKey = "kubernetes.io-role-integration-test"
 
 	// ITResourceTagValue is specifically used for integration test
 	// primarily to avoid orphan collection of resources when the control cluster is
-	// non seed cluster
+	// non-seed cluster
 	ITResourceTagValue = "1"
 )
 
