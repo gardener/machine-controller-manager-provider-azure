@@ -9,7 +9,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/provider/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"

@@ -48,7 +48,7 @@ type Status struct {
 	// [google.rpc.Status.details][google.rpc.Status.details] field, or localized
 	// by the client.
 	message string
-	// cause captures the underline error
+	// cause captures the underlying error
 	cause error
 }
 
@@ -65,7 +65,7 @@ func (s *Status) Message() string {
 	return s.message
 }
 
-// Cause returns the underline error if captured.
+// Cause returns the underlying error if captured.
 func (s *Status) Cause() error {
 	return s.cause
 }
@@ -88,7 +88,7 @@ func Error(c codes.Code, msg string) error {
 	return New(c, msg)
 }
 
-// WrapError creates an instance of status.Status wrapping the underline cause along with the code and custom error message.
+// WrapError creates an instance of status.Status wrapping the underlying cause along with the code and custom error message.
 func WrapError(c codes.Code, msg string, cause error) *Status {
 	return &Status{
 		code:    int32(c),

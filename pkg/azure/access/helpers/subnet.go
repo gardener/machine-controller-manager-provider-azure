@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 )

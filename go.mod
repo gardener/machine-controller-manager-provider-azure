@@ -3,11 +3,11 @@ module github.com/gardener/machine-controller-manager-provider-azure
 go 1.20
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.8.0-beta.1
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0-beta.2
-	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5 v5.1.0-beta.2
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.8.0-beta.2
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0-beta.4
+	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5 v5.2.0-beta.1
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering v1.2.0-beta.2
-	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3 v3.1.0-beta.2
+	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4 v4.1.0-beta.1
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph v0.8.1
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources v1.2.0-beta.2
 	github.com/gardener/machine-controller-manager v0.49.1
@@ -15,10 +15,10 @@ require (
 	github.com/onsi/gomega v1.27.4
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.11.0
+	golang.org/x/crypto v0.12.0
 	k8s.io/api v0.27.2
 	k8s.io/apimachinery v0.27.2
-	k8s.io/client-go v0.27.2 // indirect
+	k8s.io/client-go v0.27.2
 	k8s.io/component-base v0.27.2
 	k8s.io/klog/v2 v2.90.1
 	k8s.io/utils v0.0.0-20230209194617-a36077c30491
@@ -26,7 +26,7 @@ require (
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.3.0 // indirect
-	github.com/AzureAD/microsoft-authentication-library-for-go v1.0.0 // indirect
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Microsoft/go-winio v0.4.16 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20210428141323-04723f9f07d7 // indirect
@@ -47,7 +47,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.1 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/golang-jwt/jwt/v5 v5.0.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
@@ -76,11 +76,11 @@ require (
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/spf13/cobra v1.6.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
-	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/net v0.14.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
-	golang.org/x/sys v0.10.0 // indirect
-	golang.org/x/term v0.10.0 // indirect
-	golang.org/x/text v0.11.0 // indirect
+	golang.org/x/sys v0.11.0 // indirect
+	golang.org/x/term v0.11.0 // indirect
+	golang.org/x/text v0.12.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
@@ -98,4 +98,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/gardener/machine-controller-manager => /Users/I034796/go/src/github.com/gardener/machine-controller-manager
+replace github.com/gardener/machine-controller-manager => /Users/i062009/src/github.com/unmarshall/machine-controller-manager

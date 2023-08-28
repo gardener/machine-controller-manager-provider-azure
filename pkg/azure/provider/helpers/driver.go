@@ -11,13 +11,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
 	"golang.org/x/crypto/ssh"
 	"k8s.io/utils/pointer"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v3"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 	accesshelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
