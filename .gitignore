@@ -3,6 +3,7 @@
 /.kube-secrets
 /tmp/*
 /dev
+**/.env
 
 .vscode
 .idea

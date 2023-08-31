@@ -2,15 +2,14 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+include .env
+
 BINARY_PATH         := bin/
 COVERPROFILE        := test/output/coverprofile.out
 IMAGE_REPOSITORY    := eu.gcr.io/gardener-project/gardener/machine-controller-manager-provider-azure
 IMAGE_TAG           := $(shell cat VERSION)
 PROVIDER_NAME       := Azure
 PROJECT_NAME        := gardener
-CONTROL_NAMESPACE  :=  shoot--i034796--trea
-CONTROL_KUBECONFIG :=  dev/kubeconfigs/kubeconfig_control.yaml
-TARGET_KUBECONFIG  :=  dev/kubeconfigs/kubeconfig_target.yaml
 
 
 # Below ones are used in tests
@@ -18,8 +17,6 @@ MACHINECLASS_V1 	:= dev/machineclassv1.yaml
 MACHINECLASS_V2 	:= 
 MCM_IMAGE			:=
 MC_IMAGE			:=
-# MCM_IMAGE			:= eu.gcr.io/gardener-project/gardener/machine-controller-manager:v0.46.0
-# MC_IMAGE			:= $(IMAGE_REPOSITORY):v0.8.0
 LEADER_ELECT 	    := "true"
 
 # If Integration Test Suite is to be run locally against clusters then export the below variable
@@ -134,3 +131,7 @@ clean:
 	@rm -rf bin/
 	@rm -f *linux-amd64
 	@rm -f *darwin-amd64
+
+.PHONY: add-license-headers
+add-license-headers: $(GO_ADD_LICENSE)
+	@./hack/add_license_headers.sh
