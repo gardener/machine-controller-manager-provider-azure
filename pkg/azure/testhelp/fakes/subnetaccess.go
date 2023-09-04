@@ -27,22 +27,26 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 )
 
+// SubnetAccessBuilder is a builder for Subnet access.
 type SubnetAccessBuilder struct {
 	clusterState    *ClusterState
 	server          fakenetwork.SubnetsServer
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
+// WithClusterState initializes builder with a ClusterState.
 func (b *SubnetAccessBuilder) WithClusterState(clusterState *ClusterState) *SubnetAccessBuilder {
 	b.clusterState = clusterState
 	return b
 }
 
+// WithAPIBehaviorSpec initializes the builder with a APIBehaviorSpec.
 func (b *SubnetAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *SubnetAccessBuilder {
 	b.apiBehaviorSpec = apiBehaviorSpec
 	return b
 }
 
+// withGet implements the Get method of armnetwork.SubnetsClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *SubnetAccessBuilder) withGet() *SubnetAccessBuilder {
 	b.server.Get = func(ctx context.Context, resourceGroupName string, virtualNetworkName string, subnetName string, options *armnetwork.SubnetsClientGetOptions) (resp azfake.Responder[armnetwork.SubnetsClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -67,6 +71,7 @@ func (b *SubnetAccessBuilder) withGet() *SubnetAccessBuilder {
 	return b
 }
 
+// Build builds armnetwork.SubnetsClient.
 func (b *SubnetAccessBuilder) Build() (*armnetwork.SubnetsClient, error) {
 	b.withGet()
 	return armnetwork.NewSubnetsClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{

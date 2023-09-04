@@ -27,22 +27,26 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
+// VMAccessBuilder is a builder for VM access.
 type VMAccessBuilder struct {
 	clusterState    *ClusterState
 	server          fakecompute.VirtualMachinesServer
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
+// WithClusterState initializes builder with a ClusterState.
 func (b *VMAccessBuilder) WithClusterState(clusterState *ClusterState) *VMAccessBuilder {
 	b.clusterState = clusterState
 	return b
 }
 
+// WithAPIBehaviorSpec initializes the builder with a APIBehaviorSpec.
 func (b *VMAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *VMAccessBuilder {
 	b.apiBehaviorSpec = apiBehaviorSpec
 	return b
 }
 
+// withGet implements the Get method of armcompute.VirtualMachinesClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *VMAccessBuilder) withGet() *VMAccessBuilder {
 	b.server.Get = func(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachinesClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -68,6 +72,7 @@ func (b *VMAccessBuilder) withGet() *VMAccessBuilder {
 	return b
 }
 
+// withBeginDelete implements the BeingDelete method of armcompute.VirtualMachinesClient and initializes the backing fake server's BeginDelete method with the anonymous function implementation.
 func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
 	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -90,6 +95,7 @@ func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
 	return b
 }
 
+// withBeginCreateOrUpdate implements the BeginCreateOrUpdate method of armcompute.VirtualMachinesClient and initializes the backing fake server's BeginCreateOrUpdate method with the anonymous function implementation.
 func (b *VMAccessBuilder) withBeginCreateOrUpdate() *VMAccessBuilder {
 	b.server.BeginCreateOrUpdate = func(ctx context.Context, resourceGroupName string, vmName string, parameters armcompute.VirtualMachine, options *armcompute.VirtualMachinesClientBeginCreateOrUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientCreateOrUpdateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -111,6 +117,7 @@ func (b *VMAccessBuilder) withBeginCreateOrUpdate() *VMAccessBuilder {
 	return b
 }
 
+// withBeginUpdate implements the BeingUpdate method of armcompute.VirtualMachinesClient and initializes the backing fake server's BeginUpdate method with the anonymous function implementation.
 func (b *VMAccessBuilder) withBeginUpdate() *VMAccessBuilder {
 	b.server.BeginUpdate = func(ctx context.Context, resourceGroupName string, vmName string, updateParams armcompute.VirtualMachineUpdate, options *armcompute.VirtualMachinesClientBeginUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientUpdateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -191,6 +198,7 @@ func (b *VMAccessBuilder) updatedDataDisksCascadeDeleteOption(vmName string, sto
 	}
 }
 
+// Build builds armcompute.VirtualMachinesClient.
 func (b *VMAccessBuilder) Build() (*armcompute.VirtualMachinesClient, error) {
 	b.withGet().withBeginDelete().withBeginUpdate().withBeginCreateOrUpdate()
 	return armcompute.NewVirtualMachinesClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{

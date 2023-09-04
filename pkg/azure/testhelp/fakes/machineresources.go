@@ -42,19 +42,25 @@ var (
 type MachineResources struct {
 	// Name is the same as the *VM.Name. It is kept separately here to allow MachineResources
 	// to be retrieved or deleted completely when the VM does not exist but other resources are left behind.
-	Name      string
-	VM        *armcompute.VirtualMachine
-	OSDisk    *armcompute.Disk
+	Name string
+	// VM is the virtual machine.
+	VM *armcompute.VirtualMachine
+	// OSDisk is the OS disk associated to the VM.
+	OSDisk *armcompute.Disk
+	// DataDisks is the map of data disk name to Disk object.
 	DataDisks map[string]*armcompute.Disk
-	NIC       *armnetwork.Interface
+	// NIC is the network interface associated to the VM.
+	NIC *armnetwork.Interface
 }
 
+// CascadeDeleteOpts captures the cascade delete options for NIC, OSDisk and DataDisk.
 type CascadeDeleteOpts struct {
 	NIC      *armcompute.DeleteOptions
 	OSDisk   *armcompute.DiskDeleteOptionTypes
 	DataDisk *armcompute.DiskDeleteOptionTypes
 }
 
+// ShouldCascadeDeleteAllAttachedResources returns true if cascade delete is set for all NIC, OS/Data disks.
 func (m *MachineResources) ShouldCascadeDeleteAllAttachedResources() bool {
 	if m.VM != nil {
 		nicDeleteOpt := GetCascadeDeleteOptForNIC(*m.VM)                 // A nil value indicates that there is no NIC
@@ -70,6 +76,8 @@ func (m *MachineResources) ShouldCascadeDeleteAllAttachedResources() bool {
 	return false
 }
 
+// HandleNICOnVMDelete detaches the NIC from the VM.
+// This method will only be called if cascade delete for NIC is not turned on.
 func (m *MachineResources) HandleNICOnVMDelete() {
 	if m.VM != nil {
 		nicDeleteOpt := GetCascadeDeleteOptForNIC(*m.VM)
@@ -81,6 +89,8 @@ func (m *MachineResources) HandleNICOnVMDelete() {
 	}
 }
 
+// HandleOSDiskOnVMDelete detaches the OSDisk from the VM.
+// This method will only be called if cascade delete for OSDisk is not turned on.
 func (m *MachineResources) HandleOSDiskOnVMDelete() {
 	if m.VM != nil {
 		osDiskDeleteOpt := GetCascadeDeleteOptForOsDisk(*m.VM)
@@ -92,6 +102,8 @@ func (m *MachineResources) HandleOSDiskOnVMDelete() {
 	}
 }
 
+// HandleDataDisksOnVMDelete detaches the DataDisks from the VM.
+// This method will only be called if cascade delete for DataDisk is not turned on.
 func (m *MachineResources) HandleDataDisksOnVMDelete() {
 	if m.VM != nil {
 		diskDeleteOptMap := GetCascadeDeleteOptForDataDisks(*m.VM)
@@ -110,10 +122,13 @@ func (m *MachineResources) HandleDataDisksOnVMDelete() {
 	}
 }
 
+// HasResources checks if the MachineResources object has any of VM, NIC, OSDisk, DataDisk resources.
+// This will be used to just delete an instance of MachineResources when it has none of the resources.
 func (m *MachineResources) HasResources() bool {
 	return m.VM != nil || m.NIC != nil || m.OSDisk != nil || (m.DataDisks != nil && len(m.DataDisks) > 0)
 }
 
+// UpdateNICDeleteOpt updates the delete option for NIC.
 func (m *MachineResources) UpdateNICDeleteOpt(deleteOpt *armcompute.DeleteOptions) {
 	if m.VM != nil {
 		if m.VM.Properties != nil && m.VM.Properties.NetworkProfile != nil && !utils.IsSliceNilOrEmpty(m.VM.Properties.NetworkProfile.NetworkInterfaces) {
@@ -126,6 +141,7 @@ func (m *MachineResources) UpdateNICDeleteOpt(deleteOpt *armcompute.DeleteOption
 	}
 }
 
+// UpdateOSDiskDeleteOpt updates the delete option for OSDisk.
 func (m *MachineResources) UpdateOSDiskDeleteOpt(deleteOpt *armcompute.DiskDeleteOptionTypes) {
 	if m.VM != nil {
 		if m.VM.Properties != nil && m.VM.Properties.StorageProfile != nil && m.VM.Properties.StorageProfile.OSDisk != nil {
@@ -134,6 +150,7 @@ func (m *MachineResources) UpdateOSDiskDeleteOpt(deleteOpt *armcompute.DiskDelet
 	}
 }
 
+// UpdateDataDisksDeleteOpt updates the delete options for DataDisks.
 func (m *MachineResources) UpdateDataDisksDeleteOpt(deleteOpt *armcompute.DiskDeleteOptionTypes) {
 	if m.VM != nil {
 		if m.VM.Properties != nil && m.VM.Properties.StorageProfile != nil && m.VM.Properties.StorageProfile.DataDisks != nil {
@@ -179,11 +196,13 @@ func NewMachineResourcesBuilder(spec api.AzureProviderSpec, vmName string) *Mach
 	}
 }
 
+// WithPlan initializes MachineResources with a plan.
 func (b *MachineResourcesBuilder) WithPlan(plan armcompute.Plan) *MachineResourcesBuilder {
 	b.plan = &plan
 	return b
 }
 
+// WithCascadeDeleteOptions initializes MachineResources with cascade delete options for NIC, OS/Data disks.
 func (b *MachineResourcesBuilder) WithCascadeDeleteOptions(opts CascadeDeleteOpts) *MachineResourcesBuilder {
 	b.cascadeDeleteOpts = &opts
 	if b.cascadeDeleteOpts.NIC == nil {
@@ -198,10 +217,12 @@ func (b *MachineResourcesBuilder) WithCascadeDeleteOptions(opts CascadeDeleteOpt
 	return b
 }
 
+// BuildAllResources creates a MachineResources object creating VM, NIC, OSDisk and DataDisks.
 func (b *MachineResourcesBuilder) BuildAllResources() MachineResources {
 	return b.BuildWith(true, true, true, true, nil)
 }
 
+// BuildWith creates a MachineResources object optionally creating resources as indicated by the method arguments.
 func (b *MachineResourcesBuilder) BuildWith(createVM, createNIC, createOSDisk, createDataDisk bool, withNonExistentVMID *string) MachineResources {
 	if b.cascadeDeleteOpts == nil {
 		b.cascadeDeleteOpts = &CascadeDeleteAllResources
@@ -209,6 +230,7 @@ func (b *MachineResourcesBuilder) BuildWith(createVM, createNIC, createOSDisk, c
 	return b.CreateMachineResources(createVM, createNIC, createOSDisk, createDataDisk, withNonExistentVMID)
 }
 
+// CreateMachineResources creates MachineResources object optionally creating resources as indicated by the method arguments.
 func (b *MachineResourcesBuilder) CreateMachineResources(createVM, createNIC, createOSDisk, createDataDisks bool, nonExistentVMID *string) MachineResources {
 	var (
 		vm        *armcompute.VirtualMachine
@@ -222,10 +244,10 @@ func (b *MachineResourcesBuilder) CreateMachineResources(createVM, createNIC, cr
 		vmID = vm.ID
 	}
 	if createNIC {
-		nic = CreateNICResource(b.spec, vmID, utils.CreateNICName(b.vmName))
+		nic = createNICResource(b.spec, vmID, utils.CreateNICName(b.vmName))
 	}
 	if createOSDisk {
-		osDisk = CreateDiskResource(b.spec, utils.CreateOSDiskName(b.vmName), vmID, b.plan)
+		osDisk = createDiskResource(b.spec, utils.CreateOSDiskName(b.vmName), vmID, b.plan)
 	}
 	if createDataDisks {
 		specDataDisks := b.spec.Properties.StorageProfile.DataDisks
@@ -233,7 +255,7 @@ func (b *MachineResourcesBuilder) CreateMachineResources(createVM, createNIC, cr
 			dataDisks = make(map[string]*armcompute.Disk, len(specDataDisks))
 			for _, specDataDisk := range specDataDisks {
 				diskName := utils.CreateDataDiskName(b.vmName, specDataDisk)
-				dataDisks[diskName] = CreateDiskResource(b.spec, diskName, vmID, nil)
+				dataDisks[diskName] = createDiskResource(b.spec, diskName, vmID, nil)
 			}
 		}
 	}
@@ -246,7 +268,7 @@ func (b *MachineResourcesBuilder) CreateMachineResources(createVM, createNIC, cr
 	}
 }
 
-func CreateNICResource(spec api.AzureProviderSpec, vmID *string, nicName string) *armnetwork.Interface {
+func createNICResource(spec api.AzureProviderSpec, vmID *string, nicName string) *armnetwork.Interface {
 	ipConfigID := CreateIPConfigurationID(testhelp.SubscriptionID, spec.ResourceGroup, nicName, nicName)
 	interfaceID := CreateNetworkInterfaceID(testhelp.SubscriptionID, spec.ResourceGroup, nicName)
 
@@ -349,7 +371,7 @@ func createImageReference(imageRef api.AzureImageReference) *armcompute.ImageRef
 	}
 }
 
-func CreateDiskResource(spec api.AzureProviderSpec, diskName string, vmID *string, plan *armcompute.Plan) *armcompute.Disk {
+func createDiskResource(spec api.AzureProviderSpec, diskName string, vmID *string, plan *armcompute.Plan) *armcompute.Disk {
 	var purchasePlan *armcompute.DiskPurchasePlan
 	if plan != nil {
 		purchasePlan = &armcompute.DiskPurchasePlan{
@@ -402,11 +424,3 @@ func createDataDisks(spec api.AzureProviderSpec, vmName string, deleteOption *ar
 	}
 	return dataDisks
 }
-
-//func createResourceTags(tags map[string]string) map[string]*string {
-//	vmTags := make(map[string]*string, len(tags))
-//	for k, v := range tags {
-//		vmTags[k] = to.Ptr(v)
-//	}
-//	return vmTags
-//}

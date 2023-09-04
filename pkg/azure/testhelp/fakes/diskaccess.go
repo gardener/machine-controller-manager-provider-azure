@@ -27,22 +27,26 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
+// DiskAccessBuilder is a builder for armcompute.DisksClient.
 type DiskAccessBuilder struct {
 	clusterState    *ClusterState
 	server          fakecompute.DisksServer
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
+// WithClusterState initializes builder with a ClusterState.
 func (b *DiskAccessBuilder) WithClusterState(clusterState *ClusterState) *DiskAccessBuilder {
 	b.clusterState = clusterState
 	return b
 }
 
+// WithAPIBehaviorSpec initializes the builder with a APIBehaviorSpec.
 func (b *DiskAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *DiskAccessBuilder {
 	b.apiBehaviorSpec = apiBehaviorSpec
 	return b
 }
 
+// withGet implements the Get method of armcompute.DisksClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 	b.server.Get = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientGetOptions) (resp azfake.Responder[armcompute.DisksClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -68,6 +72,7 @@ func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 	return b
 }
 
+// withBeginDelete implements the BeingDelete method of armcompute.DisksClient and initializes the backing fake server's BeginDelete method with the anonymous function implementation.
 func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
 	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.DisksClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -95,6 +100,7 @@ func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
 	return b
 }
 
+// Build builds the armcompute.DiskClient.
 func (b *DiskAccessBuilder) Build() (*armcompute.DisksClient, error) {
 	b.withGet().withBeginDelete()
 	return armcompute.NewDisksClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{

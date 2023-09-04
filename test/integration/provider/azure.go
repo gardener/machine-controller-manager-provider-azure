@@ -22,7 +22,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	v1 "k8s.io/api/core/v1"
 
-	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
@@ -33,7 +33,7 @@ import (
 
 func wrapAndLogError(errFmt string, err error) error {
 	err = fmt.Errorf(errFmt, err)
-	fmt.Print("%s,", err)
+	fmt.Printf("%v,", err)
 	return err
 }
 

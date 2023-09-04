@@ -23,14 +23,21 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// ResourceType is an enum type representing type different resource types supported by Azure.
 type ResourceType string
 
 const (
-	VirtualMachinesResourceType   ResourceType = "Microsoft.Compute/virtualMachines"   // as defined in azure
+	// VirtualMachinesResourceType is a type used by Azure to represent virtual machine resources.
+	VirtualMachinesResourceType ResourceType = "Microsoft.Compute/virtualMachines"
+	// NetworkInterfacesResourceType is a type used by Azure to represent network interfaces resources.
 	NetworkInterfacesResourceType ResourceType = "microsoft.network/networkinterfaces" //as defined in azure
-	VMImageResourceType           ResourceType = "Microsoft.Compute/VMImage"           // this is not defined in azure, however we have created this to allow defining API behavior for VM Images // this is not defined in azure, however we have created this to allow defining API behavior for VM Images.
-	MarketPlaceOrderingOfferType  ResourceType = "Microsoft.MarketplaceOrdering/offertypes"
-	SubnetResourceType            ResourceType = "Microsoft.Network/virtualNetworks/subnets"
+	// VMImageResourceType is a type used by Azure to represent VM Image resources.
+	// This is not defined in azure, however we have created this to allow defining API behavior for VM Images.
+	VMImageResourceType ResourceType = "Microsoft.Compute/VMImage"
+	// MarketPlaceOrderingOfferType is a type used by Azure to represent marketplace ordering offer types.
+	MarketPlaceOrderingOfferType ResourceType = "Microsoft.MarketplaceOrdering/offertypes"
+	// SubnetResourceType is a type used by Azure to represent subnet resources.
+	SubnetResourceType ResourceType = "Microsoft.Network/virtualNetworks/subnets"
 )
 
 // APIBehaviorSpec allows tests to define custom behavior either for a specific resource or a resource type.
@@ -41,12 +48,15 @@ type APIBehaviorSpec struct {
 	resourceReactionsByType map[ResourceType]map[string]ResourceReaction
 }
 
+// ResourceReaction captures reaction for a resource.
+// Consumers can define a panic or a context timeout or an error for a specific resource.
 type ResourceReaction struct {
 	timeoutAfter *time.Duration
 	panic        bool
 	err          error
 }
 
+// NewAPIBehaviorSpec creates a new APIBehaviorSpec.
 func NewAPIBehaviorSpec() *APIBehaviorSpec {
 	return &APIBehaviorSpec{
 		resourceReactionsByName: make(map[string]map[string]ResourceReaction),
@@ -54,60 +64,45 @@ func NewAPIBehaviorSpec() *APIBehaviorSpec {
 	}
 }
 
+// AddContextTimeoutResourceReaction adds a context timeout reaction for a resource when the given method is invoked on the respective resource client.
+// The timeout should happen after the timeout duration passed to this method.
 func (s *APIBehaviorSpec) AddContextTimeoutResourceReaction(resourceName, method string, timeoutAfter time.Duration) *APIBehaviorSpec {
 	s.initializeResourceReactionMapForResource(resourceName)
 	s.resourceReactionsByName[resourceName][method] = ResourceReaction{timeoutAfter: &timeoutAfter}
 	return s
 }
 
+// AddPanicResourceReaction adds a panic reaction for a resource when a given method is invoked on the respective resource client.
 func (s *APIBehaviorSpec) AddPanicResourceReaction(resourceName, method string) *APIBehaviorSpec {
 	s.initializeResourceReactionMapForResource(resourceName)
 	s.resourceReactionsByName[resourceName][method] = ResourceReaction{panic: true}
 	return s
 }
 
+// AddErrorResourceReaction adds an error reaction for a resource returning the error passed as an argument when the given method is invoked on the respective resource client.
 func (s *APIBehaviorSpec) AddErrorResourceReaction(resourceName, method string, err error) *APIBehaviorSpec {
 	s.initializeResourceReactionMapForResource(resourceName)
 	s.resourceReactionsByName[resourceName][method] = ResourceReaction{err: err}
 	return s
 }
 
-func (s *APIBehaviorSpec) SetContextTimeoutReactionsForMethods(resourceName string, methods []string, timeoutAfter time.Duration) *APIBehaviorSpec {
-	s.initializeResourceReactionMapForResource(resourceName)
-	for _, method := range methods {
-		s.resourceReactionsByName[resourceName][method] = ResourceReaction{timeoutAfter: &timeoutAfter}
-	}
-	return s
-}
-
-func (s *APIBehaviorSpec) SetPanicReactionsForMethods(resourceName string, methods []string) *APIBehaviorSpec {
-	s.initializeResourceReactionMapForResource(resourceName)
-	for _, method := range methods {
-		s.resourceReactionsByName[resourceName][method] = ResourceReaction{panic: true}
-	}
-	return s
-}
-
-func (s *APIBehaviorSpec) SetErrorReactionsForMethods(resourceName string, methods []string, err error) *APIBehaviorSpec {
-	s.initializeResourceReactionMapForResource(resourceName)
-	for _, method := range methods {
-		s.resourceReactionsByName[resourceName][method] = ResourceReaction{err: err}
-	}
-	return s
-}
-
+// AddContextTimeoutResourceTypeReaction adds a context timeout reaction for all resources of the given resourceType.
+// Context timeout is simulated after the given timeoutAfter duration when the given method on the resource client is invoked.
 func (s *APIBehaviorSpec) AddContextTimeoutResourceTypeReaction(resourceType ResourceType, method string, timeoutAfter time.Duration) *APIBehaviorSpec {
 	s.initializeResourceTypeReactionMapForResource(resourceType)
 	s.resourceReactionsByType[resourceType][method] = ResourceReaction{timeoutAfter: &timeoutAfter}
 	return s
 }
 
+// AddPanicResourceTypeReaction adds a panic reaction for all resources of a given resourceType when a given method on the resource client is invoked.
 func (s *APIBehaviorSpec) AddPanicResourceTypeReaction(resourceType ResourceType, method string) *APIBehaviorSpec {
 	s.initializeResourceTypeReactionMapForResource(resourceType)
 	s.resourceReactionsByType[resourceType][method] = ResourceReaction{panic: true}
 	return s
 }
 
+// AddErrorResourceTypeReaction adds an error reaction for all resources of a given resourceType. The give error is returned
+// when the given method is invoked on the respective resource client.
 func (s *APIBehaviorSpec) AddErrorResourceTypeReaction(resourceType ResourceType, method string, err error) *APIBehaviorSpec {
 	s.initializeResourceTypeReactionMapForResource(resourceType)
 	s.resourceReactionsByType[resourceType][method] = ResourceReaction{err: err}
@@ -126,11 +121,13 @@ func (s *APIBehaviorSpec) initializeResourceTypeReactionMapForResource(resourceT
 	}
 }
 
+// SimulateForResourceType runs the simulation for a resourceType and method combination using any configured reactions.
 func (s *APIBehaviorSpec) SimulateForResourceType(ctx context.Context, resourceGroup string, resourceType *ResourceType, method string) error {
 	resTypeReaction := s.getResourceTypeReaction(resourceType, method)
-	return doSimulate(ctx, resTypeReaction, fmt.Sprintf("Panicking for ResourceType -> [resourceGroup: %s, type: %s]", resourceGroup, resourceType))
+	return doSimulate(ctx, resTypeReaction, fmt.Sprintf("Panicking for ResourceType -> [resourceGroup: %s, type: %s]", resourceGroup, *resourceType))
 }
 
+// SimulateForResource runs the simulation for a resource and method combination using any configured reactions.
 func (s *APIBehaviorSpec) SimulateForResource(ctx context.Context, resourceGroup, resourceName, method string) error {
 	resReaction := s.getResourceReaction(resourceName, method)
 	return doSimulate(ctx, resReaction, fmt.Sprintf("Panicking for resource -> [resourceGroup: %s, name: %s]", resourceGroup, resourceName))

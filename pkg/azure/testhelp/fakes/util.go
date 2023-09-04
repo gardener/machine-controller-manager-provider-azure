@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
+// CreateProviderSecret creates a fake secret containing provider credentials.
 func CreateProviderSecret() *corev1.Secret {
 	return &corev1.Secret{
 		TypeMeta:   metav1.TypeMeta{},
@@ -44,22 +45,27 @@ func CreateProviderSecret() *corev1.Secret {
 	}
 }
 
+// CreateVirtualMachineID creates an azure representation of virtual machine ID.
 func CreateVirtualMachineID(subscriptionID, resourceGroup, vmName string) string {
 	return fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s", subscriptionID, resourceGroup, vmName)
 }
 
+// CreateNetworkInterfaceID creates an azure representation of network ID.
 func CreateNetworkInterfaceID(subscriptionID, resourceGroup, nicName string) string {
 	return fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkInterfaces/%s", subscriptionID, resourceGroup, nicName)
 }
 
+// CreateIPConfigurationID creates an azure representation of IP configuration ID.
 func CreateIPConfigurationID(subscriptionID, resourceGroup, nicName, ipConfigName string) string {
 	return fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkInterfaces/%s/ipConfigurations/%s", subscriptionID, resourceGroup, nicName, ipConfigName)
 }
 
+// CreateSubnetName creates a subnet name.
 func CreateSubnetName(shootNs string) string {
 	return fmt.Sprintf("%s-nodes", shootNs)
 }
 
+// CreateMachineClass creates a v1alpha1.MachineClass from resource group and provider spec.
 func CreateMachineClass(providerSpec api.AzureProviderSpec, resourceGroup *string) (*v1alpha1.MachineClass, error) {
 	if resourceGroup != nil {
 		providerSpec.ResourceGroup = *resourceGroup
@@ -78,6 +84,7 @@ func CreateMachineClass(providerSpec api.AzureProviderSpec, resourceGroup *strin
 	return machineClass, nil
 }
 
+// NewMachineObjectMeta creates an ObjectMeta for a Machine.
 func NewMachineObjectMeta(namespace string, vmName string) metav1.ObjectMeta {
 	return metav1.ObjectMeta{
 		Namespace: namespace,
@@ -85,29 +92,31 @@ func NewMachineObjectMeta(namespace string, vmName string) metav1.ObjectMeta {
 	}
 }
 
+// GetCascadeDeleteOptForNIC gets the configured delete option for a NIC associated to the passed VM.
 func GetCascadeDeleteOptForNIC(vm armcompute.VirtualMachine) *armcompute.DeleteOptions {
 	if vm.Properties != nil && vm.Properties.NetworkProfile != nil && !utils.IsSliceNilOrEmpty(vm.Properties.NetworkProfile.NetworkInterfaces) {
 		nic := vm.Properties.NetworkProfile.NetworkInterfaces[0]
 		if nic.Properties != nil && nic.Properties.DeleteOption != nil {
 			return nic.Properties.DeleteOption
-		} else {
-			return to.Ptr(armcompute.DeleteOptionsDetach)
 		}
+		return to.Ptr(armcompute.DeleteOptionsDetach)
 	}
 	return nil
 }
 
+// GetCascadeDeleteOptForOsDisk gets the configured delete option for OSDisk associated to the passed VM.
 func GetCascadeDeleteOptForOsDisk(vm armcompute.VirtualMachine) *armcompute.DiskDeleteOptionTypes {
 	if vm.Properties != nil && vm.Properties.StorageProfile != nil && vm.Properties.StorageProfile.OSDisk != nil {
 		if vm.Properties.StorageProfile.OSDisk.DeleteOption != nil {
 			return vm.Properties.StorageProfile.OSDisk.DeleteOption
-		} else {
-			return to.Ptr(armcompute.DiskDeleteOptionTypesDetach)
 		}
+		return to.Ptr(armcompute.DiskDeleteOptionTypesDetach)
 	}
 	return nil
 }
 
+// GetCascadeDeleteOptForDataDisks gets the configured delete option for DataDisk associated to the passed VM.
+// Returns a map whose key is the data disk name and the value is the delete option.
 func GetCascadeDeleteOptForDataDisks(vm armcompute.VirtualMachine) map[string]*armcompute.DiskDeleteOptionTypes {
 	deleteOpts := make(map[string]*armcompute.DiskDeleteOptionTypes)
 	if vm.Properties != nil && vm.Properties.StorageProfile != nil && !utils.IsSliceNilOrEmpty(vm.Properties.StorageProfile.DataDisks) {
@@ -123,6 +132,7 @@ func GetCascadeDeleteOptForDataDisks(vm armcompute.VirtualMachine) map[string]*a
 	return deleteOpts
 }
 
+// CreateAzureDiskPVSource creates a corev1.PersistentVolumeSource initializing AzureDisk.
 func CreateAzureDiskPVSource(resourceGroup, diskName string) corev1.PersistentVolumeSource {
 	diskURI := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/disks/%s", testhelp.SubscriptionID, resourceGroup, diskName)
 	return corev1.PersistentVolumeSource{
@@ -136,6 +146,7 @@ func CreateAzureDiskPVSource(resourceGroup, diskName string) corev1.PersistentVo
 		}}
 }
 
+// CreateCSIPVSource creates a corev1.PersistentVolumeSource initializing CSI.
 func CreateCSIPVSource(driverName, volumeName string) corev1.PersistentVolumeSource {
 	return corev1.PersistentVolumeSource{
 		CSI: &corev1.CSIPersistentVolumeSource{
@@ -146,6 +157,7 @@ func CreateCSIPVSource(driverName, volumeName string) corev1.PersistentVolumeSou
 		}}
 }
 
+// GetDefaultVMImageParts splits testhelp.DefaultImageRefURN into its constituent parts.
 func GetDefaultVMImageParts() (publisher string, offer string, sku string, version string) {
 	urnParts := strings.Split(testhelp.DefaultImageRefURN, ":")
 	publisher = urnParts[0]
@@ -155,33 +167,39 @@ func GetDefaultVMImageParts() (publisher string, offer string, sku string, versi
 	return
 }
 
+// ActualSliceEqualsExpectedSlice creates a utility comparator comparing two slices for equality.
 func ActualSliceEqualsExpectedSlice[T comparable](actual []T, expected []T) bool {
 	actualSet := sets.New[T](actual...)
 	expectedSet := sets.New[T](expected...)
 	return len(actualSet.Difference(expectedSet)) == 0 && len(expectedSet.Difference(actualSet)) == 0
 }
 
+// IsSubnetURIPath checks if the URI points to a subnet resource.
 func IsSubnetURIPath(uriPath string, subscriptionID string, subnetSpec SubnetSpec) bool {
 	expectedSubnetURIPath := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/virtualNetworks/%s/subnets/%s", subscriptionID, subnetSpec.ResourceGroup, subnetSpec.VnetName, subnetSpec.SubnetName)
 	return uriPath == expectedSubnetURIPath
 }
 
+// IsVMImageURIPath checks if the URI points to a VM Image resource.
 func IsVMImageURIPath(uriPath string, subscriptionID, location string, vmImageSpec VMImageSpec) bool {
 	expectedVMImageURIPath := fmt.Sprintf("/subscriptions/%s/providers/Microsoft.Compute/locations/%s/publishers/%s/artifacttypes/vmimage/offers/%s/skus/%s/versions/%s", subscriptionID, location, vmImageSpec.Publisher, vmImageSpec.Offer, vmImageSpec.SKU, vmImageSpec.Version)
 	return uriPath == expectedVMImageURIPath
 }
 
+// IsMktPlaceAgreementURIPath checks if the URI points to a market-place agreement resource.
 func IsMktPlaceAgreementURIPath(uriPath string, subscriptionID string, vmImageSpec VMImageSpec) bool {
 	expectedAgreementURIPath := fmt.Sprintf("/subscriptions/%s/providers/Microsoft.MarketplaceOrdering/offerTypes/virtualmachine/publishers/%s/offers/%s/plans/%s/agreements/current", subscriptionID, vmImageSpec.Publisher, vmImageSpec.Offer, vmImageSpec.SKU)
 	return uriPath == expectedAgreementURIPath
 }
 
+// IsNicURIPath checks if the URI points to a NIC resource.
 func IsNicURIPath(uriPath, subscriptionID, resourceGroup, nicName string) bool {
 	expectNicURIPath := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Network/networkInterfaces/%s", subscriptionID, resourceGroup, nicName)
 	return uriPath == expectNicURIPath
 }
 
+// IsVMURIPath checks if the URI points to a VM resource.
 func IsVMURIPath(uriPath, subscriptionID, resourceGroup, vmName string) bool {
-	expectedVmURIPath := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s", subscriptionID, resourceGroup, vmName)
-	return uriPath == expectedVmURIPath
+	expectedVMURIPath := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s", subscriptionID, resourceGroup, vmName)
+	return uriPath == expectedVMURIPath
 }

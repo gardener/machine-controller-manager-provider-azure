@@ -70,14 +70,14 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 // ConstructMachineListResponse constructs response for driver.ListMachines method.
 func ConstructMachineListResponse(location string, vmNames []string) *driver.ListMachinesResponse {
 	listMachineRes := driver.ListMachinesResponse{}
-	instanceIdToVMNameMap := make(map[string]string, len(vmNames))
+	instanceIDToVMNameMap := make(map[string]string, len(vmNames))
 	if len(vmNames) == 0 {
 		return &listMachineRes
 	}
 	for _, vmName := range vmNames {
-		instanceIdToVMNameMap[DeriveInstanceID(location, vmName)] = vmName
+		instanceIDToVMNameMap[DeriveInstanceID(location, vmName)] = vmName
 	}
-	listMachineRes.MachineList = instanceIdToVMNameMap
+	listMachineRes.MachineList = instanceIDToVMNameMap
 	return &listMachineRes
 }
 

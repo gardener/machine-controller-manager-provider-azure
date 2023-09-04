@@ -24,15 +24,25 @@ import (
 
 // Error codes
 const (
-	ErrorCodeResourceNotFound      = "ResourceNotFound"
+	// ErrorCodeResourceNotFound is the error code returned in Azure response header when resource is not found.
+	ErrorCodeResourceNotFound = "ResourceNotFound"
+	// ErrorCodeResourceGroupNotFound is the error code returned in Azure response header when resource group is not found.
 	ErrorCodeResourceGroupNotFound = "ResourceGroupNotFound"
-	ErrorCodePatchResourceNotFound = "PatchResourceNotFound"
-	ErrorOperationNotAllowed       = "OperationNotAllowed"
-	ErrorBadRequest                = "BadRequest"
-	ErrorCodeVMImageNotFound       = "NotFound"
-	ErrorCodeSubnetNotFound        = "NotFound"
+	// ErrorOperationNotAllowed is the error code returned in Azure response if an operation is not allowed on a resource.
+	ErrorOperationNotAllowed = "OperationNotAllowed"
+	// ErrorBadRequest is the error code returned in Azure response if the request is not as per the spec. In some cases this code is returned in place of not found.
+	ErrorBadRequest = "BadRequest"
+	// ErrorCodeVMImageNotFound is the error code returned in Azure response if the VM Image is not found.
+	// We have created 2 different constants for not found error because Azure is not consistent. For certain resources it returns
+	// ResourceNotFound while for others it just returns NotFound.
+	ErrorCodeVMImageNotFound = "NotFound"
+	// ErrorCodeSubnetNotFound is the error code returned in Azure response if the subnet is not found.
+	// We have created 2 different constants for not found error because Azure is not consistent. For certain resources it returns
+	// ResourceNotFound while for others it just returns NotFound.
+	ErrorCodeSubnetNotFound = "NotFound"
 )
 
+// ContextTimeoutError creates an error mimicking timeout of a context.
 func ContextTimeoutError(parentCtx context.Context, timeout time.Duration) error {
 	opCtx, cancelFn := context.WithTimeout(parentCtx, timeout)
 	defer cancelFn()
@@ -42,6 +52,7 @@ func ContextTimeoutError(parentCtx context.Context, timeout time.Duration) error
 	}
 }
 
+// ResourceNotFoundErr creates a resource not found error setting azure specific error code as a response header.
 func ResourceNotFoundErr(errorCode string) error {
 	headers := http.Header{}
 	headers.Set("x-ms-error-code", errorCode)
@@ -53,6 +64,7 @@ func ResourceNotFoundErr(errorCode string) error {
 	return runtime.NewResponseError(resp)
 }
 
+// ConflictErr creates a conflict error setting azure specific error code as a response header.
 func ConflictErr(errorCode string) error {
 	headers := http.Header{}
 	headers.Set("x-ms-error-code", errorCode)
@@ -64,6 +76,7 @@ func ConflictErr(errorCode string) error {
 	return runtime.NewResponseError(resp)
 }
 
+// InternalServerError creates an internal server error setting the azure specific error code as response header.
 func InternalServerError(errorCode string) error {
 	headers := http.Header{}
 	headers.Set("x-ms-error-code", errorCode)
@@ -75,6 +88,7 @@ func InternalServerError(errorCode string) error {
 	return runtime.NewResponseError(resp)
 }
 
+// BadRequestError creates a bad request error setting azure specific error code as a response header.
 func BadRequestError(errorCode string) error {
 	headers := http.Header{}
 	headers.Set("x-ms-error-code", errorCode)

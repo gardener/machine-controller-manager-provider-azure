@@ -24,12 +24,14 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+// ProviderSpecBuilder is a builder for ProviderSpec. Only used for unit tests.
 type ProviderSpecBuilder struct {
 	shootNs        string
 	workerPoolName string
 	spec           api.AzureProviderSpec
 }
 
+// NewProviderSpecBuilder creates a new instance of ProviderSpecBuilder.
 func NewProviderSpecBuilder(resourceGroup, shootNs, workerPoolName string) *ProviderSpecBuilder {
 	return &ProviderSpecBuilder{
 		shootNs:        shootNs,
@@ -48,6 +50,9 @@ func NewProviderSpecBuilder(resourceGroup, shootNs, workerPoolName string) *Prov
 	}
 }
 
+// WithDefaultValues initializes ProviderSpecBuilder with default values for all mandatory fields.
+// This sets up sufficient fields so that ProviderSpec validation succeeds.
+// NOTE: In case validation is changed this method should adapt.
 func (b *ProviderSpecBuilder) WithDefaultValues() *ProviderSpecBuilder {
 	return b.
 		WithDefaultTags().
@@ -58,6 +63,7 @@ func (b *ProviderSpecBuilder) WithDefaultValues() *ProviderSpecBuilder {
 		WithDefaultNetworkProfile()
 }
 
+// WithDefaultSubnetInfo sets a default SubnetInfo to the provider spec.
 func (b *ProviderSpecBuilder) WithDefaultSubnetInfo() *ProviderSpecBuilder {
 	b.spec.SubnetInfo = api.AzureSubnetInfo{
 		VnetName:   b.shootNs,
@@ -66,6 +72,7 @@ func (b *ProviderSpecBuilder) WithDefaultSubnetInfo() *ProviderSpecBuilder {
 	return b
 }
 
+// WithSubnetInfo sets a custom vnet resource group to the SubnetInfo part of the provider spec.
 func (b *ProviderSpecBuilder) WithSubnetInfo(vnetResourceGroup string) *ProviderSpecBuilder {
 	b.spec.SubnetInfo = api.AzureSubnetInfo{
 		VnetName:          b.shootNs,
@@ -75,6 +82,7 @@ func (b *ProviderSpecBuilder) WithSubnetInfo(vnetResourceGroup string) *Provider
 	return b
 }
 
+// WithDefaultNetworkProfile sets a default network profile in the provider spec.
 func (b *ProviderSpecBuilder) WithDefaultNetworkProfile() *ProviderSpecBuilder {
 	b.spec.Properties.NetworkProfile = api.AzureNetworkProfile{
 		AcceleratedNetworking: to.Ptr(true),
@@ -82,11 +90,13 @@ func (b *ProviderSpecBuilder) WithDefaultNetworkProfile() *ProviderSpecBuilder {
 	return b
 }
 
+// WithDefaultHardwareProfile sets a default hardware profile in the provider spec.
 func (b *ProviderSpecBuilder) WithDefaultHardwareProfile() *ProviderSpecBuilder {
 	b.spec.Properties.HardwareProfile.VMSize = VMSize
 	return b
 }
 
+// WithDefaultStorageProfile sets a default storage profile in the provider spec.
 func (b *ProviderSpecBuilder) WithDefaultStorageProfile() *ProviderSpecBuilder {
 	b.spec.Properties.StorageProfile.ImageReference = api.AzureImageReference{
 		URN: to.Ptr(DefaultImageRefURN),
@@ -102,6 +112,7 @@ func (b *ProviderSpecBuilder) WithDefaultStorageProfile() *ProviderSpecBuilder {
 	return b
 }
 
+// WithDataDisks configures data disks in the provider spec.
 func (b *ProviderSpecBuilder) WithDataDisks(diskName string, numDisks int) *ProviderSpecBuilder {
 	dataDisks := make([]api.AzureDataDisk, 0, numDisks)
 	for i := 0; i < numDisks; i++ {
@@ -118,6 +129,7 @@ func (b *ProviderSpecBuilder) WithDataDisks(diskName string, numDisks int) *Prov
 	return b
 }
 
+// WithDefaultOsProfile sets a default OS profile in the provider spec.
 func (b *ProviderSpecBuilder) WithDefaultOsProfile() *ProviderSpecBuilder {
 	b.spec.Properties.OsProfile = api.AzureOSProfile{
 		AdminUsername:      "core",
@@ -126,6 +138,7 @@ func (b *ProviderSpecBuilder) WithDefaultOsProfile() *ProviderSpecBuilder {
 	return b
 }
 
+// WithDefaultTags sets default tags in the provider spec.
 func (b *ProviderSpecBuilder) WithDefaultTags() *ProviderSpecBuilder {
 	if b.spec.Tags == nil {
 		b.spec.Tags = make(map[string]string)
@@ -143,19 +156,23 @@ func (b *ProviderSpecBuilder) WithDefaultTags() *ProviderSpecBuilder {
 	return b
 }
 
+// WithTags sets custom tags in the provider spec.
 func (b *ProviderSpecBuilder) WithTags(tags map[string]string) *ProviderSpecBuilder {
 	b.spec.Tags = tags
 	return b
 }
 
+// Marshal serializes the provider spec to a slice of bytes.
 func (b *ProviderSpecBuilder) Marshal() ([]byte, error) {
 	return json.Marshal(b.spec)
 }
 
+// Build builds the provider spec.
 func (b *ProviderSpecBuilder) Build() api.AzureProviderSpec {
 	return b.spec
 }
 
+// CreateDataDiskNames creates data disk names for the given vm name and provider spec.
 func CreateDataDiskNames(vmName string, spec api.AzureProviderSpec) []string {
 	var diskNames []string
 	for _, specDataDisk := range spec.Properties.StorageProfile.DataDisks {

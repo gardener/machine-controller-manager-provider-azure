@@ -30,17 +30,20 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+// ResourceGraphAccessBuilder is a builder for Resource Graph access.
 type ResourceGraphAccessBuilder struct {
 	clusterState    *ClusterState
 	server          fakeresourcegraph.Server
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
+// WithClusterState initializes builder with a ClusterState.
 func (b *ResourceGraphAccessBuilder) WithClusterState(clusterState *ClusterState) *ResourceGraphAccessBuilder {
 	b.clusterState = clusterState
 	return b
 }
 
+// WithAPIBehaviorSpec initializes the builder with a APIBehaviorSpec.
 func (b *ResourceGraphAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *ResourceGraphAccessBuilder {
 	b.apiBehaviorSpec = apiBehaviorSpec
 	return b
@@ -121,6 +124,7 @@ func createResourcesResponse(vmNames []string) armresourcegraph.ClientResourcesR
 	}
 }
 
+// Build builds armresourcegraph.Client.
 func (b *ResourceGraphAccessBuilder) Build() (*armresourcegraph.Client, error) {
 	b.withResources()
 	return armresourcegraph.NewClient(azfake.NewTokenCredential(), &arm.ClientOptions{

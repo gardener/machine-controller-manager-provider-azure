@@ -114,7 +114,7 @@ func (g *RunGroup) waitTillTokenAvailable(ctx context.Context) error {
 func capturePanicAsError(name string, errCh chan<- error) {
 	if v := recover(); v != nil {
 		stack := debug.Stack()
-		panicErr := fmt.Errorf("Task: %s execution panicked: %v\n, stack-trace: %s\n", name, v, stack)
+		panicErr := fmt.Errorf("task: %s execution panicked: %v\n, stack-trace: %s", name, v, stack)
 		errCh <- panicErr
 	}
 }

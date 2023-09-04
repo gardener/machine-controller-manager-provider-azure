@@ -27,12 +27,16 @@ import (
 )
 
 const (
+	// ResourceQuotaExceededAzErrorCode is an Azure error code indicating that resource quota has exhausted.
 	ResourceQuotaExceededAzErrorCode = "ResourceQuotaExceeded"
-	//OverConstrainedAllocationRequest
+	// CorrelationRequestIDAzHeaderKey is the Azure API response header key whose value is a request correlation ID.
 	CorrelationRequestIDAzHeaderKey = "x-ms-correlation-request-id"
-	RequestIDAzHeaderKey            = "x-ms-request-id"
-	ErrorCodeAzHeaderKey            = "x-ms-error-code"
-	ClientRequestIDAzHeaderKey      = "x-ms-client-request-id"
+	// RequestIDAzHeaderKey is the Azure API response header key whose value is the request ID.
+	RequestIDAzHeaderKey = "x-ms-request-id"
+	// ErrorCodeAzHeaderKey is the Azure API response header key whose value is the underline error code as set by the server.
+	ErrorCodeAzHeaderKey = "x-ms-error-code"
+	// ClientRequestIDAzHeaderKey is the Azure API response header key whose value is the client request ID.
+	ClientRequestIDAzHeaderKey = "x-ms-client-request-id"
 )
 
 var (

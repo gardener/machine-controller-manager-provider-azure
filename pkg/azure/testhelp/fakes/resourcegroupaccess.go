@@ -26,18 +26,21 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 )
 
+// ResourceGroupsAccessBuilder is a builder for Resource Groups access.
 type ResourceGroupsAccessBuilder struct {
 	rg              string
 	server          fakearmresources.ResourceGroupsServer
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
+// WithAPIBehaviorSpec initializes the builder with a APIBehaviorSpec.
 func (b *ResourceGroupsAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *ResourceGroupsAccessBuilder {
 	b.apiBehaviorSpec = apiBehaviorSpec
 	return b
 }
 
-func (b *ResourceGroupsAccessBuilder) WithCheckExistence() *ResourceGroupsAccessBuilder {
+// withCheckExistence implements the CheckExistence method of armresources.ResourceGroupsClient and initializes the backing fake server's CheckExistence method with the anonymous function implementation.
+func (b *ResourceGroupsAccessBuilder) withCheckExistence() *ResourceGroupsAccessBuilder {
 	b.server.CheckExistence = func(ctx context.Context, resourceGroupName string, options *armresources.ResourceGroupsClientCheckExistenceOptions) (resp azfake.Responder[armresources.ResourceGroupsClientCheckExistenceResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, resourceGroupName, testhelp.AccessMethodCheckExistence)
@@ -57,8 +60,9 @@ func (b *ResourceGroupsAccessBuilder) WithCheckExistence() *ResourceGroupsAccess
 	return b
 }
 
+// Build builds armresources.ResourceGroupsClient.
 func (b *ResourceGroupsAccessBuilder) Build() (*armresources.ResourceGroupsClient, error) {
-	b.WithCheckExistence()
+	b.withCheckExistence()
 	return armresources.NewResourceGroupsClient(
 		testhelp.SubscriptionID,
 		azfake.NewTokenCredential(),

@@ -47,7 +47,7 @@ func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret) (access.Connect
 	}, nil
 }
 
-// extractCredentialsFromData extracts and trims a value from the given data map. The first key that exists is being
+// ExtractCredentialsFromData extracts and trims a value from the given data map. The first key that exists is being
 // returned, otherwise, the next key is tried, etc. If no key exists then an empty string is returned.
 func ExtractCredentialsFromData(data map[string][]byte, keys ...string) string {
 	for _, key := range keys {

@@ -54,7 +54,7 @@ const (
 // ExtractVMNamesFromVirtualMachinesAndNICs extracts VM names from virtual machines and NIC names and returns a slice of unique vm names.
 func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, client *armresourcegraph.Client, subscriptionID, resourceGroup string) ([]string, error) {
 	vmNames := sets.New[string]()
-	vmNamesFromVirtualMachines, err := QueryAndMap[string](ctx, client, subscriptionID, createVMNameMapperFn(nil), listVMsQueryTemplate)
+	vmNamesFromVirtualMachines, err := QueryAndMap[string](ctx, client, subscriptionID, createVMNameMapperFn(nil), listVMsQueryTemplate, resourceGroup)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get VM names from VirtualMachines for resourceGroup :%s: error: %v", resourceGroup, err))
 	}
@@ -68,7 +68,7 @@ func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, client *armre
 	// In order to get any orphaned VM or NIC, its currently essential that a VM name which serves as a unique machine name should be collected
 	// by introspecting VMs and NICs. Ideally you would change the response struct to separately capture VM name(s) and NIC name(s) under MachineInfo
 	// and have a slice of such MachineInfo returned as part of this provider method.
-	vmNamesFromNICs, err := QueryAndMap[string](ctx, client, subscriptionID, createVMNameMapperFn(to.Ptr(nicSuffix)), listNICsQueryTemplate)
+	vmNamesFromNICs, err := QueryAndMap[string](ctx, client, subscriptionID, createVMNameMapperFn(to.Ptr(nicSuffix)), listNICsQueryTemplate, resourceGroup)
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get VM names from NICs for resourceGroup :%s: error: %v", resourceGroup, err))
 	}
@@ -84,7 +84,7 @@ type MapperFn[T any] func(map[string]interface{}) *T
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func QueryAndMap[T any](ctx context.Context, client *armresourcegraph.Client, subscriptionID string, mapperFn MapperFn[T], queryTemplate string, templateArgs ...any) (results []T, err error) {
 	defer instrument.RecordAzAPIMetric(err, resourceGraphQueryServiceLabel, time.Now())
-	query := fmt.Sprintf(queryTemplate, templateArgs)
+	query := fmt.Sprintf(queryTemplate, templateArgs...)
 	resources, err := client.Resources(ctx,
 		armresourcegraph.QueryRequest{
 			Query:         to.Ptr(query),
@@ -122,9 +122,8 @@ func createVMNameMapperFn(suffix *string) MapperFn[string] {
 			resourceName := resourceNameVal.(string)
 			if suffix != nil && strings.HasSuffix(resourceName, *suffix) {
 				return to.Ptr(resourceName[:len(resourceName)-len(*suffix)])
-			} else {
-				return to.Ptr(resourceName)
 			}
+			return to.Ptr(resourceName)
 		}
 		return nil
 	}

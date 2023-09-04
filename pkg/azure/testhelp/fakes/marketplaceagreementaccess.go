@@ -27,22 +27,26 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 )
 
+// MarketPlaceAgreementAccessBuilder is a builder for MarketPlace Agreement access.
 type MarketPlaceAgreementAccessBuilder struct {
 	server          fakemktplaceordering.MarketplaceAgreementsServer
 	clusterState    *ClusterState
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
+// WithClusterState initializes builder with a ClusterState.
 func (b *MarketPlaceAgreementAccessBuilder) WithClusterState(clusterState *ClusterState) *MarketPlaceAgreementAccessBuilder {
 	b.clusterState = clusterState
 	return b
 }
 
+// WithAPIBehaviorSpec initializes the builder with a APIBehaviorSpec.
 func (b *MarketPlaceAgreementAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *MarketPlaceAgreementAccessBuilder {
 	b.apiBehaviorSpec = apiBehaviorSpec
 	return b
 }
 
+// withGet implements the Get method of armmarketplaceordering.MarketplaceAgreementsClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *MarketPlaceAgreementAccessBuilder) withGet() *MarketPlaceAgreementAccessBuilder {
 	b.server.Get = func(ctx context.Context, offerType armmarketplaceordering.OfferType, publisherID string, offerID string, planID string, options *armmarketplaceordering.MarketplaceAgreementsClientGetOptions) (resp azfake.Responder[armmarketplaceordering.MarketplaceAgreementsClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -89,6 +93,7 @@ func (b *MarketPlaceAgreementAccessBuilder) withCreate() *MarketPlaceAgreementAc
 	return b
 }
 
+// Build builds the armmarketplaceordering.MarketplaceAgreementsClient.
 func (b *MarketPlaceAgreementAccessBuilder) Build() (*armmarketplaceordering.MarketplaceAgreementsClient, error) {
 	b.withGet().withCreate()
 	return armmarketplaceordering.NewMarketplaceAgreementsClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{

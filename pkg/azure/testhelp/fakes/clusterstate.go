@@ -28,40 +28,65 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
+// ClusterState is a holder of state of cluster resources.
+// During unit testing all fake client implementations will operate on this shared cluster state thus allowing
+// all clients to see the same state. To prevent more than one client to mutate the state a mutex has to be acquired
+// before making modifications.
+// NOTE: It is recommended that tests do not share a ClusterState.
 type ClusterState struct {
-	mutex               sync.RWMutex
-	ProviderSpec        api.AzureProviderSpec
+	mutex sync.RWMutex
+	// ProviderSpec is the azure provider spec to be used by all clients.
+	ProviderSpec api.AzureProviderSpec
+	// MachineResourcesMap is a map where key is the name of the VM which is also the name for the machine.
+	// The value is a MachineResources object.
 	MachineResourcesMap map[string]MachineResources
-	// currently we support only one vm image as that is sufficient for unit testing.
+	// VMImageSpec is the VM image spec for this cluster state.
+	// Currently, we support only one vm image as that is sufficient for unit testing.
 	VMImageSpec *VMImageSpec
-	// currently we support only one agreement terms as that is sufficient for unit testing.
+	// AgreementTerms is the agreement terms for the VM Image.
+	// Currently, we support only one agreement terms as that is sufficient for unit testing.
 	AgreementTerms *armmarketplaceordering.AgreementTerms
-	// currently we only support one subnet as that is sufficient for unit testing.
+	// SubnetSpec is the subnet spec that is used to configure all NICs.
+	// Currently, we only support one subnet as that is sufficient for unit testing.
 	SubnetSpec *SubnetSpec
 }
 
+// SubnetSpec is the spec that captures the subnet configuration.
 type SubnetSpec struct {
-	ResourceGroup string // this can be different from the ClusterState.ResourceGroup
-	SubnetName    string
-	VnetName      string
+	// ResourceGroup is the resource group where the subnet is defined.
+	ResourceGroup string
+	// SubnetName is the name of the subnet.
+	SubnetName string
+	// VnetName is the name of the virtual network.
+	VnetName string
 }
 
+// VMImageSpec is the spec for the VM Image.
 type VMImageSpec struct {
+	// Publisher is the publisher ID of the image.
 	Publisher string
-	Offer     string
-	SKU       string
-	Version   string
+	// Offer of the platform/market-place image used to create the VM.
+	Offer string
+	// SKU is an instance of an offer, such as a major release of a distribution.
+	SKU string
+	// Version is the version number of an image SKU.
+	Version string
+	// OfferType is the offer type. E.g. armmarketplaceordering.OfferTypeVirtualmachine.
 	OfferType armmarketplaceordering.OfferType
 }
 
+// DiskType is used as an enum type to define types of disks that can be associated to a VM.
 type DiskType string
 
 const (
-	DiskTypeOS       DiskType = "OSDisk"
+	// DiskTypeOS is the OS Disk that is always associated to a VM.
+	DiskTypeOS DiskType = "OSDisk"
+	// DiskTypeData represents one or more data disks that can be associated to a VM.
 	DiskTypeData     DiskType = "DataDisk"
 	defaultOfferType          = armmarketplaceordering.OfferTypeVirtualmachine
 )
 
+// NewClusterState creates a new ClusterState.
 func NewClusterState(providerSpec api.AzureProviderSpec) *ClusterState {
 	return &ClusterState{
 		ProviderSpec:        providerSpec,
@@ -69,15 +94,21 @@ func NewClusterState(providerSpec api.AzureProviderSpec) *ClusterState {
 	}
 }
 
+// AddMachineResources adds MachineResources against a VM/Machine name.
 func (c *ClusterState) AddMachineResources(m MachineResources) {
 	c.MachineResourcesMap[m.Name] = m
 }
 
+// ClusterState builder methods
+// ----------------------------------------------------------------------------------------------------------
+
+// WithVMImageSpec initializes ClusterState with the passed in VM Image spec and returns the ClusterState.
 func (c *ClusterState) WithVMImageSpec(vmImageSpec VMImageSpec) *ClusterState {
 	c.VMImageSpec = &vmImageSpec
 	return c
 }
 
+// WithDefaultVMImageSpec initializes ClusterState with a default VMImage and returns the ClusterState.
 func (c *ClusterState) WithDefaultVMImageSpec() *ClusterState {
 	publisher, offer, sku, version := GetDefaultVMImageParts()
 	c.VMImageSpec = &VMImageSpec{
@@ -115,6 +146,7 @@ func (c *ClusterState) WithAgreementTerms(accepted bool) *ClusterState {
 	return c
 }
 
+// WithSubnet initializes ClusterState with subnet and returns the ClusterState.
 func (c *ClusterState) WithSubnet(resourceGroup, subnetName, vnetName string) *ClusterState {
 	c.SubnetSpec = &SubnetSpec{
 		ResourceGroup: resourceGroup,
@@ -124,11 +156,15 @@ func (c *ClusterState) WithSubnet(resourceGroup, subnetName, vnetName string) *C
 	return c
 }
 
+// ----------------------------------------------------------------------------------------------------------
+
+// ResourceGroupExists checks if a passed in resourceGroupName has been configured in the ClusterState.
 func (c *ClusterState) ResourceGroupExists(resourceGroupName string) bool {
 	return c.ProviderSpec.ResourceGroup == resourceGroupName || (c.SubnetSpec != nil && c.SubnetSpec.ResourceGroup == resourceGroupName)
 }
 
-func (c *ClusterState) GetVMImage(vmImageSpec VMImageSpec) *armcompute.VirtualMachineImage {
+// GetVirtualMachineImage gets an armcompute.VirtualMachineImage from a VMImageSpec.
+func (c *ClusterState) GetVirtualMachineImage(vmImageSpec VMImageSpec) *armcompute.VirtualMachineImage {
 	if c.VMImageSpec == nil || !reflect.DeepEqual(vmImageSpec, *c.VMImageSpec) {
 		return nil
 	}
@@ -165,6 +201,7 @@ func (c *ClusterState) GetVMImage(vmImageSpec VMImageSpec) *armcompute.VirtualMa
 	}
 }
 
+// GetAgreementTerms returns an armmarketplaceordering.AgreementTerms matching passed in offerType, publisherID and offerID.
 func (c *ClusterState) GetAgreementTerms(offerType armmarketplaceordering.OfferType, publisherID string, offerID string) *armmarketplaceordering.AgreementTerms {
 	if c.AgreementTerms == nil || c.VMImageSpec == nil {
 		return nil
@@ -177,6 +214,7 @@ func (c *ClusterState) GetAgreementTerms(offerType armmarketplaceordering.OfferT
 	return nil
 }
 
+// GetSubnet gets an armnetwork.Subnet if it matches the configured subnet having the same resourceGroup, subnet and vnet names.
 func (c *ClusterState) GetSubnet(resourceGroup, subnetName, vnetName string) *armnetwork.Subnet {
 	if c.SubnetSpec != nil &&
 		c.SubnetSpec.ResourceGroup == resourceGroup &&
@@ -197,6 +235,7 @@ func (c *ClusterState) GetSubnet(resourceGroup, subnetName, vnetName string) *ar
 	return nil
 }
 
+// GetVM returns an armcompute.VirtualMachine having the same name as the passed in vmName.
 func (c *ClusterState) GetVM(vmName string) *armcompute.VirtualMachine {
 	if machineResources, ok := c.MachineResourcesMap[vmName]; ok {
 		return machineResources.VM
@@ -204,6 +243,7 @@ func (c *ClusterState) GetVM(vmName string) *armcompute.VirtualMachine {
 	return nil
 }
 
+// DeleteVM deletes the VM having the same name as passed in vmName from the ClusterState.
 func (c *ClusterState) DeleteVM(vmName string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -228,6 +268,8 @@ func (c *ClusterState) DeleteVM(vmName string) {
 	}
 }
 
+// CreateVM creates a new VM in the resourceGroup using vmParams.
+// This new VM will be added to the ClusterState and also returned for consumption.
 func (c *ClusterState) CreateVM(resourceGroup string, vmParams armcompute.VirtualMachine) *armcompute.VirtualMachine {
 	vmName := *vmParams.Name
 	machineResources, ok := c.MachineResourcesMap[vmName]
@@ -245,6 +287,7 @@ func (c *ClusterState) CreateVM(resourceGroup string, vmParams armcompute.Virtua
 	return machineResources.VM
 }
 
+// GetNIC gets a NIC matching the passed name if one exists.
 func (c *ClusterState) GetNIC(nicName string) *armnetwork.Interface {
 	for _, m := range c.MachineResourcesMap {
 		if m.NIC != nil && *m.NIC.Name == nicName {
@@ -254,6 +297,7 @@ func (c *ClusterState) GetNIC(nicName string) *armnetwork.Interface {
 	return nil
 }
 
+// DeleteNIC deletes the NIC with the matching nicName.
 func (c *ClusterState) DeleteNIC(nicName string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -274,6 +318,8 @@ loop:
 	}
 }
 
+// CreateNIC creates a nic with the passed in nicName and nic parameters.
+// The nic is also associated with the VM and ClusterState is updated.
 func (c *ClusterState) CreateNIC(nicName string, nic *armnetwork.Interface) *armnetwork.Interface {
 	vmName := utils.ExtractVMNameFromNICName(nicName)
 	machineResources, ok := c.MachineResourcesMap[vmName]
@@ -287,6 +333,7 @@ func (c *ClusterState) CreateNIC(nicName string, nic *armnetwork.Interface) *arm
 	return machineResources.NIC
 }
 
+// GetDisk gets the Disk matching diskName.
 func (c *ClusterState) GetDisk(diskName string) *armcompute.Disk {
 	diskType, machine := c.getDiskTypeAndOwningMachineResources(diskName)
 	switch diskType {
@@ -299,6 +346,7 @@ func (c *ClusterState) GetDisk(diskName string) *armcompute.Disk {
 	}
 }
 
+// DeleteDisk deletes the disk matching diskName.
 func (c *ClusterState) DeleteDisk(diskName string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -322,6 +370,7 @@ func (c *ClusterState) DeleteDisk(diskName string) {
 	}
 }
 
+// ExtractVMNamesFromNICs extract VM names from all configured NICs in the ClusterState.
 func (c *ClusterState) ExtractVMNamesFromNICs() []string {
 	vmNames := make([]string, 0, len(c.MachineResourcesMap))
 	for vmName, mr := range c.MachineResourcesMap {
@@ -332,6 +381,8 @@ func (c *ClusterState) ExtractVMNamesFromNICs() []string {
 	return vmNames
 }
 
+// GetAllExistingVMNames gets the VM names from all machines/VMs configured in the ClusterState.
+// It checks each MachineResources and only if the VM is configured will that be included.
 func (c *ClusterState) GetAllExistingVMNames() []string {
 	vmNames := make([]string, 0, len(c.MachineResourcesMap))
 	for vmName, mr := range c.MachineResourcesMap {
@@ -342,6 +393,9 @@ func (c *ClusterState) GetAllExistingVMNames() []string {
 	return vmNames
 }
 
+// GetAllVMNamesFromMachineResources gets all VM names from all existing MachineResources
+// irrespective of if the VM in each MachineResources object exists. This covers the case where
+// left over NIC/Disk(s) are there but the corresponding VM is not present.
 func (c *ClusterState) GetAllVMNamesFromMachineResources() []string {
 	vmNames := make([]string, 0, len(c.MachineResourcesMap))
 	for vmName := range c.MachineResourcesMap {

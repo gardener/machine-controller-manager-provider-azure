@@ -219,7 +219,7 @@ type AzureSSHConfiguration struct {
 	PublicKeys AzureSSHPublicKey `json:"publicKeys,omitempty"`
 }
 
-// AzureSSHPublicKey is contains information about SSH certificate public key and the path on the Linux VM where the public
+// AzureSSHPublicKey contains information about SSH certificate public key and the path on the Linux VM where the public
 // key is placed.
 type AzureSSHPublicKey struct {
 	// Path specifies the full path on the created VM where ssh public key is stored.

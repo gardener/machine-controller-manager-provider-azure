@@ -27,22 +27,26 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
+// NICAccessBuilder is a builder for NIC access.
 type NICAccessBuilder struct {
 	clusterState    *ClusterState
 	server          fakenetwork.InterfacesServer
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
+// WithClusterState initializes builder with a ClusterState.
 func (b *NICAccessBuilder) WithClusterState(clusterState *ClusterState) *NICAccessBuilder {
 	b.clusterState = clusterState
 	return b
 }
 
+// WithAPIBehaviorSpec initializes the builder with a APIBehaviorSpec.
 func (b *NICAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *NICAccessBuilder {
 	b.apiBehaviorSpec = apiBehaviorSpec
 	return b
 }
 
+// withGet implements the Get method of armnetwork.InterfacesClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *NICAccessBuilder) withGet() *NICAccessBuilder {
 	b.server.Get = func(ctx context.Context, resourceGroupName string, nicName string, options *armnetwork.InterfacesClientGetOptions) (resp azfake.Responder[armnetwork.InterfacesClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -68,6 +72,7 @@ func (b *NICAccessBuilder) withGet() *NICAccessBuilder {
 	return b
 }
 
+// withBeginDelete implements the BeingDelete method of armnetwork.InterfacesClient and initializes the backing fake server's BeginDelete method with the anonymous function implementation.
 func (b *NICAccessBuilder) withBeginDelete() *NICAccessBuilder {
 	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, nicName string, options *armnetwork.InterfacesClientBeginDeleteOptions) (resp azfake.PollerResponder[armnetwork.InterfacesClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -94,6 +99,7 @@ func (b *NICAccessBuilder) withBeginDelete() *NICAccessBuilder {
 	return b
 }
 
+// withBeginCreateOrUpdate implements the BeginCreateOrUpdate method of armnetwork.InterfacesClient and initializes the backing fake server's BeginCreateOrUpdate method with the anonymous function implementation.
 func (b *NICAccessBuilder) withBeginCreateOrUpdate() *NICAccessBuilder {
 	b.server.BeginCreateOrUpdate = func(ctx context.Context, resourceGroupName string, nicName string, parameters armnetwork.Interface, options *armnetwork.InterfacesClientBeginCreateOrUpdateOptions) (resp azfake.PollerResponder[armnetwork.InterfacesClientCreateOrUpdateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -114,6 +120,7 @@ func (b *NICAccessBuilder) withBeginCreateOrUpdate() *NICAccessBuilder {
 	return b
 }
 
+// Build builds armnetwork.InterfacesClient.
 func (b *NICAccessBuilder) Build() (*armnetwork.InterfacesClient, error) {
 	b.withGet().withBeginDelete().withBeginCreateOrUpdate()
 	return armnetwork.NewInterfacesClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{

@@ -27,22 +27,26 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 )
 
+// ImageAccessBuilder is a builder for VM images access.
 type ImageAccessBuilder struct {
 	server          fakecompute.VirtualMachineImagesServer
 	clusterState    *ClusterState
 	apiBehaviorSpec *APIBehaviorSpec
 }
 
+// WithClusterState initializes builder with a ClusterState.
 func (b *ImageAccessBuilder) WithClusterState(clusterState *ClusterState) *ImageAccessBuilder {
 	b.clusterState = clusterState
 	return b
 }
 
+// WithAPIBehaviorSpec initializes the builder with a APIBehaviorSpec.
 func (b *ImageAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) *ImageAccessBuilder {
 	b.apiBehaviorSpec = apiBehaviorSpec
 	return b
 }
 
+// withGet implements the Get method of armcompute.VirtualMachineImagesClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *ImageAccessBuilder) withGet() *ImageAccessBuilder {
 	b.server.Get = func(ctx context.Context, location string, publisherName string, offer string, skus string, version string, options *armcompute.VirtualMachineImagesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachineImagesClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
@@ -59,7 +63,7 @@ func (b *ImageAccessBuilder) withGet() *ImageAccessBuilder {
 			Version:   version,
 			OfferType: defaultOfferType,
 		}
-		vmImage := b.clusterState.GetVMImage(vmImageSpec)
+		vmImage := b.clusterState.GetVirtualMachineImage(vmImageSpec)
 		if vmImage == nil {
 			errResp.SetError(testhelp.ResourceNotFoundErr(testhelp.ErrorCodeVMImageNotFound))
 			return
@@ -70,6 +74,7 @@ func (b *ImageAccessBuilder) withGet() *ImageAccessBuilder {
 	return b
 }
 
+// Build builds the armcompute.VirtualMachineImagesClient.
 func (b *ImageAccessBuilder) Build() (*armcompute.VirtualMachineImagesClient, error) {
 	b.withGet()
 	return armcompute.NewVirtualMachineImagesClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
