@@ -146,7 +146,7 @@ func validateStorageImageRef(imageRef api.AzureImageReference, fldPath *field.Pa
 	idIsSet := !utils.IsEmptyString(imageRef.ID)
 	sharedGalleryImageIDIsSet := !utils.IsNilOrEmptyStringPtr(imageRef.SharedGalleryImageID)
 
-	atMostOnceIdentifierSet := atMostOneShouldBeTrue(urnIsSet, communityGalleryImageIDIsSet, idIsSet, sharedGalleryImageIDIsSet)
+	atMostOnceIdentifierSet := exactlyOneShouldBeTrue(urnIsSet, communityGalleryImageIDIsSet, idIsSet, sharedGalleryImageIDIsSet)
 	if !atMostOnceIdentifierSet {
 		return append(allErrs, field.Forbidden(fldPath.Child("id|.urn|.communityGalleryImageID|.sharedGalleryImageID"), "must specify only one of image id, community gallery image id, shared gallery image id or an urn"))
 	}
@@ -212,12 +212,12 @@ func validateAvailabilityAndScalingConfig(properties api.AzureVirtualMachineProp
 	isVirtualMachineScaleSetConfigured := properties.VirtualMachineScaleSet != nil && !utils.IsEmptyString(properties.VirtualMachineScaleSet.ID)
 
 	// check if both zone is configured and one or both of [availabilitySet, virtualMachineScaleSet] is configured
-	if !atMostOneShouldBeTrue(isZoneConfigured, isAvailabilitySetConfigured || isVirtualMachineScaleSetConfigured) {
+	if !exactlyOneShouldBeTrue(isZoneConfigured, isAvailabilitySetConfigured || isVirtualMachineScaleSetConfigured) {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.availabilitySet|.virtualMachineScaleSet"), "Either a Zone can be specified or one of (AvailabilitySet or VirtualMachineScaleSet) can be set."))
 	}
 
 	// if zone is not configured then check that only one of [availabilitySet, virtualMachineScaleSet] is configured
-	if properties.Zone == nil && !atMostOneShouldBeTrue(isAvailabilitySetConfigured, isVirtualMachineScaleSetConfigured) {
+	if properties.Zone == nil && !exactlyOneShouldBeTrue(isAvailabilitySetConfigured, isVirtualMachineScaleSetConfigured) {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("availabilitySet|.virtualMachineScaleSet"), "Must only configure an AvailabilitySet or VirtualMachineScaleSet but not both."))
 	}
 
@@ -276,7 +276,7 @@ func validateURN(urn string, fldPath *field.Path) field.ErrorList {
 	return allErrs
 }
 
-func atMostOneShouldBeTrue(conditions ...bool) bool {
+func exactlyOneShouldBeTrue(conditions ...bool) bool {
 	prevCondition := false
 	for _, c := range conditions {
 		if c && prevCondition {

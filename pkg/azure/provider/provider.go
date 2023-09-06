@@ -122,7 +122,7 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 		return
 	}
 	if skipDelete {
-		klog.Infof("skipping delete of Machine [ResourceGroup: %s, Name: %s] since the ResourceGroup no longer exists", resourceGroup, req.Machine.Name)
+		klog.Warningf("skipping delete of Machine [ResourceGroup: %s, Name: %s] since the ResourceGroup no longer exists", resourceGroup, req.Machine.Name)
 		resp = &driver.DeleteMachineResponse{}
 		return
 	}

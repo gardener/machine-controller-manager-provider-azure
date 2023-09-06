@@ -15,8 +15,11 @@
 package instrument
 
 import (
+	"errors"
+	"strconv"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 )
 
@@ -54,10 +57,20 @@ func RecordAzAPIMetric(err error, azServiceName string, invocationTime time.Time
 }
 
 // RecordDriverAPIMetric records a prometheus metric capturing the total duration of a successful execution for
-// any driver method (e.g. CreateMachine, DeleteMachine etc.).
+// any driver method (e.g. CreateMachine, DeleteMachine etc.). In case an error is returned then a failed counter
+// metric is recorded.
 func RecordDriverAPIMetric(err error, operation string, invocationTime time.Time) {
 	if err != nil {
-		// currently we only record duration for successful completion of driver methods
+		var (
+			statusErr *status.Status
+			labels    = []string{prometheusProviderLabelValue, operation}
+		)
+		if errors.As(err, &statusErr) {
+			labels = append(labels, strconv.Itoa(int(statusErr.Code())))
+		}
+		metrics.DriverFailedAPIRequests.
+			WithLabelValues(labels...).
+			Inc()
 		return
 	}
 	// compute the time taken to complete the AZ service call and record it as a metric
