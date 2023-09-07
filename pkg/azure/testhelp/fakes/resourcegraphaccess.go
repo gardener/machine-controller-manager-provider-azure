@@ -70,12 +70,13 @@ func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder
 		//-----------------------------------------------------------------------
 		var vmNames []string
 		if query.Query != nil {
+			tagsToMatch := b.getProviderSpecTagKeysToMatch()
 			if resType != nil {
 				switch *resType {
 				case VirtualMachinesResourceType:
-					vmNames = b.clusterState.GetAllExistingVMNames()
+					vmNames = b.clusterState.GetVMsMatchingTagKeys(tagsToMatch)
 				case NetworkInterfacesResourceType:
-					vmNames = b.clusterState.ExtractVMNamesFromNICs()
+					vmNames = b.clusterState.ExtractVMNamesFromNICsMatchingTagKeys(tagsToMatch)
 				}
 			} else {
 				// if there is not resultType this means that the query does not have a filter on resource type
@@ -103,6 +104,16 @@ func getResourceType(query string) *ResourceType {
 	default:
 		return nil
 	}
+}
+
+func (b *ResourceGraphAccessBuilder) getProviderSpecTagKeysToMatch() []string {
+	tagKeys := make([]string, 0, 2)
+	for k := range b.clusterState.ProviderSpec.Tags {
+		if strings.HasPrefix(k, utils.ClusterTagPrefix) || strings.HasPrefix(k, utils.RoleTagPrefix) {
+			tagKeys = append(tagKeys, k)
+		}
+	}
+	return tagKeys
 }
 
 func createResourcesResponse(vmNames []string) armresourcegraph.ClientResourcesResponse {

@@ -16,6 +16,7 @@ require (
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/spf13/pflag v1.0.5
 	golang.org/x/crypto v0.12.0
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	k8s.io/api v0.27.2
 	k8s.io/apimachinery v0.27.2
 	k8s.io/client-go v0.27.2
@@ -78,7 +79,7 @@ require (
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
 	golang.org/x/net v0.14.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
-	golang.org/x/sys v0.11.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/term v0.11.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
@@ -98,4 +99,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/gardener/machine-controller-manager => /Users/i062009/src/github.com/unmarshall/machine-controller-manager
+replace github.com/gardener/machine-controller-manager => /Users/i062009/src/github.com/gardener/mcm/machine-controller-manager

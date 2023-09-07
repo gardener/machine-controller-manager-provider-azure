@@ -28,6 +28,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
 	"golang.org/x/crypto/ssh"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/pointer"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
@@ -102,6 +103,89 @@ func ConstructCreateMachineResponse(location string, vmName string) *driver.Crea
 // DeriveInstanceID creates an instance ID from location and VM name.
 func DeriveInstanceID(location, vmName string) string {
 	return fmt.Sprintf("azure:///%s/%s", location, vmName)
+}
+
+// Helper functions used for driver.ListMachines
+// ---------------------------------------------------------------------------------------------------------------------
+
+const (
+	listVMsQueryTemplate = `
+	Resources
+	| where type =~ 'Microsoft.Compute/virtualMachines'
+	| where resourceGroup =~ '%s'
+	| extend tagKeys = bag_keys(tags)
+	| where tagKeys has '%s' and tagKeys has '%s'
+	| project name
+	`
+	listNICsQueryTemplate = `
+	Resources
+	| where type =~ 'microsoft.network/networkinterfaces'
+	| where resourceGroup =~ '%s'
+	| extend tagKeys = bag_keys(tags)
+	| where tagKeys has '%s' and tagKeys has '%s'
+	| project name
+	`
+
+	nicSuffix = "-nic"
+)
+
+// ExtractVMNamesFromVirtualMachinesAndNICs extracts VM names from virtual machines and NIC names and returns a slice of unique vm names.
+// This method uses azure resource graph client which in turn uses KUSTO as their query language.
+// For additional information on KUSTO start here: [https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/]
+func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, resourceGroup string, providerSpecTags map[string]string) ([]string, error) {
+	rgAccess, err := factory.GetResourceGraphAccess(connectConfig)
+	if err != nil {
+		return nil, err
+	}
+	vmNames := sets.New[string]()
+
+	queryTemplateArgs := prepareQueryTemplateArgs(resourceGroup, providerSpecTags)
+	vmNamesFromVirtualMachines, err := accesshelpers.QueryAndMap[string](ctx, rgAccess, connectConfig.SubscriptionID, createVMNameMapperFn(nil), listVMsQueryTemplate, queryTemplateArgs...)
+	if err != nil {
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("failed to get VM names from VirtualMachines for resourceGroup :%s: error: %v", resourceGroup, err), err)
+	}
+	vmNames.Insert(vmNamesFromVirtualMachines...)
+
+	// extract VM Names from existing NICs. Why is this required?
+	// A Machine in MCM terminology is a collective entity consisting of but not limited to VM, NIC(s), Disk(s).
+	// MCM orphan collection needs to track resources which have a separate lifecycle (currently in case of azure it is VM's and NICs.
+	// Disks (OS and Data) are created and deleted along with then VM.) and which are now orphaned. Unfortunately, MCM only orphan collects
+	// machines (a collective resource) and a machine is uniquely identified by a VM name (again not so ideal).
+	// In order to get any orphaned VM or NIC, its currently essential that a VM name which serves as a unique machine name should be collected
+	// by introspecting VMs and NICs. Ideally you would change the response struct to separately capture VM name(s) and NIC name(s) under MachineInfo
+	// and have a slice of such MachineInfo returned as part of this provider method.
+	vmNamesFromNICs, err := accesshelpers.QueryAndMap[string](ctx, rgAccess, connectConfig.SubscriptionID, createVMNameMapperFn(to.Ptr(nicSuffix)), listNICsQueryTemplate, queryTemplateArgs...)
+	if err != nil {
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("failed to get VM names from NICs for resourceGroup :%s: error: %v", resourceGroup, err), err)
+	}
+	vmNames.Insert(vmNamesFromNICs...)
+	return vmNames.UnsortedList(), nil
+}
+
+func prepareQueryTemplateArgs(resourceGroup string, providerSpecTags map[string]string) []any {
+	// NOTE: length is 3 because in the query we have a max of 3 parameter substitutions. This should be changed if the number of parameters change to prevent unnecessary resizing.
+	templateArgs := make([]any, 0, 3)
+	// NOTE: preserve the same order as these are ordered parameters which will be used for substitution.
+	templateArgs = append(templateArgs, resourceGroup)
+	for k := range providerSpecTags {
+		if strings.HasPrefix(k, utils.ClusterTagPrefix) || strings.HasPrefix(k, utils.RoleTagPrefix) {
+			templateArgs = append(templateArgs, k)
+		}
+	}
+	return templateArgs
+}
+
+func createVMNameMapperFn(suffix *string) accesshelpers.MapperFn[string] {
+	return func(r map[string]interface{}) *string {
+		if resourceNameVal, keyFound := r["name"]; keyFound {
+			resourceName := resourceNameVal.(string)
+			if suffix != nil && strings.HasSuffix(resourceName, *suffix) {
+				return to.Ptr(resourceName[:len(resourceName)-len(*suffix)])
+			}
+			return to.Ptr(resourceName)
+		}
+		return nil
+	}
 }
 
 // Helper functions used for driver.DeleteMachine

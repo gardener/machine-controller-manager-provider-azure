@@ -487,6 +487,18 @@ func TestListMachines(t *testing.T) {
 		vmPresent     bool
 		osDiskPresent bool
 		nicPresent    bool
+		// if present this will overwrite the tags that are borrowed from provider spec for this machine resource VM. Only specify this when vmPresent is true else it will never reflect.
+		vmTags map[string]string
+		// if present this will overwrite the tags that are borrowed from provider spec for this machine resource NIC. Only specify this when nicPresent is true else it will never reflect.
+		nicTags map[string]string
+	}
+
+	const nonMatchingShootNs = "non-matching-shoot-ns"
+
+	nonMatchingTags := map[string]string{
+		"Name": nonMatchingShootNs,
+		"kubernetes.io-cluster-" + nonMatchingShootNs: "1",
+		"kubernetes.io-role-node":                     "1",
 	}
 
 	table := []struct {
@@ -502,16 +514,25 @@ func TestListMachines(t *testing.T) {
 		{
 			"should return all vm names where vm's exist",
 			[]machineResourcesTestSpec{
-				{"vm-0", true, true, true},
-				{"vm-1", true, true, true},
+				{"vm-0", true, true, true, nil, nil},
+				{"vm-1", true, true, true, nil, nil},
 			}, nil, []string{"vm-0", "vm-1"}, false,
 		},
 		{
 			"should return vm names only for vms which vm does not exist but a nic exists",
 			[]machineResourcesTestSpec{
-				{"vm-0", false, true, false},
-				{"vm-1", false, false, true},
+				{"vm-0", false, true, false, nil, nil},
+				{"vm-1", false, false, true, nil, nil},
 			}, nil, []string{"vm-1"}, false,
+		},
+		{
+			"should only return vms matching mandatory provider spec tags",
+			[]machineResourcesTestSpec{
+				{"vm-0", true, true, true, nonMatchingTags, nonMatchingTags},
+				{"vm-1", true, true, true, nil, nil},
+				{"vm-2", true, true, true, nonMatchingTags, nonMatchingTags},
+				{"vm-3", true, true, true, nil, nil},
+			}, nil, []string{"vm-1", "vm-3"}, false,
 		},
 	}
 
@@ -533,7 +554,14 @@ func TestListMachines(t *testing.T) {
 					if !mrTestSpec.vmPresent {
 						testVMID = to.Ptr(fakes.CreateVirtualMachineID(testhelp.SubscriptionID, testResourceGroupName, mrTestSpec.vmName))
 					}
-					clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, mrTestSpec.vmName).BuildWith(mrTestSpec.vmPresent, mrTestSpec.nicPresent, mrTestSpec.osDiskPresent, false, testVMID))
+					mr := fakes.NewMachineResourcesBuilder(providerSpec, mrTestSpec.vmName).BuildWith(mrTestSpec.vmPresent, mrTestSpec.nicPresent, mrTestSpec.osDiskPresent, false, testVMID)
+					if mrTestSpec.vmPresent && mrTestSpec.vmTags != nil {
+						mr.VM.Tags = utils.CreateResourceTags(mrTestSpec.vmTags)
+					}
+					if mrTestSpec.nicPresent && mrTestSpec.nicTags != nil {
+						mr.NIC.Tags = utils.CreateResourceTags(mrTestSpec.nicTags)
+					}
+					clusterState.AddMachineResources(mr)
 				}
 			}
 

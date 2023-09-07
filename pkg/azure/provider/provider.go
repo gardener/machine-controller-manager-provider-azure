@@ -58,14 +58,7 @@ func (d defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachine
 	if err != nil {
 		return
 	}
-	// azure resource graph uses KUSTO as their query language.
-	// For additional information on KUSTO start here: [https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/]
-	resGraphClient, err := d.factory.GetResourceGraphAccess(connectConfig)
-	if err != nil {
-		err = status.Error(codes.Internal, fmt.Sprintf("Failed to create resource graph access, Err: %v", err))
-		return
-	}
-	vmNames, err := clienthelpers.ExtractVMNamesFromVirtualMachinesAndNICs(ctx, resGraphClient, connectConfig.SubscriptionID, providerSpec.ResourceGroup)
+	vmNames, err := helpers.ExtractVMNamesFromVirtualMachinesAndNICs(ctx, d.factory, connectConfig, providerSpec.ResourceGroup, providerSpec.Tags)
 	if err != nil {
 		err = status.Error(codes.Internal, fmt.Sprintf("Failed to extract VM names from VMs and NICs for resourceGroup: %s, Err: %v", providerSpec.ResourceGroup, err))
 		return

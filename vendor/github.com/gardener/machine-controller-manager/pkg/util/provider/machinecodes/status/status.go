@@ -110,7 +110,6 @@ func FromError(err error) (s *Status, ok bool) {
 		return &Status{
 			code:    int32(code),
 			message: matches[1],
-			cause:   err,
 		}, true
 	}
 

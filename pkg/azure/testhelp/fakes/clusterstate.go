@@ -26,6 +26,8 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
+
+	"golang.org/x/exp/slices"
 )
 
 // ClusterState is a holder of state of cluster resources.
@@ -370,27 +372,42 @@ func (c *ClusterState) DeleteDisk(diskName string) {
 	}
 }
 
-// ExtractVMNamesFromNICs extract VM names from all configured NICs in the ClusterState.
-func (c *ClusterState) ExtractVMNamesFromNICs() []string {
+// ExtractVMNamesFromNICsMatchingTagKeys extracts VM names from all configured NICs in the ClusterState that has all tagKeys.
+func (c *ClusterState) ExtractVMNamesFromNICsMatchingTagKeys(tagKeys []string) []string {
 	vmNames := make([]string, 0, len(c.MachineResourcesMap))
 	for vmName, mr := range c.MachineResourcesMap {
 		if mr.NIC != nil {
-			vmNames = append(vmNames, vmName)
+			// check if all tag keys are present for this NIC
+			if containsAllTagKeys(mr.NIC.Tags, tagKeys) {
+				vmNames = append(vmNames, vmName)
+			}
 		}
 	}
 	return vmNames
 }
 
-// GetAllExistingVMNames gets the VM names from all machines/VMs configured in the ClusterState.
-// It checks each MachineResources and only if the VM is configured will that be included.
-func (c *ClusterState) GetAllExistingVMNames() []string {
+// GetVMsMatchingTagKeys returns VM names for all configured VMs in the ClusterState that has all tagKeys.
+func (c *ClusterState) GetVMsMatchingTagKeys(tagKeys []string) []string {
 	vmNames := make([]string, 0, len(c.MachineResourcesMap))
 	for vmName, mr := range c.MachineResourcesMap {
 		if mr.VM != nil {
-			vmNames = append(vmNames, vmName)
+			// check if all tag keys are present for this VM
+			if containsAllTagKeys(mr.VM.Tags, tagKeys) {
+				vmNames = append(vmNames, vmName)
+			}
 		}
 	}
 	return vmNames
+}
+
+func containsAllTagKeys(resourceTags map[string]*string, tagKeys []string) bool {
+	numMatches := 0
+	for k := range resourceTags {
+		if slices.Contains(tagKeys, k) {
+			numMatches++
+		}
+	}
+	return numMatches == len(tagKeys)
 }
 
 // GetAllVMNamesFromMachineResources gets all VM names from all existing MachineResources
