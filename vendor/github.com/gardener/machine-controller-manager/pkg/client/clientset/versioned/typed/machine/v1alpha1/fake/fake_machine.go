@@ -24,7 +24,6 @@ import (
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,9 +35,9 @@ type FakeMachines struct {
 	ns   string
 }
 
-var machinesResource = schema.GroupVersionResource{Group: "machine.sapcloud.io", Version: "v1alpha1", Resource: "machines"}
+var machinesResource = v1alpha1.SchemeGroupVersion.WithResource("machines")
 
-var machinesKind = schema.GroupVersionKind{Group: "machine.sapcloud.io", Version: "v1alpha1", Kind: "Machine"}
+var machinesKind = v1alpha1.SchemeGroupVersion.WithKind("Machine")
 
 // Get takes name of the machine, and returns the corresponding machine object, and an error if there is any.
 func (c *FakeMachines) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Machine, err error) {
@@ -117,7 +116,7 @@ func (c *FakeMachines) UpdateStatus(ctx context.Context, machine *v1alpha1.Machi
 // Delete takes name of the machine and deletes it. Returns an error if one occurs.
 func (c *FakeMachines) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(machinesResource, c.ns, name), &v1alpha1.Machine{})
+		Invokes(testing.NewDeleteActionWithOptions(machinesResource, c.ns, name, opts), &v1alpha1.Machine{})
 
 	return err
 }

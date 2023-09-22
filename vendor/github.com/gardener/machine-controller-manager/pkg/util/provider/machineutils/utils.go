@@ -30,6 +30,9 @@ const (
 	// InitiateDrain specifies next step as initiate node drain
 	InitiateDrain = "Initiate node drain"
 
+	// DelVolumesAttachments specifies next step as deleting volume attachments
+	DelVolumesAttachments = "Delete Volume Attachments"
+
 	// InitiateVMDeletion specifies next step as initiate VM deletion
 	InitiateVMDeletion = "Initiate VM deletion"
 
@@ -68,6 +71,10 @@ const (
 
 	// NodeTerminationCondition describes nodes that are terminating
 	NodeTerminationCondition v1.NodeConditionType = "Terminating"
+
+	// TaintNodeCriticalComponentsNotReady is the name of a gardener taint
+	// indicating that a node is not yet ready to have user workload scheduled
+	TaintNodeCriticalComponentsNotReady = "node.gardener.cloud/critical-components-not-ready"
 )
 
 // RetryPeriod is an alias for specifying the retry period
