@@ -148,12 +148,10 @@ func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, factory acces
 
 	// extract VM Names from existing NICs. Why is this required?
 	// A Machine in MCM terminology is a collective entity consisting of but not limited to VM, NIC(s), Disk(s).
-	// MCM orphan collection needs to track resources which have a separate lifecycle (currently in case of azure it is VM's and NICs.
-	// Disks (OS and Data) are created and deleted along with then VM.) and which are now orphaned. Unfortunately, MCM only orphan collects
-	// machines (a collective resource) and a machine is uniquely identified by a VM name (again not so ideal).
-	// In order to get any orphaned VM or NIC, its currently essential that a VM name which serves as a unique machine name should be collected
-	// by introspecting VMs and NICs. Ideally you would change the response struct to separately capture VM name(s) and NIC name(s) under MachineInfo
-	// and have a slice of such MachineInfo returned as part of this provider method.
+	// MCM orphan collection needs to track resources which have a separate lifecycle and are orphaned. Currently in case of azure it is VM's and NICs.
+	// Disks (OS and Data) are created and deleted along with the VM.
+	// In order to get any orphaned VM or NIC, its currently essential that a machine name(collective entity) should be collected
+	// by introspecting VMs and NICs.
 	vmNamesFromNICs, err := accesshelpers.QueryAndMap[string](ctx, rgAccess, connectConfig.SubscriptionID, createVMNameMapperFn(to.Ptr(nicSuffix)), listNICsQueryTemplate, queryTemplateArgs...)
 	if err != nil {
 		return nil, status.WrapError(codes.Internal, fmt.Sprintf("failed to get VM names from NICs for resourceGroup :%s: error: %v", resourceGroup, err), err)
