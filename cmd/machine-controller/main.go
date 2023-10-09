@@ -13,6 +13,7 @@ SPDX-FileCopyrightText: 2017 SAP SE or an SAP affiliate company and Gardener con
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
@@ -38,14 +39,7 @@ func main() {
 
 	driver := provider.NewDefaultDriver(access.NewDefaultAccessFactory())
 	if err := app.Run(s, driver); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
-
-	//provider := cp.NewAzureDriver(&spi.PluginSPIImpl{})
-	//
-	//if err := app.Run(s, provider); err != nil {
-	//	fmt.Fprintf(os.Stderr, "%v\n", err)
-	//	os.Exit(1)
-	//}
-
 }

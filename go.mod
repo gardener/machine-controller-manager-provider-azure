@@ -10,16 +10,16 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4 v4.1.0-beta.1
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph v0.8.1
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources v1.2.0-beta.2
-	github.com/gardener/machine-controller-manager v0.49.1
-	github.com/onsi/ginkgo v1.16.2
+	github.com/gardener/machine-controller-manager v0.50.0
+	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.27.4
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/spf13/pflag v1.0.5
-	golang.org/x/crypto v0.12.0
+	golang.org/x/crypto v0.13.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	k8s.io/api v0.27.2
 	k8s.io/apimachinery v0.27.2
-	k8s.io/client-go v0.27.2
+	k8s.io/client-go v0.27.2 // indirect
 	k8s.io/component-base v0.27.2
 	k8s.io/klog/v2 v2.90.1
 	k8s.io/utils v0.0.0-20230209194617-a36077c30491
@@ -77,11 +77,11 @@ require (
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/spf13/cobra v1.6.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.0 // indirect
-	golang.org/x/net v0.14.0 // indirect
+	golang.org/x/net v0.15.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
 	golang.org/x/sys v0.12.0 // indirect
-	golang.org/x/term v0.11.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/term v0.12.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
@@ -98,4 +98,7 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
