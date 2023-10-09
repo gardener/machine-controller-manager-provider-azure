@@ -99,4 +99,3 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/gardener/machine-controller-manager => /Users/i062009/src/github.com/gardener/mcm/machine-controller-manager
