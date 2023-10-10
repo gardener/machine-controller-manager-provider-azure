@@ -55,7 +55,7 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 	)
 	// validate provider Spec provider. Exit early if it is not azure.
 	if err = validation.ValidateMachineClassProvider(mcc); err != nil {
-		return providerSpec, connectConfig, err
+		return api.AzureProviderSpec{}, access.ConnectConfig{}, err
 	}
 	// unmarshall raw provider Spec from MachineClass and validate it. If validation fails return an error else return decoded spec.
 	if providerSpec, err = DecodeAndValidateMachineClassProviderSpec(mcc); err != nil {
@@ -304,7 +304,6 @@ func GetSubnet(ctx context.Context, factory access.Factory, connectConfig access
 	subnet, err := accesshelpers.GetSubnet(ctx, subnetAccess, vnetResourceGroup, providerSpec.SubnetInfo.VnetName, providerSpec.SubnetInfo.SubnetName)
 	if err != nil {
 		return nil, status.WrapError(codes.Internal, fmt.Sprintf("failed to get subnet: [ResourceGroup: %s, Name: %s, VNetName: %s], Err: %v", vnetResourceGroup, providerSpec.SubnetInfo.SubnetName, providerSpec.SubnetInfo.VnetName, err), err)
-		//return nil, status.Error(codes.Internal, fmt.Sprintf("failed to get subnet: [ResourceGroup: %s, Name: %s, VNetName: %s], Err: %v", vnetResourceGroup, providerSpec.SubnetInfo.SubnetName, providerSpec.SubnetInfo.VnetName, err))
 	}
 	klog.Infof("Retrieved Subnet: [ResourceGroup: %s, Name:%s, VNetName: %s]", vnetResourceGroup, providerSpec.SubnetInfo.SubnetName, providerSpec.SubnetInfo.VnetName)
 	return subnet, nil

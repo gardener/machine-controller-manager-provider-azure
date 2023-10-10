@@ -147,8 +147,8 @@ type AzureImageReference struct {
 	SharedGalleryImageID *string `json:"sharedGalleryImageID,omitempty"`
 }
 
-// AzureOSDisk specifies information about the operating system disk used by the virtual machine. <br><br> For more
-// information about disks, see [https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disks-overview].
+// AzureOSDisk specifies information about the operating system disk used by the virtual machine.
+// For more information about disks, see [https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disks-overview].
 type AzureOSDisk struct {
 	// Name is the name of the OSDisk
 	Name string `json:"name,omitempty"`
@@ -203,9 +203,8 @@ type AzureOSProfile struct {
 	LinuxConfiguration AzureLinuxConfiguration `json:"linuxConfiguration,omitempty"`
 }
 
-// AzureLinuxConfiguration specifies the Linux operating system settings on the virtual machine. <br><br>For a list of
-// supported Linux distributions, see [Linux on Azure-Endorsed
-// Distributions](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/endorsed-distros).
+// AzureLinuxConfiguration specifies the Linux operating system settings on the virtual machine.
+// For a list of supported Linux distributions, see [Linux on Azure-Endorsed Distributions](https://learn.microsoft.com/en-us/azure/virtual-machines/linux/endorsed-distros).
 type AzureLinuxConfiguration struct {
 	// DisablePasswordAuthentication specifies if the password authentication should be disabled.
 	DisablePasswordAuthentication bool `json:"disablePasswordAuthentication,omitempty"`

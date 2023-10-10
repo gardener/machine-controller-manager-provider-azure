@@ -51,7 +51,7 @@ func DeleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourc
 	}
 	_, err = poller.PollUntilDone(delCtx, nil)
 	if err != nil {
-		errors.LogAzAPIError(err, "Polling failed while waiting for Deleting of NIC: %s for ResourceGroup: %s", nicName, resourceGroup)
+		errors.LogAzAPIError(err, "Polling failed while waiting for Deleting of NIC [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
 	}
 	return
 }
@@ -89,7 +89,7 @@ func CreateNIC(ctx context.Context, nicAccess *armnetwork.InterfacesClient, reso
 	}
 	creationResp, err = poller.PollUntilDone(createCtx, nil)
 	if err != nil {
-		errors.LogAzAPIError(err, "Polling failed while waiting for Creation of NIC: %s for ResourceGroup: %s", nicName, resourceGroup)
+		errors.LogAzAPIError(err, "Polling failed while waiting for Creation of NIC [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
 	}
 	nic = &creationResp.Interface
 	return
