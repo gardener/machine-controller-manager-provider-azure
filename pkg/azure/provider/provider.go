@@ -141,7 +141,7 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 		if err != nil {
 			return
 		}
-		klog.Infof("Successfully delete all Machine resources[VM, NIC, Disks] for [ResourceGroup: %s, VMName: %s]", providerSpec.ResourceGroup, vmName)
+		klog.Infof("Successfully deleted all Machine resources[VM, NIC, Disks] for [ResourceGroup: %s, VMName: %s]", providerSpec.ResourceGroup, vmName)
 	}
 	resp = &driver.DeleteMachineResponse{}
 	return
