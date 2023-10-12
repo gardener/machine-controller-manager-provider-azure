@@ -130,6 +130,11 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 		err = status.Error(codes.Internal, fmt.Sprintf("failed to get virtual machine for VM: [resourceGroup: %s, name: %s], Err: %v", resourceGroup, vmName, err))
 		return
 	}
+	/*
+		It is possible to have left over NIC's and Disks even if the VM is no longer there. This is made possible because in the earlier version of this provider
+		implementation the cascade-delete is not enabled for NICs and Disks on deletion of the VM. Thus, it's possible that while the VM gets deleted the NIC's and Disks are left behind.
+		Once all the VirtualMachines are launched with cascade-delete enabled for NICs and Disks then this can be removed.
+	*/
 	if vm == nil {
 		klog.Infof("VirtualMachine [resourceGroup: %s, name: %s] does not exist. Skipping deletion of VirtualMachine", providerSpec.ResourceGroup, vmName)
 		// check if there are leftover NICs and Disks that needs to be deleted.

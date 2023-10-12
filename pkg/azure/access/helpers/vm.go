@@ -103,35 +103,30 @@ func CreateVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachi
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func SetCascadeDeleteForNICsAndDisks(ctx context.Context, vmClient *armcompute.VirtualMachinesClient, resourceGroup string, vm *armcompute.VirtualMachine) (err error) {
 	defer instrument.RecordAzAPIMetric(err, vmUpdateServiceLabel, time.Now())
-	vmUpdateParams := createVMUpdateParamsForCascadeDeleteOptions(vm) // TODO: Rename this method it returns a VM not "params"
-	if vmUpdateParams == nil {
+	vmUpdateDesc := createVirtualMachineUpdateDescription(vm) // TODO: Rename this method it returns a VM not "params"
+	if vmUpdateDesc == nil {
 		klog.Infof("All configured NICs, OSDisk and DataDisks have cascade delete already set. Skipping update of VM: [ResourceGroup: %s, Name: %s]", resourceGroup, *vm.Name)
 		return
 	}
 	updCtx, cancelFn := context.WithTimeout(ctx, defaultUpdateVMTimeout)
 	defer cancelFn()
-	poller, err := vmClient.BeginUpdate(updCtx, resourceGroup, *vm.Name, *vmUpdateParams, nil)
+	poller, err := vmClient.BeginUpdate(updCtx, resourceGroup, *vm.Name, *vmUpdateDesc, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Failed to trigger update of VM [ResourceGroup: %s, VMName: %s]", resourceGroup, *vm.Name)
 		return
 	}
-	pollResp, err := poller.PollUntilDone(updCtx, nil)
+	_, err = poller.PollUntilDone(updCtx, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Polling failed while waiting for update of VM: %s for ResourceGroup: %s", *vm.Name, resourceGroup)
 		return
 	}
 
-	_, err = pollResp.MarshalJSON()
-	if err != nil {
-		klog.V(4).Infof("failed to marshal VM update response JSON for [ResourceGroup: %s, VMName: %s], Err: %s", resourceGroup, *vm.Name, err.Error())
-	}
-
 	return
 }
 
-// createVMUpdateParamsForCascadeDeleteOptions creates armcompute.VirtualMachineUpdate with delta changes to
+// createVirtualMachineUpdateDescription creates armcompute.VirtualMachineUpdate with delta changes to
 // delete option for associated NICs and Disks of a given virtual machine.
-func createVMUpdateParamsForCascadeDeleteOptions(vm *armcompute.VirtualMachine) *armcompute.VirtualMachineUpdate {
+func createVirtualMachineUpdateDescription(vm *armcompute.VirtualMachine) *armcompute.VirtualMachineUpdate {
 	var (
 		vmUpdateParams              = armcompute.VirtualMachineUpdate{Properties: &armcompute.VirtualMachineProperties{}}
 		cascadeDeleteChangesPending bool
