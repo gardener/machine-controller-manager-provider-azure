@@ -36,6 +36,8 @@ func DeleteDisk(ctx context.Context, client *armcompute.DisksClient, resourceGro
 	var poller *runtime.Poller[armcompute.DisksClientDeleteResponse]
 	poller, err = client.BeginDelete(ctx, resourceGroup, diskName, nil)
 	if err != nil {
+		// If target Disk is not found then `BeginDelete` will not return any error. This is treated as a NO-OP and a success is returned instead.
+		// If this changes incompatibly in the future then we should explicitly handle the NotFound error.
 		errors.LogAzAPIError(err, "Failed to trigger Delete of Disk for [resourceGroup: %s, Name: %s]", resourceGroup, diskName)
 		return
 	}

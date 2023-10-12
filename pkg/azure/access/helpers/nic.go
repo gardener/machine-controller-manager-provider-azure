@@ -46,6 +46,8 @@ func DeleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourc
 	defer cancelFn()
 	poller, err = client.BeginDelete(delCtx, resourceGroup, nicName, nil)
 	if err != nil {
+		// If target NIC is not found then `BeginDelete` will not return any error. This is treated as a NO-OP and a success is returned instead.
+		// If this changes incompatibly in the future then we should explicitly handle the NotFound error.
 		errors.LogAzAPIError(err, "Failed to trigger delete of NIC [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
 		return
 	}
