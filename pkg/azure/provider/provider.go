@@ -167,7 +167,7 @@ func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMach
 		return
 	}
 
-	// After getting response for Query: [https://github.com/Azure/azure-sdk-for-go/issues/21031] replace this call with a more optimized variant to check if a VM exists.
+	// TODO: After getting response for Query: [https://github.com/Azure/azure-sdk-for-go/issues/21031] replace this call with a more optimized variant to check if a VM exists.
 	vm, err := clienthelpers.GetVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 	if err != nil {
 		err = status.Error(codes.Internal, fmt.Sprintf("Failed to get VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err))
@@ -177,7 +177,8 @@ func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMach
 		err = status.Error(codes.NotFound, fmt.Sprintf("VM: [ResourceGroup: %s, Name: %s] is not found", resourceGroup, vmName))
 		return
 	}
-	// Enhance the response as proposed in [https://github.com/gardener/machine-controller-manager-provider-azure/issues/88] once that is taken up.
+	// TODO: Enhance the response as proposed in [https://github.com/gardener/machine-controller-manager-provider-azure/issues/88] once that is taken up.
+	klog.Infof("VM found for [Machine: %s, ResourceGroup: %s]", vmName, resourceGroup)
 	resp = helpers.ConstructGetMachineStatusResponse(providerSpec.Location, vmName)
 	return
 }

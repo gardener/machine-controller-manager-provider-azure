@@ -57,13 +57,13 @@ func RunConcurrently(ctx context.Context, tasks []Task, bound int) []error {
 	defer rg.Close()
 
 	for _, task := range tasks {
-		rg.Trigger(ctx, task)
+		rg.trigger(ctx, task)
 	}
 	return rg.WaitAndCollectErrors()
 }
 
-// Trigger executes the task in a go-routine.
-func (g *RunGroup) Trigger(ctx context.Context, task Task) {
+// trigger executes the task in a go-routine.
+func (g *RunGroup) trigger(ctx context.Context, task Task) {
 	if err := g.waitTillTokenAvailable(ctx); err != nil {
 		klog.Errorf("error while waiting for token to run task. Err: %v", err)
 		g.errCh <- fmt.Errorf("context cancelled, could not schedule task %s : %w", task.Name, err)
@@ -72,7 +72,15 @@ func (g *RunGroup) Trigger(ctx context.Context, task Task) {
 	g.wg.Add(1)
 	go func(task Task) {
 		defer g.wg.Done()
-		defer capturePanicAsError(task.Name, g.errCh)
+		defer func() {
+			// recovers from a panic if there is one. Creates an error from it which contains the debug stack
+			// trace as well and pushes the error to the provided error channel.
+			if v := recover(); v != nil {
+				stack := debug.Stack()
+				panicErr := fmt.Errorf("task: %s execution panicked: %v\n, stack-trace: %s", task.Name, v, stack)
+				g.errCh <- panicErr
+			}
+		}()
 		err := task.Fn(ctx)
 		if err != nil {
 			g.errCh <- err
@@ -106,15 +114,5 @@ func (g *RunGroup) waitTillTokenAvailable(ctx context.Context) error {
 		case g.semaphore <- struct{}{}:
 			return nil
 		}
-	}
-}
-
-// capturePanicAsError recovers from a panic if there is one. Creates an error from it which contains the debug stack
-// trace as well and pushes the error to the provided error channel.
-func capturePanicAsError(name string, errCh chan<- error) {
-	if v := recover(); v != nil {
-		stack := debug.Stack()
-		panicErr := fmt.Errorf("task: %s execution panicked: %v\n, stack-trace: %s", name, v, stack)
-		errCh <- panicErr
 	}
 }
