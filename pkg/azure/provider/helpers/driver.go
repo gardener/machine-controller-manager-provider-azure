@@ -237,9 +237,8 @@ func CheckAndDeleteLeftoverNICsAndDisks(ctx context.Context, factory access.Fact
 	// Create NIC and Disk deletion tasks and run them concurrently.
 	tasks := make([]utils.Task, 0, len(diskNames)+1)
 	tasks = append(tasks, createNICDeleteTask(resourceGroup, nicName, nicAccess))
-	//tasks = append(tasks, d.createDiskDeletionTasks(resourceGroup, diskNames, disksAccess)...)
-	tasks = append(tasks, createDisksDeletionTask(resourceGroup, diskNames, disksAccess))
-	combinedErr := errors.Join(utils.RunConcurrently(ctx, tasks, len(tasks))...)
+	tasks = append(tasks, createDisksDeletionTasks(resourceGroup, diskNames, disksAccess)...)
+	combinedErr := errors.Join(utils.RunConcurrently(ctx, tasks, 2)...)
 	if combinedErr != nil {
 		return status.Error(codes.Internal, fmt.Sprintf("Errors during deletion of NIC/Disks associated to VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err))
 	}
@@ -271,21 +270,19 @@ func createNICDeleteTask(resourceGroup, nicName string, nicAccess *armnetwork.In
 	}
 }
 
-func createDisksDeletionTask(resourceGroup string, diskNames []string, diskAccess *armcompute.DisksClient) utils.Task {
-	taskFn := func(ctx context.Context) error {
-		var errs []error
-		for _, diskName := range diskNames {
+func createDisksDeletionTasks(resourceGroup string, diskNames []string, diskAccess *armcompute.DisksClient) []utils.Task {
+	tasks := make([]utils.Task, 0, len(diskNames))
+	for _, diskName := range diskNames {
+		taskFn := func(ctx context.Context) error {
 			klog.Infof("Deleting disk: [ResourceGroup: %s, DiskName: %s]", resourceGroup, diskName)
-			if err := accesshelpers.DeleteDisk(ctx, diskAccess, resourceGroup, diskName); err != nil {
-				errs = append(errs, err)
-			}
+			return accesshelpers.DeleteDisk(ctx, diskAccess, resourceGroup, diskName)
 		}
-		return errors.Join(errs...)
+		tasks = append(tasks, utils.Task{
+			Name: fmt.Sprintf("delete-disk-[resourceGroup: %s name: %s]", resourceGroup, diskName),
+			Fn:   taskFn,
+		})
 	}
-	return utils.Task{
-		Name: fmt.Sprintf("delete-disks-[resourceGroup: %s]", resourceGroup),
-		Fn:   taskFn,
-	}
+	return tasks
 }
 
 // Helper functions for driver.CreateMachine

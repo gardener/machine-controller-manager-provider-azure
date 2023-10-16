@@ -38,10 +38,10 @@ func ValidateProviderSpec(spec api.AzureProviderSpec) field.ErrorList {
 	var allErrs field.ErrorList
 	specPath := field.NewPath("providerSpec")
 
-	if len(strings.TrimSpace(spec.Location)) == 0 {
+	if utils.IsEmptyString(spec.Location) {
 		allErrs = append(allErrs, field.Required(specPath.Child("location"), "must provide a location"))
 	}
-	if len(strings.TrimSpace(spec.ResourceGroup)) == 0 {
+	if utils.IsEmptyString(spec.ResourceGroup) {
 		allErrs = append(allErrs, field.Required(specPath.Child("resourceGroup"), "must provide a resourceGroup"))
 	}
 
@@ -146,8 +146,8 @@ func validateStorageImageRef(imageRef api.AzureImageReference, fldPath *field.Pa
 	idIsSet := !utils.IsEmptyString(imageRef.ID)
 	sharedGalleryImageIDIsSet := !utils.IsNilOrEmptyStringPtr(imageRef.SharedGalleryImageID)
 
-	atMostOnceIdentifierSet := exactlyOneShouldBeTrue(urnIsSet, communityGalleryImageIDIsSet, idIsSet, sharedGalleryImageIDIsSet)
-	if !atMostOnceIdentifierSet {
+	exactlyOneIdentifierSet := exactlyOneShouldBeTrue(urnIsSet, communityGalleryImageIDIsSet, idIsSet, sharedGalleryImageIDIsSet)
+	if !exactlyOneIdentifierSet {
 		return append(allErrs, field.Forbidden(fldPath.Child("id|.urn|.communityGalleryImageID|.sharedGalleryImageID"), "must specify only one of image id, community gallery image id, shared gallery image id or an urn"))
 	}
 

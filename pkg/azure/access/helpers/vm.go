@@ -39,6 +39,9 @@ const (
 const (
 	defaultDeleteVMTimeout = 15 * time.Minute
 	defaultCreateVMTimeout = 15 * time.Minute
+	//defaultUpdateVMTimeout is the timeout required to complete an update of a VM. It is currently
+	// seen that update is relatively faster and therefore a lower timeout has been kept. This could
+	// be changed in the future depending on the metrics that we record and observe.
 	defaultUpdateVMTimeout = 10 * time.Minute
 )
 

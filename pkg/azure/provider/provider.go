@@ -136,7 +136,7 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 		Once all the VirtualMachines are launched with cascade-delete enabled for NICs and Disks then this can be removed.
 	*/
 	if vm == nil {
-		klog.Infof("VirtualMachine [resourceGroup: %s, name: %s] does not exist. Skipping deletion of VirtualMachine", providerSpec.ResourceGroup, vmName)
+		klog.Infof("VirtualMachine [resourceGroup: %s, name: %s] does not exist. Skipping deletion of VirtualMachine. Checking for leftover NICs and Disks and if present delete tasks will be added.", providerSpec.ResourceGroup, vmName)
 		// check if there are leftover NICs and Disks that needs to be deleted.
 		if err = helpers.CheckAndDeleteLeftoverNICsAndDisks(ctx, d.factory, vmName, connectConfig, providerSpec); err != nil {
 			return
