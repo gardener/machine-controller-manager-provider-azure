@@ -273,6 +273,7 @@ func createNICDeleteTask(resourceGroup, nicName string, nicAccess *armnetwork.In
 func createDisksDeletionTasks(resourceGroup string, diskNames []string, diskAccess *armcompute.DisksClient) []utils.Task {
 	tasks := make([]utils.Task, 0, len(diskNames))
 	for _, diskName := range diskNames {
+		diskName := diskName // TODO: remove this once https://github.com/golang/go/wiki/LoopvarExperiment becomes part of 1.21.x
 		taskFn := func(ctx context.Context) error {
 			klog.Infof("Deleting disk: [ResourceGroup: %s, DiskName: %s]", resourceGroup, diskName)
 			return accesshelpers.DeleteDisk(ctx, diskAccess, resourceGroup, diskName)
