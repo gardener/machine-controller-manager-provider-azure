@@ -57,7 +57,7 @@ const (
 type AzureProviderSpec struct {
 	// Location is the name of the region where resources will be created.
 	Location string `json:"location,omitempty"`
-	// Tags is a map of key-value pairs that will be set on resources. Currently the tags are shared across VM, NIC, Disks.
+	// Tags is a map of key-value pairs that will be set on resources. Currently, the tags are shared across VM, NIC, Disks.
 	// This is not ideal and will change with https://github.com/gardener/machine-controller-manager/blob/master/docs/proposals/hotupdate-instances.md
 	Tags map[string]string `json:"tags,omitempty"`
 	// Properties defines configuration properties for different profiles (hardware, os, network, storage, availability/virtual-machine-scale-set etc.)
