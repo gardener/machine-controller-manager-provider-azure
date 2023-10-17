@@ -40,7 +40,7 @@ func DecodeAndValidateMachineClassProviderSpec(mcc *v1alpha1.MachineClass) (api.
 	// If AzureProviderSpec still has MachineSet populated then also copy equivalent values
 	// to the VirtualMachineScaleSet and AvailabilitySet. We do the validation for fields in MachineSet
 	// here separately so that we can use the validated values to populate VirtualMachineScaleSet/AvailabilitySet.
-	// NOTE: This complete `if` condition should be removed once consumers no longer use MachineSetConfig.
+	// TODO: This complete `if` condition should be removed once consumers no longer use MachineSetConfig.
 	if providerSpec.Properties.MachineSet != nil {
 		if err := validation.ValidateMachineSetConfig(providerSpec.Properties.MachineSet); err != nil {
 			return api.AzureProviderSpec{}, status.Error(codes.InvalidArgument, fmt.Sprintf("error while validation providerSpec.Properties.MachineSet: %v", err))

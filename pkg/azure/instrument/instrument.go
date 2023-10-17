@@ -28,7 +28,7 @@ const prometheusProviderLabelValue = "azure"
 // RecordAzAPIMetric records a prometheus metric for Azure API calls.
 // * If there is an error then it will increment the APIFailedRequestCount counter vec metric.
 // * If the Azure API call is successful then it will record 2 metrics:
-//   - It will increment APIRequestCount counter vec metric. (Ideally this should have been named as APISuccessRequestCount)
+//   - It will increment APIRequestCount counter vec metric.
 //   - It will compute the time taken for API call completion and record it.
 //
 // NOTE: If this function is called via `defer` then please keep in mind that parameters passed to defer are evaluated at the time of definition.

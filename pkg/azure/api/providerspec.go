@@ -46,10 +46,10 @@ const (
 	TenantID string = "tenantID"
 
 	// MachineSetKindAvailabilitySet is the machine set kind for AvailabilitySet.
-	// Deprecated. Use AzureVirtualMachineProperties.AvailabilitySet instead.
+	// Deprecated: Use AzureVirtualMachineProperties.AvailabilitySet instead.
 	MachineSetKindAvailabilitySet string = "availabilityset"
 	// MachineSetKindVMO is the machine set kind for VirtualMachineScaleSet Orchestration Mode VM (VMO).
-	// Deprecated. Use AzureVirtualMachineProperties.VirtualMachineScaleSet instead.
+	// Deprecated: Use AzureVirtualMachineProperties.VirtualMachineScaleSet instead.
 	MachineSetKindVMO string = "vmo"
 )
 
@@ -101,7 +101,7 @@ type AzureVirtualMachineProperties struct {
 	// 3. Only `Flexible` variant of VMSS is currently supported. It is strongly recommended that consumers turn-off any
 	// autoscaling capabilities as it interferes with the lifecycle management of MCM and auto-scaling capabilities offered by Cluster-Autoscaler.
 	VirtualMachineScaleSet *AzureSubResource `json:"virtualMachineScaleSet,omitempty"`
-	// Deprecated. Use either AvailabilitySet or VirtualMachineScaleSet instead
+	// Deprecated: Use either AvailabilitySet or VirtualMachineScaleSet instead
 	MachineSet *AzureMachineSetConfig `json:"machineSet,omitempty"`
 }
 
@@ -114,7 +114,7 @@ type AzureHardwareProfile struct {
 }
 
 // AzureMachineSetConfig contains the information about the machine set.
-// Deprecated. This type should not be used to differentiate between VirtualMachineScaleSet and AvailabilitySet as
+// Deprecated: This type should not be used to differentiate between VirtualMachineScaleSet and AvailabilitySet as
 // there are now dedicated struct fields for these.
 type AzureMachineSetConfig struct {
 	ID   string `json:"id"`
