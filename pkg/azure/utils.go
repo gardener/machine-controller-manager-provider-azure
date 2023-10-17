@@ -648,11 +648,11 @@ func waitForDataDiskDetachment(ctx context.Context, clients spi.AzureDriverClien
 
 		future, err := clients.GetVM().CreateOrUpdate(ctx, resourceGroupName, *vm.Name, vm)
 		if err != nil {
-			return OnARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
+			return OnARMAPIErrorFail(prometheusServiceVM, fmt.Errorf("Failed to detach data disc: %w", err), "Failed to CreateOrUpdate. Error Message - %s", err)
 		}
 		err = future.WaitForCompletionRef(ctx, clients.GetClient())
 		if err != nil {
-			return OnARMAPIErrorFail(prometheusServiceVM, err, "Failed to CreateOrUpdate. Error Message - %s", err)
+			return OnARMAPIErrorFail(prometheusServiceVM, fmt.Errorf("Failed waiting for data disc detachmend to complete: %w", err), "Failed to CreateOrUpdate. Error Message - %s", err)
 		}
 		OnARMAPISuccess(prometheusServiceVM, "VM CreateOrUpdate was successful for %s", *vm.Name)
 		klog.V(2).Infof("Data disk detached for %q", *vm.Name)
