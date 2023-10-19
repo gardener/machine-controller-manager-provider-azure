@@ -72,6 +72,10 @@ func ValidateProviderSecret(secret *corev1.Secret) field.ErrorList {
 		allErrs = append(allErrs, field.Required(secretDataPath.Child("tenantID"), "must provide tenantID"))
 	}
 
+	if utils.IsEmptyString(string(secret.Data[api.UserData])) {
+		allErrs = append(allErrs, field.Required(secretDataPath.Child("userData"), "must provide userData"))
+	}
+
 	return allErrs
 }
 
@@ -213,14 +217,21 @@ func validateAvailabilityAndScalingConfig(properties api.AzureVirtualMachineProp
 	isAvailabilitySetConfigured := properties.AvailabilitySet != nil && !utils.IsEmptyString(properties.AvailabilitySet.ID)
 	isVirtualMachineScaleSetConfigured := properties.VirtualMachineScaleSet != nil && !utils.IsEmptyString(properties.VirtualMachineScaleSet.ID)
 
-	// check if both zone is configured and one or both of [availabilitySet, virtualMachineScaleSet] is configured
-	if !exactlyOneShouldBeTrue(isZoneConfigured, isAvailabilitySetConfigured || isVirtualMachineScaleSetConfigured) {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.availabilitySet|.virtualMachineScaleSet"), "Either a Zone can be specified or one of (AvailabilitySet or VirtualMachineScaleSet) can be set."))
-	}
-
-	// if zone is not configured then check that only one of [availabilitySet, virtualMachineScaleSet] is configured
-	if properties.Zone == nil && !exactlyOneShouldBeTrue(isAvailabilitySetConfigured, isVirtualMachineScaleSetConfigured) {
-		allErrs = append(allErrs, field.Forbidden(fldPath.Child("availabilitySet|.virtualMachineScaleSet"), "Must only configure an AvailabilitySet or VirtualMachineScaleSet but not both."))
+	/*
+			Azure API documentation clearly states that the consumers cannot set both VMSS and AvailabilitySet at the same time.
+			However, there is no mention of Zones and how it relates to VMSS and AvailabilitySet. We have an additional
+			constraint allowing only one of Zones, VMSS, AvailabilitySet to be set. Reasons:
+			* By default VM lifecycle management is done by MCM and unless used it does not use VMSS or AvailabilitySet.
+			* AvailabilitySet does not support multiple zones, therefore it does not make sense to have both set.
+			* VMSS is configured by the consumer where different set of zones can be specified. Since we do not fetch VMSS configuration and validate that the zones
+		      do not conflict with the Zones explicitly configured, we restrict it. Also, when using VMSS it only makes sense to allow zone settings as a configuration of VMSS.
+			References:
+				* https://learn.microsoft.com/en-us/azure/virtual-machine-scale-sets/virtual-machine-scale-sets-orchestration-modes?WT.mc_id=modinfra-11089-socuff#high-availability
+				* https://github.com/Azure/azure-sdk-for-go/blob/b6d8699f156be94570b22ca755ffe850d1aa199b/sdk/resourcemanager/compute/armcompute/models.go#L6504-L6513
+				* https://github.com/Azure/azure-sdk-for-go/blob/b6d8699f156be94570b22ca755ffe850d1aa199b/sdk/resourcemanager/compute/armcompute/models.go#L6592-L6597
+	*/
+	if !exactlyOneShouldBeTrue(isZoneConfigured, isAvailabilitySetConfigured, isVirtualMachineScaleSetConfigured) {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.availabilitySet|.virtualMachineScaleSet"), "Only one of Zone, AvailabilitySet and VirtualMachineScaleSet can be set."))
 	}
 
 	return allErrs

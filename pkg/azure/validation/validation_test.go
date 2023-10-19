@@ -40,6 +40,7 @@ func TestValidateProviderSecret(t *testing.T) {
 		testClientSecret   = "to6D2mXsZ~lNJsUi0H5lZsRgrh7FlWMTXdTfeKaMO8fCbKmUYE"
 		testSubscriptionID = "8edcc1ad-04bc-419c-ad63-1a989956d466"
 		testTenantID       = "010bd0ff-5eae-446e-aea9-c1eac72e9c77"
+		testUserData       = "May the force be with you"
 	)
 
 	table := []struct {
@@ -48,54 +49,61 @@ func TestValidateProviderSecret(t *testing.T) {
 		clientSecret   string
 		subscriptionID string
 		tenantID       string
+		testUserData   string
 		expectedErrors int
 		matcher        gomegatypes.GomegaMatcher
 	}{
 		{
 			"should forbid empty clientID",
-			"", testClientSecret, testSubscriptionID, testTenantID, 1,
+			"", testClientSecret, testSubscriptionID, testTenantID, testUserData, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientID")}))),
 		},
 		// just testing one field with spaces. handling for spaces for all required fields is done the same way.
 		{"should forbid clientID when it only has spaces",
-			"  ", testClientSecret, testSubscriptionID, testTenantID, 1,
+			"  ", testClientSecret, testSubscriptionID, testTenantID, testUserData, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientID")}))),
 		},
 		{"should forbid empty clientSecret",
-			testClientID, "", testSubscriptionID, testTenantID, 1,
+			testClientID, "", testSubscriptionID, testTenantID, testUserData, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientSecret")}))),
 		},
 		{"should forbid empty subscriptionID",
-			testClientID, testClientSecret, "", testTenantID, 1,
+			testClientID, testClientSecret, "", testTenantID, testUserData, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.subscriptionID")}))),
 		},
 		{"should forbid empty tenantID",
-			testClientID, testClientSecret, testSubscriptionID, "", 1,
+			testClientID, testClientSecret, testSubscriptionID, "", testUserData, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.tenantID")}))),
 		},
+		{
+			"should forbid empty userData",
+			testClientID, testClientSecret, testSubscriptionID, testTenantID, "", 1,
+			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.userData")}))),
+		},
 		{"should forbid empty clientID and tenantID",
-			"", testClientSecret, testSubscriptionID, "", 2,
+			"", testClientSecret, testSubscriptionID, "", testUserData, 2,
 			ConsistOf(
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientID")})),
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.tenantID")})),
 			),
 		},
 		{"should forbid when all required fields are absent",
-			"", "", "", "", 4,
+			"", "", "", "", "", 5,
 			ConsistOf(
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientID")})),
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientSecret")})),
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.subscriptionID")})),
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.tenantID")})),
+				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.userData")})),
 			),
 		},
-		{"should succeed when all required fields are present", testClientID, testClientSecret, testSubscriptionID, testTenantID, 0, nil},
+		{"should succeed when all required fields are present", testClientID, testClientSecret, testSubscriptionID, testTenantID, testUserData, 0, nil},
 	}
 
 	g := NewWithT(t)
 	for _, entry := range table {
 		t.Run(entry.description, func(t *testing.T) {
-			secret := createSecret(entry.clientID, entry.clientSecret, entry.subscriptionID, entry.tenantID)
+			secret := createSecret(entry.clientID, entry.clientSecret, entry.subscriptionID, entry.tenantID, entry.testUserData)
 			errList := ValidateProviderSecret(secret)
 			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
 			if entry.matcher != nil {
@@ -298,7 +306,7 @@ func TestValidateAvailabilityAndScalingConfig(t *testing.T) {
 		},
 		{"should forbid setting both virtualMachineScaleSet and availabilitySet when zone is not set",
 			nil, &testAvailabilitySet, &testVMScaleSet, 1,
-			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeForbidden), "Field": Equal("providerSpec.properties.availabilitySet|.virtualMachineScaleSet")}))),
+			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeForbidden), "Field": Equal("providerSpec.properties.zone|.availabilitySet|.virtualMachineScaleSet")}))),
 		},
 		{"should allow only setting of availabilitySet", nil, &testAvailabilitySet, nil, 0, nil},
 		{"should allow only setting of zone", pointer.Int(1), nil, nil, 0, nil},
@@ -436,7 +444,7 @@ func TestValidateTags(t *testing.T) {
 	))
 }
 
-func createSecret(clientID, clientSecret, subscriptionID, tenantID string) *corev1.Secret {
+func createSecret(clientID, clientSecret, subscriptionID, tenantID, userData string) *corev1.Secret {
 	data := make(map[string][]byte, 4)
 	if !utils.IsEmptyString(clientID) {
 		data["clientID"] = encodeAndConvertToBytes(clientID)
@@ -450,7 +458,9 @@ func createSecret(clientID, clientSecret, subscriptionID, tenantID string) *core
 	if !utils.IsEmptyString(tenantID) {
 		data["tenantID"] = encodeAndConvertToBytes(tenantID)
 	}
-
+	if !utils.IsEmptyString(userData) {
+		data["userData"] = encodeAndConvertToBytes(userData)
+	}
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-secret",

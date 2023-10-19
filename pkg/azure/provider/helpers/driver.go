@@ -469,8 +469,8 @@ func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Fa
 	return nil
 }
 
-// CreateOrUpdateVM gathers the VM creation parameters and invokes a call to create or update the VM.
-func CreateOrUpdateVM(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID string, vmName string) (*armcompute.VirtualMachine, error) {
+// CreateVM gathers the VM creation parameters and invokes a call to create or update the VM.
+func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID string, vmName string) (*armcompute.VirtualMachine, error) {
 	vmAccess, err := factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
 		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", providerSpec.ResourceGroup, vmName, err), err)

@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	// ResourceQuotaExceededAzErrorCode is an Azure error code indicating that resource quota has exhausted.
-	ResourceQuotaExceededAzErrorCode = "ResourceQuotaExceeded"
+	// ZonalAllocationFailedAzErrorCode is an Azure error code indicating that there is insufficient capacity in the target zone.
+	ZonalAllocationFailedAzErrorCode = "ZonalAllocationFailed"
 	// CorrelationRequestIDAzHeaderKey is the Azure API response header key whose value is a request correlation ID.
 	CorrelationRequestIDAzHeaderKey = "x-ms-correlation-request-id"
 	// RequestIDAzHeaderKey is the Azure API response header key whose value is the request ID.
@@ -94,7 +94,7 @@ func GetMatchingErrorCode(err error) codes.Code {
 	azErrorCode, ok := azHeaders[ErrorCodeAzHeaderKey]
 	if ok {
 		switch azErrorCode {
-		case ResourceQuotaExceededAzErrorCode:
+		case ZonalAllocationFailedAzErrorCode:
 			return codes.ResourceExhausted
 		default:
 			return codes.Internal

@@ -90,7 +90,7 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 		return
 	}
 
-	vm, err := helpers.CreateOrUpdateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, plan, req.Secret, nicID, vmName)
+	vm, err := helpers.CreateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, plan, req.Secret, nicID, vmName)
 	if err != nil {
 		return
 	}

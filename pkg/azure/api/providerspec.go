@@ -44,6 +44,9 @@ const (
 	SubscriptionID string = "subscriptionID"
 	// TenantID is a constant for a key name that is part of the Azure cloud credentials.
 	TenantID string = "tenantID"
+	// UserData is a constant for a key name that is part of the secret passed to Driver methods.
+	// This contains a base64 encoded custom script that is run upon start of a VM.
+	UserData string = "userData"
 
 	// MachineSetKindAvailabilitySet is the machine set kind for AvailabilitySet.
 	// Deprecated: Use AzureVirtualMachineProperties.AvailabilitySet instead.
