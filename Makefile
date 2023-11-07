@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-include .env
+-include .env
 
 BINARY_PATH         := bin/
 COVERPROFILE        := test/output/coverprofile.out
@@ -13,10 +13,6 @@ PROJECT_NAME        := gardener
 
 
 # Below ones are used in tests
-MACHINECLASS_V1 	:= dev/machineclassv1.yaml
-MACHINECLASS_V2 	:= 
-MCM_IMAGE			:=
-MC_IMAGE			:=
 LEADER_ELECT 	    := "true"
 
 # If Integration Test Suite is to be run locally against clusters then export the below variable
@@ -30,6 +26,8 @@ MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME := machine-controller-manager
 .PHONY: rename-project
 rename-project:
 	@./hack/rename-project ${PROJECT_NAME} ${PROVIDER_NAME}
+
+
 
 #########################################
 # Rules for starting machine-controller locally

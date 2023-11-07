@@ -122,12 +122,12 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 
 	vmAccess, err := d.factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
-		err = status.Error(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v\n", resourceGroup, vmName, err))
+		err = status.WrapError(codes.Internal, fmt.Sprintf("failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v\n", resourceGroup, vmName, err), err)
 		return
 	}
 	vm, err := clienthelpers.GetVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 	if err != nil {
-		err = status.Error(codes.Internal, fmt.Sprintf("failed to get virtual machine for VM: [resourceGroup: %s, name: %s], Err: %v", resourceGroup, vmName, err))
+		err = status.WrapError(codes.Internal, fmt.Sprintf("failed to get virtual machine for VM: [resourceGroup: %s, name: %s], Err: %v", resourceGroup, vmName, err), err)
 		return
 	}
 	/*
@@ -163,14 +163,14 @@ func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMach
 	vmName := req.Machine.Name
 	vmAccess, err := d.factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
-		err = status.Error(codes.Internal, fmt.Sprintf("Failed to create virtual machine access to process request: [ResourceGroup: %s, VMName: %s], Err: %v", resourceGroup, vmName, err))
+		err = status.WrapError(codes.Internal, fmt.Sprintf("Failed to create virtual machine access to process request: [ResourceGroup: %s, VMName: %s], Err: %v", resourceGroup, vmName, err), err)
 		return
 	}
 
 	// TODO: After getting response for Query: [https://github.com/Azure/azure-sdk-for-go/issues/21031] replace this call with a more optimized variant to check if a VM exists.
 	vm, err := clienthelpers.GetVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 	if err != nil {
-		err = status.Error(codes.Internal, fmt.Sprintf("Failed to get VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err))
+		err = status.WrapError(codes.Internal, fmt.Sprintf("Failed to get VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
 		return
 	}
 	if vm == nil {

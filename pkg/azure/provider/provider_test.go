@@ -34,7 +34,9 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 const (
@@ -51,7 +53,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 		existingVMNames            []string                // used to build initial ClusterState
 		numDataDisks               int                     // used to build initial ClusterState
 		cascadeDeleteOpts          fakes.CascadeDeleteOpts // used to build initial ClusterState
-		machineClassResourceGroup  *string                 // for tests where a different resource Group than used to create ClusterState needs to be passed.
+		machineClassResourceGroup  *string                 // for tests where a different resource Group than the one used to create ClusterState needs to be passed.
 		targetVMNameToDelete       string                  // name of the VM that will be deleted via DeleteMachine
 		shouldDeleteMachineSucceed bool
 		checkClusterStateFn        func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string)
@@ -186,41 +188,24 @@ func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 			"should delete left over NIC and Disks when they are detached from VM",
 			true, true, 1, nil, true,
 			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
-				_, err := factory.DisksAccess.Get(ctx, testResourceGroupName, utils.CreateOSDiskName(vmName), nil)
-				g.Expect(err).ToNot(BeNil())
-				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
-				for _, dataDiskName := range dataDiskNames {
-					_, err := factory.DisksAccess.Get(ctx, testResourceGroupName, dataDiskName, nil)
-					g.Expect(err).ToNot(BeNil())
-					g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
-				}
-				_, err = factory.InterfaceAccess.Get(ctx, testResourceGroupName, utils.CreateNICName(vmName), nil)
-				g.Expect(err).ToNot(BeNil())
-				g.Expect(accesserrors.IsNotFoundAzAPIError(err)).To(BeTrue())
+				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, dataDiskNames, false, false)
 			},
 		},
 		{
 			"should fail delete of NIC when its still associated with a VM",
 			true, false, 0, &testVMID, false,
 			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
-				nic, err := factory.InterfaceAccess.Get(ctx, testResourceGroupName, utils.CreateNICName(vmName), nil)
-				g.Expect(err).To(BeNil())
-				g.Expect(nic.Properties.VirtualMachine).ToNot(BeNil())
-				g.Expect(*nic.Properties.VirtualMachine.ID).To(Equal(testVMID))
+				machineResources := checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, true, false, dataDiskNames, false, true)
+				g.Expect(*machineResources.NIC.Properties.VirtualMachine.ID).To(Equal(testVMID))
 			},
 		},
 		{
 			"should fail delete of disks when its still associated with a VM",
 			false, true, 1, &testVMID, false,
 			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
-				osDisk, err := factory.DisksAccess.Get(ctx, testResourceGroupName, utils.CreateOSDiskName(vmName), nil)
-				g.Expect(err).To(BeNil())
-				g.Expect(osDisk.ManagedBy).ToNot(BeNil())
-				g.Expect(*osDisk.ManagedBy).To(Equal(testVMID))
-				for _, dataDiskName := range dataDiskNames {
-					dataDisk, err := factory.DisksAccess.Get(ctx, testResourceGroupName, dataDiskName, nil)
-					g.Expect(err).To(BeNil())
-					g.Expect(*dataDisk.ManagedBy).ToNot(BeNil())
+				machineResources := checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, true, dataDiskNames, true, true)
+				g.Expect(*machineResources.OSDisk.ManagedBy).To(Equal(testVMID))
+				for _, dataDisk := range machineResources.DataDisks {
 					g.Expect(*dataDisk.ManagedBy).To(Equal(testVMID))
 				}
 			},
@@ -406,9 +391,13 @@ func TestDeleteMachineWhenProviderIsNotAzure(t *testing.T) {
 		Secret:       fakes.CreateProviderSecret(),
 	})
 	g.Expect(err).ToNot(BeNil())
-	var statusErr *status.Status
-	g.Expect(errors.As(err, &statusErr)).Should(BeTrue())
-	g.Expect(statusErr.Code()).To(Equal(codes.InvalidArgument))
+	var validationErr *field.Error
+	g.Expect(errors.As(err, &validationErr)).Should(BeTrue())
+	g.Expect(validationErr).To(
+		PointTo(MatchFields(IgnoreExtras, Fields{
+			"Type":  Equal(field.ErrorTypeInvalid),
+			"Field": Equal("provider"),
+		})))
 }
 
 func TestGetMachineStatus(t *testing.T) {

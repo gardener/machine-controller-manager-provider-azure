@@ -41,6 +41,7 @@ func CreateProviderSecret() *corev1.Secret {
 			api.ClientSecret:   []byte(testhelp.ClientSecret),
 			api.SubscriptionID: []byte(testhelp.SubscriptionID),
 			api.TenantID:       []byte(testhelp.TenantID),
+			api.UserData:       []byte(testhelp.UserData),
 		},
 	}
 }

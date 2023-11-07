@@ -31,6 +31,8 @@ const (
 	Location = "test-west-euro"
 	// DefaultImageRefURN is the test azure image URN.
 	DefaultImageRefURN = "sap:gardenlinux:greatest:184.0.0"
+	// UserData is the dummy user data that is set as part of the secret
+	UserData = "dummy-user-data"
 )
 
 // Constants for method names for different fake servers. These will be used by consumers to set API behavior on specific methods.
