@@ -272,21 +272,21 @@ func (c *ClusterState) DeleteVM(vmName string) {
 
 // CreateVM creates a new VM in the resourceGroup using vmParams.
 // This new VM will be added to the ClusterState and also returned for consumption.
-func (c *ClusterState) CreateVM(resourceGroup string, vmParams armcompute.VirtualMachine) *armcompute.VirtualMachine {
+func (c *ClusterState) CreateVM(resourceGroup string, vmParams armcompute.VirtualMachine) (*armcompute.VirtualMachine, error) {
 	vmName := *vmParams.Name
 	machineResources, ok := c.MachineResourcesMap[vmName]
+	// It is assumed that this method will be called after the NIC referenced in vmParams has been created.
 	if ok {
-		newVM := vmParams
-		newVM.ID = to.Ptr(CreateVirtualMachineID(testhelp.SubscriptionID, resourceGroup, vmName))
-		machineResources.VM = &newVM
+		updateMachineResourcesFromVmParams(c.ProviderSpec, resourceGroup, vmParams, &machineResources)
 		c.MachineResourcesMap[vmName] = machineResources
-		return machineResources.VM
+		return machineResources.VM, nil
 	}
-	dataDisksConfigured := !utils.IsSliceNilOrEmpty(c.ProviderSpec.Properties.StorageProfile.DataDisks)
-	machineResources = NewMachineResourcesBuilder(c.ProviderSpec, vmName).BuildWith(true, false, true, dataDisksConfigured, nil)
-	c.MachineResourcesMap[vmName] = machineResources
-
-	return machineResources.VM
+	referencedNICID := getReferencedNICIDFromVirtualMachine(vmParams)
+	var err error
+	if referencedNICID != nil {
+		err = testhelp.ConfiguredRelatedResourceNotFound(testhelp.ErrorCodeReferencedResourceNotFound, *referencedNICID)
+	}
+	return nil, err
 }
 
 // GetNIC gets a NIC matching the passed name if one exists.
@@ -435,4 +435,13 @@ func (c *ClusterState) getDiskTypeAndOwningMachineResources(diskName string) (Di
 		}
 	}
 	return "", nil
+}
+
+func getReferencedNICIDFromVirtualMachine(vmParams armcompute.VirtualMachine) *string {
+	if vmParams.Properties != nil &&
+		vmParams.Properties.NetworkProfile != nil &&
+		vmParams.Properties.NetworkProfile.NetworkInterfaces != nil && len(vmParams.Properties.NetworkProfile.NetworkInterfaceConfigurations) > 0 {
+		return vmParams.Properties.NetworkProfile.NetworkInterfaces[0].ID
+	}
+	return nil
 }

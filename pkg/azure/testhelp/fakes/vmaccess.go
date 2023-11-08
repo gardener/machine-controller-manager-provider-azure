@@ -110,7 +110,11 @@ func (b *VMAccessBuilder) withBeginCreateOrUpdate() *VMAccessBuilder {
 			return
 		}
 
-		vm := b.clusterState.CreateVM(resourceGroupName, parameters)
+		vm, err := b.clusterState.CreateVM(resourceGroupName, parameters)
+		if err != nil {
+			errResp.SetError(err)
+			return
+		}
 		resp.SetTerminalResponse(http.StatusOK, armcompute.VirtualMachinesClientCreateOrUpdateResponse{VirtualMachine: *vm}, nil)
 		return
 	}

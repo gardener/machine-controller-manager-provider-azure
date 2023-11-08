@@ -16,12 +16,16 @@ package utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"sync"
 
 	"k8s.io/klog/v2"
 )
+
+// ErrorEncapsulatingPanic is a sentinel error indicating that there has been a panic which has been captured as an error and returned as value.
+var ErrorEncapsulatingPanic = errors.New("panic has occurred")
 
 // Task is a holder for a named function.
 type Task struct {
@@ -77,7 +81,7 @@ func (g *RunGroup) trigger(ctx context.Context, task Task) {
 			// trace as well and pushes the error to the provided error channel.
 			if v := recover(); v != nil {
 				stack := debug.Stack()
-				panicErr := fmt.Errorf("task: %s execution panicked: %v\n, stack-trace: %s", task.Name, v, stack)
+				panicErr := fmt.Errorf("task: %s execution panicked: %v\n, stack-trace: %s: %w", task.Name, v, stack, ErrorEncapsulatingPanic)
 				g.errCh <- panicErr
 			}
 		}()

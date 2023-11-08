@@ -60,7 +60,6 @@ func (d defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachine
 	}
 	vmNames, err := helpers.ExtractVMNamesFromVirtualMachinesAndNICs(ctx, d.factory, connectConfig, providerSpec.ResourceGroup, providerSpec.Tags)
 	if err != nil {
-		err = status.Error(codes.Internal, fmt.Sprintf("Failed to extract VM names from VMs and NICs for resourceGroup: %s, Err: %v", providerSpec.ResourceGroup, err))
 		return
 	}
 	resp = helpers.ConstructMachineListResponse(providerSpec.Location, vmNames)

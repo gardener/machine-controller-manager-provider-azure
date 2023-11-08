@@ -49,4 +49,6 @@ const (
 	AccessMethodCheckExistence = "CheckExistence"
 	// AccessMethodBeginCreateOrUpdate is the constant representing BeginCreateOrUpdate Azure API method name in the fake server.
 	AccessMethodBeginCreateOrUpdate = "BeginCreateOrUpdate"
+	// AccessMethodResources is the constant representing Resources Azure API method name in the fake server.
+	AccessMethodResources = "Resources"
 )

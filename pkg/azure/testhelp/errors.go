@@ -16,7 +16,10 @@ package testhelp
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
@@ -40,6 +43,9 @@ const (
 	// We have created 2 different constants for not found error because Azure is not consistent. For certain resources it returns
 	// ResourceNotFound while for others it just returns NotFound.
 	ErrorCodeSubnetNotFound = "NotFound"
+	// ErrorCodeReferencedResourceNotFound	 is the error code returned in Azure response if a referenced resource
+	// is not found to exist.
+	ErrorCodeReferencedResourceNotFound = "NotFound"
 )
 
 // ContextTimeoutError creates an error mimicking timeout of a context.
@@ -60,6 +66,22 @@ func ResourceNotFoundErr(errorCode string) error {
 		Status:     "404 NotFound",
 		StatusCode: 404,
 		Header:     headers,
+	}
+	return runtime.NewResponseError(resp)
+}
+
+// ConfiguredRelatedResourceNotFound creates a resource not found error specifically for cases where
+// the spec used to create a resource refers to another related attached resource which does not exist.
+// Example: If during VM creation, a NIC which has a reference in armcompute.VirtualMachine does not exist
+// then this function should be called.
+func ConfiguredRelatedResourceNotFound(errorCode string, referencedResourceID string) error {
+	headers := http.Header{}
+	headers.Set("x-ms-error-code", errorCode)
+	resp := &http.Response{
+		Status:     "404 NotFound",
+		StatusCode: 404,
+		Header:     headers,
+		Body:       io.NopCloser(strings.NewReader(fmt.Sprintf("Resource %s not found", referencedResourceID))),
 	}
 	return runtime.NewResponseError(resp)
 }

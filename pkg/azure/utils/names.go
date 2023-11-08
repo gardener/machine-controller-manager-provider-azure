@@ -30,7 +30,7 @@ const (
 
 // CreateNICName creates a NIC name given a VM name
 func CreateNICName(vmName string) string {
-	return fmt.Sprintf("%s-%s", vmName, nicSuffix)
+	return fmt.Sprintf("%s%s", vmName, nicSuffix)
 }
 
 // ExtractVMNameFromNICName extracts VM Name from NIC name

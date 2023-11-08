@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api/validation"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/validation"
 )
 
 // ValidateSecretAndCreateConnectConfig validates the secret and creates an instance of azure.ConnectConfig out of it.

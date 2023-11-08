@@ -170,8 +170,33 @@ func isCascadeDeleteSetForAllDataDisks(dataDiskDeleteOptsMap map[string]*armcomp
 	return true
 }
 
+// updateMachineResourcesFromVmParams updates MachineResources from already built vmParams and ProviderSpec.
+// This function would typically be used to create MachineResources in the CreateMachine driver call flow where
+// it is assumed that NIC creation will be done first which will already create a MachineResource. This function will
+// then create the rest of the resources and also update the NIC to refer to the VM ID.
+func updateMachineResourcesFromVmParams(spec api.AzureProviderSpec, resourceGroup string, vmParams armcompute.VirtualMachine, machineResources *MachineResources) {
+	vmName := *vmParams.Name
+	newVM := vmParams
+	newVM.ID = to.Ptr(CreateVirtualMachineID(testhelp.SubscriptionID, resourceGroup, vmName))
+	machineResources.VM = &newVM
+	if machineResources.NIC != nil {
+		if machineResources.NIC.Properties.VirtualMachine == nil {
+			machineResources.NIC.Properties.VirtualMachine = &armnetwork.SubResource{}
+		}
+		machineResources.NIC.Properties.VirtualMachine.ID = newVM.ID
+	}
+	osDisk := createDiskResource(spec, utils.CreateOSDiskName(vmName), newVM.ID, newVM.Plan)
+	dataDisks := createDataDiskResources(spec, newVM.ID, vmName)
+	machineResources.OSDisk = osDisk
+	machineResources.DataDisks = dataDisks
+}
+
 //----------------------------------------------------------------------
 // Builder for MachineResources
+// This builder should not be used if CreateMachine driver method is
+// being tested. The CreateMachine already populates armcompute.VirtualMachine.
+// If one wishes to create MachineResources from armcompute.VirtualMachine then
+// use function updateMachineResourcesFromVmParams instead.
 //----------------------------------------------------------------------
 
 // MachineResourcesBuilder is a builder for MachineResources
@@ -227,11 +252,11 @@ func (b *MachineResourcesBuilder) BuildWith(createVM, createNIC, createOSDisk, c
 	if b.cascadeDeleteOpts == nil {
 		b.cascadeDeleteOpts = &CascadeDeleteAllResources
 	}
-	return b.CreateMachineResources(createVM, createNIC, createOSDisk, createDataDisk, withNonExistentVMID)
+	return b.createMachineResources(createVM, createNIC, createOSDisk, createDataDisk, withNonExistentVMID)
 }
 
-// CreateMachineResources creates MachineResources object optionally creating resources as indicated by the method arguments.
-func (b *MachineResourcesBuilder) CreateMachineResources(createVM, createNIC, createOSDisk, createDataDisks bool, nonExistentVMID *string) MachineResources {
+// createMachineResources creates MachineResources object optionally creating resources as indicated by the method arguments.
+func (b *MachineResourcesBuilder) createMachineResources(createVM, createNIC, createOSDisk, createDataDisks bool, nonExistentVMID *string) MachineResources {
 	var (
 		vm        *armcompute.VirtualMachine
 		vmID      = nonExistentVMID
@@ -250,14 +275,7 @@ func (b *MachineResourcesBuilder) CreateMachineResources(createVM, createNIC, cr
 		osDisk = createDiskResource(b.spec, utils.CreateOSDiskName(b.vmName), vmID, b.plan)
 	}
 	if createDataDisks {
-		specDataDisks := b.spec.Properties.StorageProfile.DataDisks
-		if specDataDisks != nil {
-			dataDisks = make(map[string]*armcompute.Disk, len(specDataDisks))
-			for _, specDataDisk := range specDataDisks {
-				diskName := utils.CreateDataDiskName(b.vmName, specDataDisk)
-				dataDisks[diskName] = createDiskResource(b.spec, diskName, vmID, nil)
-			}
-		}
+		dataDisks = createDataDiskResources(b.spec, vmID, b.vmName)
 	}
 	return MachineResources{
 		Name:      b.vmName,
@@ -266,6 +284,18 @@ func (b *MachineResourcesBuilder) CreateMachineResources(createVM, createNIC, cr
 		DataDisks: dataDisks,
 		NIC:       nic,
 	}
+}
+
+func createDataDiskResources(spec api.AzureProviderSpec, vmID *string, vmName string) map[string]*armcompute.Disk {
+	specDataDisks := spec.Properties.StorageProfile.DataDisks
+	dataDisks := make(map[string]*armcompute.Disk, len(specDataDisks))
+	if specDataDisks != nil {
+		for _, specDataDisk := range specDataDisks {
+			diskName := utils.CreateDataDiskName(vmName, specDataDisk)
+			dataDisks[diskName] = createDiskResource(spec, diskName, vmID, nil)
+		}
+	}
+	return dataDisks
 }
 
 func createNICResource(spec api.AzureProviderSpec, vmID *string, nicName string) *armnetwork.Interface {

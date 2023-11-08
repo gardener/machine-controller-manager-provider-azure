@@ -210,18 +210,40 @@ func TestValidateOSDisk(t *testing.T) {
 
 func TestValidateOSProfile(t *testing.T) {
 	fldPath := field.NewPath("providerSpec.properties.osProfile")
-	osProfile := api.AzureOSProfile{
-		ComputerName:  "bingo",
-		AdminUsername: "",
-		LinuxConfiguration: api.AzureLinuxConfiguration{
-			DisablePasswordAuthentication: true,
-			SSH:                           api.AzureSSHConfiguration{},
+	//AdminUserName is the only mandatory field and tests are only written to assert that.
+	table := []struct {
+		description    string
+		adminUserName  string
+		expectedErrors int
+		matcher        gomegatypes.GomegaMatcher
+	}{
+		{
+			"should forbid empty adminUserName", "", 1,
+			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.osProfile.adminUsername")}))),
+		},
+		{
+			"should succeed when adminUserName is non-empty", "test-admin-user", 0, nil,
 		},
 	}
+
 	g := NewWithT(t)
-	errList := validateOSProfile(osProfile, fldPath)
-	g.Expect(len(errList)).To(Equal(1))
-	g.Expect(errList).To(ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.osProfile.adminUsername")}))))
+	for _, entry := range table {
+		t.Run(entry.description, func(t *testing.T) {
+			osProfile := api.AzureOSProfile{
+				ComputerName:  "bingo",
+				AdminUsername: entry.adminUserName,
+				LinuxConfiguration: api.AzureLinuxConfiguration{
+					DisablePasswordAuthentication: true,
+					SSH:                           api.AzureSSHConfiguration{},
+				},
+			}
+			errList := validateOSProfile(osProfile, fldPath)
+			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
+			if entry.matcher != nil {
+				g.Expect(errList).To(entry.matcher)
+			}
+		})
+	}
 }
 
 func TestValidateDataDisks(t *testing.T) {
@@ -242,6 +264,13 @@ func TestValidateDataDisks(t *testing.T) {
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.storageProfile.dataDisks.storageAccountType")})),
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeInvalid), "Field": Equal("providerSpec.properties.storageProfile.dataDisks.diskSizeGB")})),
 			),
+		},
+		{
+			"should forbid nil Lun",
+			[]api.AzureDataDisk{
+				{Name: "disk-1", Lun: nil, StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
+			}, 1,
+			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.storageProfile.dataDisks.lun")}))),
 		},
 		{"should forbid duplicate Lun",
 			[]api.AzureDataDisk{

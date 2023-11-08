@@ -271,57 +271,61 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 		rgAccessAPIBehaviorSpec   *fakes.APIBehaviorSpec
 		diskAccessAPIBehaviorSpec *fakes.APIBehaviorSpec
 		nicAccessAPIBehaviorSpec  *fakes.APIBehaviorSpec
+		underlineCause            error
 		cascadeDeleteOpts         fakes.CascadeDeleteOpts
 		vmExists                  bool
-		checkErrorFn              func(g *WithT, err error)
+		checkErrorFn              func(g *WithT, err error, underlineCause error)
 		checkClusterStateFn       func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string)
 	}{
 		{
 			"should fail when checking resource groups existence returns an error", nil,
 			fakes.NewAPIBehaviorSpec().AddErrorResourceReaction(testResourceGroupName, testhelp.AccessMethodCheckExistence, testInternalServerError),
-			nil, nil, fakes.CascadeDeleteAllResources, true, checkError,
+			nil, nil, testInternalServerError, fakes.CascadeDeleteAllResources, true, checkError,
 			func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string) {
-				createFactoryAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, true, true, true)
+				createFakeFactoryForDeleteMachineAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, true, true, true)
 			},
 		},
 		{
 			"should fail when VM access Get call returns an error",
 			fakes.NewAPIBehaviorSpec().AddErrorResourceReaction(vmName, testhelp.AccessMethodGet, testInternalServerError),
-			nil, nil, nil, fakes.CascadeDeleteAllResources, true, checkError,
+			nil, nil, nil, testInternalServerError, fakes.CascadeDeleteAllResources, true, checkError,
 			func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string) {
-				createFactoryAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, true, true, true)
+				createFakeFactoryForDeleteMachineAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, true, true, true)
 			},
 		},
 		{
 			"non-existing-vm: should delete left over OSDisk even if error is returned when deleting left over NIC",
 			nil, nil, nil,
 			fakes.NewAPIBehaviorSpec().AddErrorResourceReaction(utils.CreateNICName(vmName), testhelp.AccessMethodBeginDelete, testInternalServerError),
+			testInternalServerError,
 			fakes.CascadeDeleteAllResources, false, checkError,
 			func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string) {
-				createFactoryAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, false, true, false)
+				createFakeFactoryForDeleteMachineAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, false, true, false)
 			},
 		},
 		{
 			"non-existing-vm: should delete left over NIC even if there is a panic when deleting left over OSDisk",
 			nil, nil,
 			fakes.NewAPIBehaviorSpec().AddPanicResourceReaction(utils.CreateOSDiskName(vmName), testhelp.AccessMethodBeginDelete),
-			nil, fakes.CascadeDeleteAllResources, false, checkError,
+			nil, utils.ErrorEncapsulatingPanic, fakes.CascadeDeleteAllResources, false, checkError,
 			func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string) {
-				createFactoryAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, false, false, true)
+				createFakeFactoryForDeleteMachineAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, false, false, true)
 			},
 		},
 		{
 			"should fail when existing VM's cascade delete options update returns an error",
 			fakes.NewAPIBehaviorSpec().AddErrorResourceReaction(vmName, testhelp.AccessMethodBeginUpdate, testInternalServerError),
-			nil, nil, nil, fakes.CascadeDeleteOpts{}, true, checkError,
+			nil, nil, nil, testInternalServerError, fakes.CascadeDeleteOpts{}, true, checkError,
 			func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string) {
-				createFactoryAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, true, true, true)
+				machineResources := createFakeFactoryForDeleteMachineAndCheckClusterState(g, ctx, testResourceGroupName, clusterState, vmName, true, true, true)
+				g.Expect(machineResources.VM).ToNot(BeNil())
+				checkCascadeDeleteOptions(t, *machineResources.VM, fakes.CascadeDeleteOpts{})
 			},
 		},
 		{
 			"should fail when deletion of the VM post update of cascade deletion option completely fails",
 			fakes.NewAPIBehaviorSpec().AddErrorResourceReaction(vmName, testhelp.AccessMethodBeginDelete, testInternalServerError),
-			nil, nil, nil, fakes.CascadeDeleteOpts{}, true, checkError,
+			nil, nil, nil, testInternalServerError, fakes.CascadeDeleteOpts{}, true, checkError,
 			func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string) {
 				factory := createDefaultFakeFactoryForDeleteMachine(g, testResourceGroupName, clusterState)
 				machineResources := checkClusterStateAndGetMachineResources(g, ctx, *factory, vmName, true, true, true, nil, false, true)
@@ -363,7 +367,7 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 				Secret:       fakes.CreateProviderSecret(),
 			})
 			if entry.checkErrorFn != nil {
-				entry.checkErrorFn(g, err)
+				entry.checkErrorFn(g, err, entry.underlineCause)
 			}
 			if entry.checkClusterStateFn != nil {
 				entry.checkClusterStateFn(g, ctx, clusterState, vmName)
@@ -435,7 +439,7 @@ func TestGetMachineStatus(t *testing.T) {
 			for _, vmName := range entry.existingVMNames {
 				clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).BuildAllResources())
 			}
-			// create fake factory
+			// create fake factory and initialize vmAccess only
 			fakeFactory := fakes.NewFactory(testResourceGroupName)
 			vmAccess, err := fakeFactory.NewVirtualMachineAccessBuilder().WithClusterState(clusterState).Build()
 			g.Expect(err).To(BeNil())
@@ -460,8 +464,8 @@ func TestGetMachineStatus(t *testing.T) {
 			if err == nil {
 				g.Expect(getMachineStatusResp).ToNot(BeNil())
 				g.Expect(getMachineStatusResp.NodeName).To(Equal(entry.targetVMName))
-				instanceID := helpers.DeriveInstanceID(providerSpec.Location, entry.targetVMName)
-				g.Expect(getMachineStatusResp.ProviderID).To(Equal(instanceID))
+				expectedInstanceID := helpers.DeriveInstanceID(providerSpec.Location, entry.targetVMName)
+				g.Expect(getMachineStatusResp.ProviderID).To(Equal(expectedInstanceID))
 			}
 			if entry.checkErrorFn != nil {
 				entry.checkErrorFn(g, err)
@@ -485,7 +489,6 @@ func TestListMachines(t *testing.T) {
 	const nonMatchingShootNs = "non-matching-shoot-ns"
 
 	nonMatchingTags := map[string]string{
-		"Name": nonMatchingShootNs,
 		"kubernetes.io-cluster-" + nonMatchingShootNs: "1",
 		"kubernetes.io-role-node":                     "1",
 	}
@@ -501,7 +504,7 @@ func TestListMachines(t *testing.T) {
 			"should return no result if no resources exist", nil, nil, []string{}, false,
 		},
 		{
-			"should return all vm names where vm's exist",
+			"should return all vm names where vms exist",
 			[]machineResourcesTestSpec{
 				{"vm-0", true, true, true, nil, nil},
 				{"vm-1", true, true, true, nil, nil},
@@ -510,7 +513,7 @@ func TestListMachines(t *testing.T) {
 		{
 			"should return vm names only for vms which vm does not exist but a nic exists",
 			[]machineResourcesTestSpec{
-				{"vm-0", false, true, false, nil, nil},
+				{"vm-0", false, false, false, nil, nil},
 				{"vm-1", false, false, true, nil, nil},
 			}, nil, []string{"vm-1"}, false,
 		},
@@ -521,7 +524,8 @@ func TestListMachines(t *testing.T) {
 				{"vm-1", true, true, true, nil, nil},
 				{"vm-2", true, true, true, nonMatchingTags, nonMatchingTags},
 				{"vm-3", true, true, true, nil, nil},
-			}, nil, []string{"vm-1", "vm-3"}, false,
+				{"vm-4", true, true, true, nonMatchingTags, nil},
+			}, nil, []string{"vm-1", "vm-3", "vm-4"}, false,
 		},
 	}
 
@@ -555,10 +559,7 @@ func TestListMachines(t *testing.T) {
 			}
 
 			// create fake factory
-			fakeFactory := fakes.NewFactory(testResourceGroupName)
-			resourceGraphAccess, err := fakeFactory.NewResourceGraphAccessBuilder().WithClusterState(clusterState).Build()
-			g.Expect(err).To(BeNil())
-			fakeFactory.WithResourceGraphAccess(resourceGraphAccess)
+			fakeFactory := createDefaultFakeFactoryForListMachines(g, testResourceGroupName, clusterState, nil)
 
 			// Create machine and machine class to be used to create DeleteMachineRequest
 			machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
@@ -573,6 +574,60 @@ func TestListMachines(t *testing.T) {
 			})
 			g.Expect(err != nil).To(Equal(entry.expectedErr))
 			g.Expect(fakes.ActualSliceEqualsExpectedSlice(getVMNamesFromListMachineResponse(listMachinesResp), entry.expectedResult)).To(BeTrue())
+		})
+	}
+}
+
+func TestListMachineWithInducedErrors(t *testing.T) {
+	const (
+		vmName        = "test-vm-0"
+		testErrorCode = "test-error-code"
+	)
+	testInternalServerError := testhelp.InternalServerError(testErrorCode)
+
+	table := []struct {
+		description     string
+		apiBehaviorSpec *fakes.APIBehaviorSpec
+	}{
+		{
+			"should fail listing machines when resource-graph query for VM resource type returns error",
+			fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(fakes.VirtualMachinesResourceType, testhelp.AccessMethodResources, testInternalServerError),
+		},
+		{
+			"should fail listing machines when resource-graph query for NIC resource type returns error",
+			fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(fakes.NetworkInterfacesResourceType, testhelp.AccessMethodResources, testInternalServerError),
+		},
+	}
+
+	g := NewWithT(t)
+	ctx := context.Background()
+
+	// create provider spec
+	providerSpec := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().Build()
+	clusterState := fakes.NewClusterState(providerSpec)
+	clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).BuildWith(true, true, true, false, nil))
+
+	for _, entry := range table {
+		t.Run(entry.description, func(t *testing.T) {
+			// create fake factory
+			fakeFactory := createDefaultFakeFactoryForListMachines(g,
+				testResourceGroupName,
+				clusterState,
+				entry.apiBehaviorSpec,
+			)
+			// Create machine and machine class to be used to create DeleteMachineRequest
+			machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+			g.Expect(err).To(BeNil())
+
+			// Test
+			//----------------------------------------------------------------------------
+			testDriver := NewDefaultDriver(fakeFactory)
+			_, err = testDriver.ListMachines(ctx, &driver.ListMachinesRequest{
+				MachineClass: machineClass,
+				Secret:       fakes.CreateProviderSecret(),
+			})
+			g.Expect(err).ToNot(BeNil())
+			checkError(g, err, testInternalServerError)
 		})
 	}
 }
@@ -643,7 +698,7 @@ func TestCreateMachineWhenPrerequisitesFail(t *testing.T) {
 		description                        string
 		subnetName                         string
 		vnetName                           string
-		subnetResourceGroup                *string // If specified then this resource-group will be used to create a subnet resource in ClusterState
+		subnetResourceGroup                *string // If specified then this resource-group will be used to create a subnet resource in ClusterState, else resource group at the providerSpec will be used.
 		providerSpecVnetResourceGroup      *string // If specified this will be used to set the vnet resource group in provider spec, else resource group at the providerSpec will be used.
 		subnetExists                       bool
 		vmImageExists                      bool
@@ -840,10 +895,10 @@ func TestCreateMachineWhenNICOrVMCreationFails(t *testing.T) {
 		vmAccessAPIBehavior  *fakes.APIBehaviorSpec
 		nicAccessAPIBehavior *fakes.APIBehaviorSpec
 		checkClusterStateFn  func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string)
-		//checkMachineResourcesFn func(g *WithT, ctx context.Context, factory fakes.Factory)
-		checkErrorFn func(g *WithT, clusterState *fakes.ClusterState, err error)
+		checkErrorFn         func(g *WithT, clusterState *fakes.ClusterState, err error)
 	}{
 		{
+			// NIC GET calls does not return error in case it is NotFound
 			"should fail machine creation with NIC GET fails, no resources should be created", true,
 			nil, fakes.NewAPIBehaviorSpec().AddErrorResourceReaction(nicName, testhelp.AccessMethodGet, internalServerErr),
 			func(g *WithT, ctx context.Context, clusterState *fakes.ClusterState, vmName string) {
@@ -963,7 +1018,7 @@ func TestSuccessfulCreationOfMachine(t *testing.T) {
 		Secret:       fakes.CreateProviderSecret(),
 	})
 	g.Expect(err).To(BeNil())
-	checkClusterStateAndGetMachineResources(g, ctx, *fakeFactory, vmName, true, true, true, dataDiskNames, true, false)
+	checkClusterStateAndGetMachineResources(g, ctx, *fakeFactory, vmName, true, true, true, dataDiskNames, true, true)
 	g.Expect(resp.NodeName).To(Equal(vmName))
 	expectedProviderID := helpers.DeriveInstanceID(providerSpec.Location, vmName)
 	g.Expect(resp.ProviderID).To(Equal(expectedProviderID))
@@ -972,11 +1027,11 @@ func TestSuccessfulCreationOfMachine(t *testing.T) {
 // unit test helper functions
 //------------------------------------------------------------------------------------------------------
 
-func checkError(g *WithT, err error) {
+func checkError(g *WithT, err error, underlineCause error) {
 	var statusErr *status.Status
 	g.Expect(errors.As(err, &statusErr)).To(BeTrue())
 	g.Expect(statusErr.Code()).To(Equal(codes.Internal))
-	// TODO: Add additional check when we improve status.Status error type to include the underline error as well.
+	g.Expect(errors.Is(statusErr.Cause(), underlineCause)).To(BeTrue())
 }
 
 func checkClusterStateAndGetMachineResources(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, expectVMExists bool, expectNICExists bool, expectOSDiskExists bool, expectedDataDiskNames []string, expectDataDiskExists bool, expectAssociatedVMID bool) fakes.MachineResources {
@@ -993,9 +1048,20 @@ func checkClusterStateAndGetMachineResources(g *WithT, ctx context.Context, fact
 	}
 }
 
-func createFactoryAndCheckClusterState(g *WithT, ctx context.Context, resourceGroupName string, clusterState *fakes.ClusterState, vmName string, expectVMExists bool, expectNICExists bool, expectOSDiskExists bool) {
+func createFakeFactoryForDeleteMachineAndCheckClusterState(g *WithT, ctx context.Context, resourceGroupName string, clusterState *fakes.ClusterState, vmName string, expectVMExists bool, expectNICExists bool, expectOSDiskExists bool) fakes.MachineResources {
 	factory := createDefaultFakeFactoryForDeleteMachine(g, resourceGroupName, clusterState)
-	checkClusterStateAndGetMachineResources(g, ctx, *factory, vmName, expectVMExists, expectNICExists, expectOSDiskExists, []string{}, false, false)
+	return checkClusterStateAndGetMachineResources(g, ctx, *factory, vmName, expectVMExists, expectNICExists, expectOSDiskExists, []string{}, false, false)
+}
+
+func createDefaultFakeFactoryForListMachines(g *WithT, resourceGroup string, clusterState *fakes.ClusterState, resourceGraphAccessBehaviorSpec *fakes.APIBehaviorSpec) *fakes.Factory {
+	fakeFactory := fakes.NewFactory(resourceGroup)
+	resourceGraphAccess, err := fakeFactory.NewResourceGraphAccessBuilder().
+		WithClusterState(clusterState).
+		WithAPIBehaviorSpec(resourceGraphAccessBehaviorSpec).
+		Build()
+	g.Expect(err).To(BeNil())
+	fakeFactory.WithResourceGraphAccess(resourceGraphAccess)
+	return fakeFactory
 }
 
 func checkCascadeDeleteOptions(t *testing.T, vm armcompute.VirtualMachine, expectedCascadeDeleteOpts fakes.CascadeDeleteOpts) {

@@ -27,6 +27,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api/validation"
 	"golang.org/x/crypto/ssh"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/pointer"
@@ -37,7 +38,6 @@ import (
 	accesshelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/validation"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
@@ -240,7 +240,7 @@ func CheckAndDeleteLeftoverNICsAndDisks(ctx context.Context, factory access.Fact
 	tasks = append(tasks, createDisksDeletionTasks(resourceGroup, diskNames, disksAccess)...)
 	combinedErr := errors.Join(utils.RunConcurrently(ctx, tasks, 2)...)
 	if combinedErr != nil {
-		return status.WrapError(codes.Internal, fmt.Sprintf("Errors during deletion of NIC/Disks associated to VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
+		return status.WrapError(codes.Internal, fmt.Sprintf("Errors during deletion of NIC/Disks associated to VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), combinedErr)
 	}
 	return nil
 }
