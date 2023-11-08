@@ -170,11 +170,11 @@ func isCascadeDeleteSetForAllDataDisks(dataDiskDeleteOptsMap map[string]*armcomp
 	return true
 }
 
-// updateMachineResourcesFromVmParams updates MachineResources from already built vmParams and ProviderSpec.
+// updateMachineResourcesFromVMParams updates MachineResources from already built vmParams and ProviderSpec.
 // This function would typically be used to create MachineResources in the CreateMachine driver call flow where
 // it is assumed that NIC creation will be done first which will already create a MachineResource. This function will
 // then create the rest of the resources and also update the NIC to refer to the VM ID.
-func updateMachineResourcesFromVmParams(spec api.AzureProviderSpec, resourceGroup string, vmParams armcompute.VirtualMachine, machineResources *MachineResources) {
+func updateMachineResourcesFromVMParams(spec api.AzureProviderSpec, resourceGroup string, vmParams armcompute.VirtualMachine, machineResources *MachineResources) {
 	vmName := *vmParams.Name
 	newVM := vmParams
 	newVM.ID = to.Ptr(CreateVirtualMachineID(testhelp.SubscriptionID, resourceGroup, vmName))
@@ -196,7 +196,7 @@ func updateMachineResourcesFromVmParams(spec api.AzureProviderSpec, resourceGrou
 // This builder should not be used if CreateMachine driver method is
 // being tested. The CreateMachine already populates armcompute.VirtualMachine.
 // If one wishes to create MachineResources from armcompute.VirtualMachine then
-// use function updateMachineResourcesFromVmParams instead.
+// use function updateMachineResourcesFromVMParams instead.
 //----------------------------------------------------------------------
 
 // MachineResourcesBuilder is a builder for MachineResources

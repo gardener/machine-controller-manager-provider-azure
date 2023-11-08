@@ -277,7 +277,7 @@ func (c *ClusterState) CreateVM(resourceGroup string, vmParams armcompute.Virtua
 	machineResources, ok := c.MachineResourcesMap[vmName]
 	// It is assumed that this method will be called after the NIC referenced in vmParams has been created.
 	if ok {
-		updateMachineResourcesFromVmParams(c.ProviderSpec, resourceGroup, vmParams, &machineResources)
+		updateMachineResourcesFromVMParams(c.ProviderSpec, resourceGroup, vmParams, &machineResources)
 		c.MachineResourcesMap[vmName] = machineResources
 		return machineResources.VM, nil
 	}
