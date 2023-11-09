@@ -405,15 +405,30 @@ func TestDeleteMachineWhenProviderIsNotAzure(t *testing.T) {
 }
 
 func TestGetMachineStatus(t *testing.T) {
+
+	const testErrorCode = "test-error-code"
+	testInternalServerError := testhelp.InternalServerError(testErrorCode)
+
 	table := []struct {
 		description            string
 		existingVMNames        []string
 		targetVMName           string
 		shouldOperationSucceed bool
+		vmAccessApiBehavior    *fakes.APIBehaviorSpec
 		checkErrorFn           func(g *WithT, err error)
 	}{
 		{
-			"should return an error for a non-existing VM", []string{"vm-0", "vm-1"}, "vm-2", false,
+			"should fail when VM access Get call returns an error",
+			[]string{"vm-0", "vm-1"},
+			"vm-1",
+			false,
+			fakes.NewAPIBehaviorSpec().AddErrorResourceReaction("vm-1", testhelp.AccessMethodGet, testInternalServerError),
+			func(g *WithT, err error) {
+				checkError(g, err, testInternalServerError)
+			},
+		},
+		{
+			"should return an error for a non-existing VM", []string{"vm-0", "vm-1"}, "vm-2", false, nil,
 			func(g *WithT, err error) {
 				var statusErr *status.Status
 				g.Expect(err).ToNot(BeNil())
@@ -421,7 +436,7 @@ func TestGetMachineStatus(t *testing.T) {
 				g.Expect(statusErr.Code()).To(Equal(codes.NotFound))
 			},
 		},
-		{"should return a valid response for an existing VM", []string{"vm-0", "vm-1"}, "vm-0", true, nil},
+		{"should return a valid response for an existing VM", []string{"vm-0", "vm-1"}, "vm-0", true, nil, nil},
 	}
 
 	g := NewWithT(t)
@@ -441,7 +456,7 @@ func TestGetMachineStatus(t *testing.T) {
 			}
 			// create fake factory and initialize vmAccess only
 			fakeFactory := fakes.NewFactory(testResourceGroupName)
-			vmAccess, err := fakeFactory.NewVirtualMachineAccessBuilder().WithClusterState(clusterState).Build()
+			vmAccess, err := fakeFactory.NewVirtualMachineAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(entry.vmAccessApiBehavior).Build()
 			g.Expect(err).To(BeNil())
 			fakeFactory.WithVirtualMachineAccess(vmAccess)
 
@@ -511,7 +526,7 @@ func TestListMachines(t *testing.T) {
 			}, nil, []string{"vm-0", "vm-1"}, false,
 		},
 		{
-			"should return vm names only for vms which vm does not exist but a nic exists",
+			"should return vm names only for vms where vm does not exist but a nic exists",
 			[]machineResourcesTestSpec{
 				{"vm-0", false, false, false, nil, nil},
 				{"vm-1", false, false, true, nil, nil},
