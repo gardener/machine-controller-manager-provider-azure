@@ -265,6 +265,7 @@ func createNICDeleteTask(resourceGroup, nicName string, nicAccess *armnetwork.In
 	return utils.Task{
 		Name: fmt.Sprintf("delete-nic-[resourceGroup: %s name: %s]", resourceGroup, nicName),
 		Fn: func(ctx context.Context) error {
+			klog.Infof("Attempting to delete nic: [ResourceGroup: %s, NicName: %s] if it exists", resourceGroup, nicName)
 			return accesshelpers.DeleteNIC(ctx, nicAccess, resourceGroup, nicName)
 		},
 	}
@@ -275,7 +276,7 @@ func createDisksDeletionTasks(resourceGroup string, diskNames []string, diskAcce
 	for _, diskName := range diskNames {
 		diskName := diskName // TODO: remove this once https://github.com/golang/go/wiki/LoopvarExperiment becomes part of 1.21.x
 		taskFn := func(ctx context.Context) error {
-			klog.Infof("Deleting disk: [ResourceGroup: %s, DiskName: %s]", resourceGroup, diskName)
+			klog.Infof("Attempting to delete disk: [ResourceGroup: %s, DiskName: %s] if it exists", resourceGroup, diskName)
 			return accesshelpers.DeleteDisk(ctx, diskAccess, resourceGroup, diskName)
 		}
 		tasks = append(tasks, utils.Task{
