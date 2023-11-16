@@ -10,17 +10,17 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
-	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/streaming"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity/internal"
 	"github.com/AzureAD/microsoft-authentication-library-for-go/apps/confidential"
 	"github.com/AzureAD/microsoft-authentication-library-for-go/apps/public"
 )
@@ -41,73 +41,25 @@ const (
 	organizationsTenantID   = "organizations"
 	developerSignOnClientID = "04b07795-8ddb-461a-bbee-02f9e1bf7b46"
 	defaultSuffix           = "/.default"
-	tenantIDValidationErr   = "invalid tenantID. You can locate your tenantID by following the instructions listed here: https://docs.microsoft.com/partner-center/find-ids-and-domain-names"
+
+	traceNamespace      = "Microsoft.Entra"
+	traceOpGetToken     = "GetToken"
+	traceOpAuthenticate = "Authenticate"
 )
 
 var (
 	// capability CP1 indicates the client application is capable of handling CAE claims challenges
-	cp1        = []string{"CP1"}
-	disableCP1 = strings.ToLower(os.Getenv("AZURE_IDENTITY_DISABLE_CP1")) == "true"
+	cp1                = []string{"CP1"}
+	errInvalidTenantID = errors.New("invalid tenantID. You can locate your tenantID by following the instructions listed here: https://learn.microsoft.com/partner-center/find-ids-and-domain-names")
 )
 
-type msalClientOptions struct {
-	azcore.ClientOptions
-
-	DisableInstanceDiscovery bool
-	// SendX5C applies only to confidential clients authenticating with a cert
-	SendX5C bool
-}
-
-var getConfidentialClient = func(clientID, tenantID string, cred confidential.Credential, opts msalClientOptions) (confidentialClient, error) {
-	if !validTenantID(tenantID) {
-		return confidential.Client{}, errors.New(tenantIDValidationErr)
-	}
-	authorityHost, err := setAuthorityHost(opts.Cloud)
-	if err != nil {
-		return confidential.Client{}, err
-	}
-	authority := runtime.JoinPaths(authorityHost, tenantID)
-	o := []confidential.Option{
-		confidential.WithAzureRegion(os.Getenv(azureRegionalAuthorityName)),
-		confidential.WithHTTPClient(newPipelineAdapter(&opts.ClientOptions)),
-	}
-	if !disableCP1 {
-		o = append(o, confidential.WithClientCapabilities(cp1))
-	}
-	if opts.SendX5C {
-		o = append(o, confidential.WithX5C())
-	}
-	if opts.DisableInstanceDiscovery || strings.ToLower(tenantID) == "adfs" {
-		o = append(o, confidential.WithInstanceDiscovery(false))
-	}
-	return confidential.New(authority, clientID, cred, o...)
-}
-
-var getPublicClient = func(clientID, tenantID string, opts msalClientOptions) (public.Client, error) {
-	if !validTenantID(tenantID) {
-		return public.Client{}, errors.New(tenantIDValidationErr)
-	}
-	authorityHost, err := setAuthorityHost(opts.Cloud)
-	if err != nil {
-		return public.Client{}, err
-	}
-	o := []public.Option{
-		public.WithAuthority(runtime.JoinPaths(authorityHost, tenantID)),
-		public.WithHTTPClient(newPipelineAdapter(&opts.ClientOptions)),
-	}
-	if !disableCP1 {
-		o = append(o, public.WithClientCapabilities(cp1))
-	}
-	if opts.DisableInstanceDiscovery || strings.ToLower(tenantID) == "adfs" {
-		o = append(o, public.WithInstanceDiscovery(false))
-	}
-	return public.New(clientID, o...)
-}
+// TokenCachePersistenceOptions contains options for persistent token caching
+type TokenCachePersistenceOptions = internal.TokenCachePersistenceOptions
 
 // setAuthorityHost initializes the authority host for credentials. Precedence is:
-// 1. cloud.Configuration.ActiveDirectoryAuthorityHost value set by user
-// 2. value of AZURE_AUTHORITY_HOST
-// 3. default: Azure Public Cloud
+//  1. cloud.Configuration.ActiveDirectoryAuthorityHost value set by user
+//  2. value of AZURE_AUTHORITY_HOST
+//  3. default: Azure Public Cloud
 func setAuthorityHost(cc cloud.Configuration) (string, error) {
 	host := cc.ActiveDirectoryAuthorityHost
 	if host == "" {
@@ -129,29 +81,51 @@ func setAuthorityHost(cc cloud.Configuration) (string, error) {
 	return host, nil
 }
 
-// validTenantID return true is it receives a valid tenantID, returns false otherwise
-func validTenantID(tenantID string) bool {
-	match, err := regexp.MatchString("^[0-9a-zA-Z-.]+$", tenantID)
-	if err != nil {
-		return false
+// resolveAdditionalTenants returns a copy of tenants, simplified when tenants contains a wildcard
+func resolveAdditionalTenants(tenants []string) []string {
+	if len(tenants) == 0 {
+		return nil
 	}
-	return match
+	for _, t := range tenants {
+		// a wildcard makes all other values redundant
+		if t == "*" {
+			return []string{"*"}
+		}
+	}
+	cp := make([]string, len(tenants))
+	copy(cp, tenants)
+	return cp
 }
 
-func newPipelineAdapter(opts *azcore.ClientOptions) pipelineAdapter {
-	pl := runtime.NewPipeline(component, version, runtime.PipelineOptions{}, opts)
-	return pipelineAdapter{pl: pl}
+// resolveTenant returns the correct tenant for a token request
+func resolveTenant(defaultTenant, specified, credName string, additionalTenants []string) (string, error) {
+	if specified == "" || specified == defaultTenant {
+		return defaultTenant, nil
+	}
+	if defaultTenant == "adfs" {
+		return "", errors.New("ADFS doesn't support tenants")
+	}
+	if !validTenantID(specified) {
+		return "", errInvalidTenantID
+	}
+	for _, t := range additionalTenants {
+		if t == "*" || t == specified {
+			return specified, nil
+		}
+	}
+	return "", fmt.Errorf(`%s isn't configured to acquire tokens for tenant %q. To enable acquiring tokens for this tenant add it to the AdditionallyAllowedTenants on the credential options, or add "*" to allow acquiring tokens for any tenant`, credName, specified)
 }
 
-type pipelineAdapter struct {
-	pl runtime.Pipeline
+func validTenantID(tenantID string) bool {
+	for _, r := range tenantID {
+		if !(('0' <= r && r <= '9') || ('a' <= r && r <= 'z') || ('A' <= r && r <= 'Z') || r == '.' || r == '-') {
+			return false
+		}
+	}
+	return true
 }
 
-func (p pipelineAdapter) CloseIdleConnections() {
-	// do nothing
-}
-
-func (p pipelineAdapter) Do(r *http.Request) (*http.Response, error) {
+func doForClient(client *azcore.Client, r *http.Request) (*http.Response, error) {
 	req, err := runtime.NewRequest(r.Context(), r.Method, r.URL.String())
 	if err != nil {
 		return nil, err
@@ -173,7 +147,7 @@ func (p pipelineAdapter) Do(r *http.Request) (*http.Response, error) {
 			return nil, err
 		}
 	}
-	resp, err := p.pl.Do(req)
+	resp, err := client.Pipeline().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +155,7 @@ func (p pipelineAdapter) Do(r *http.Request) (*http.Response, error) {
 }
 
 // enables fakes for test scenarios
-type confidentialClient interface {
+type msalConfidentialClient interface {
 	AcquireTokenSilent(ctx context.Context, scopes []string, options ...confidential.AcquireSilentOption) (confidential.AuthResult, error)
 	AcquireTokenByAuthCode(ctx context.Context, code string, redirectURI string, scopes []string, options ...confidential.AcquireByAuthCodeOption) (confidential.AuthResult, error)
 	AcquireTokenByCredential(ctx context.Context, scopes []string, options ...confidential.AcquireByCredentialOption) (confidential.AuthResult, error)
@@ -189,7 +163,7 @@ type confidentialClient interface {
 }
 
 // enables fakes for test scenarios
-type publicClient interface {
+type msalPublicClient interface {
 	AcquireTokenSilent(ctx context.Context, scopes []string, options ...public.AcquireSilentOption) (public.AuthResult, error)
 	AcquireTokenByUsernamePassword(ctx context.Context, scopes []string, username string, password string, options ...public.AcquireByUsernamePasswordOption) (public.AuthResult, error)
 	AcquireTokenByDeviceCode(ctx context.Context, scopes []string, options ...public.AcquireByDeviceCodeOption) (public.DeviceCode, error)

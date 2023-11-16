@@ -74,7 +74,7 @@ func (b *SubnetAccessBuilder) withGet() *SubnetAccessBuilder {
 // Build builds armnetwork.SubnetsClient.
 func (b *SubnetAccessBuilder) Build() (*armnetwork.SubnetsClient, error) {
 	b.withGet()
-	return armnetwork.NewSubnetsClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
+	return armnetwork.NewSubnetsClient(testhelp.SubscriptionID, &azfake.TokenCredential{}, &arm.ClientOptions{
 		ClientOptions: policy.ClientOptions{
 			Transport: fakenetwork.NewSubnetsServerTransport(&b.server),
 		},

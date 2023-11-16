@@ -19,6 +19,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 )
 
@@ -47,6 +48,10 @@ type LoadBalancersServer struct {
 	// BeginListInboundNatRulePortMappings is the fake for method LoadBalancersClient.BeginListInboundNatRulePortMappings
 	// HTTP status codes to indicate success: http.StatusOK, http.StatusAccepted
 	BeginListInboundNatRulePortMappings func(ctx context.Context, groupName string, loadBalancerName string, backendPoolName string, parameters armnetwork.QueryInboundNatRulePortMappingRequest, options *armnetwork.LoadBalancersClientBeginListInboundNatRulePortMappingsOptions) (resp azfake.PollerResponder[armnetwork.LoadBalancersClientListInboundNatRulePortMappingsResponse], errResp azfake.ErrorResponder)
+
+	// MigrateToIPBased is the fake for method LoadBalancersClient.MigrateToIPBased
+	// HTTP status codes to indicate success: http.StatusOK
+	MigrateToIPBased func(ctx context.Context, groupName string, loadBalancerName string, options *armnetwork.LoadBalancersClientMigrateToIPBasedOptions) (resp azfake.Responder[armnetwork.LoadBalancersClientMigrateToIPBasedResponse], errResp azfake.ErrorResponder)
 
 	// BeginSwapPublicIPAddresses is the fake for method LoadBalancersClient.BeginSwapPublicIPAddresses
 	// HTTP status codes to indicate success: http.StatusOK, http.StatusAccepted
@@ -108,6 +113,8 @@ func (l *LoadBalancersServerTransport) Do(req *http.Request) (*http.Response, er
 		resp, err = l.dispatchNewListAllPager(req)
 	case "LoadBalancersClient.BeginListInboundNatRulePortMappings":
 		resp, err = l.dispatchBeginListInboundNatRulePortMappings(req)
+	case "LoadBalancersClient.MigrateToIPBased":
+		resp, err = l.dispatchMigrateToIPBased(req)
 	case "LoadBalancersClient.BeginSwapPublicIPAddresses":
 		resp, err = l.dispatchBeginSwapPublicIPAddresses(req)
 	case "LoadBalancersClient.UpdateTags":
@@ -379,6 +386,49 @@ func (l *LoadBalancersServerTransport) dispatchBeginListInboundNatRulePortMappin
 		l.beginListInboundNatRulePortMappings.remove(req)
 	}
 
+	return resp, nil
+}
+
+func (l *LoadBalancersServerTransport) dispatchMigrateToIPBased(req *http.Request) (*http.Response, error) {
+	if l.srv.MigrateToIPBased == nil {
+		return nil, &nonRetriableError{errors.New("fake for method MigrateToIPBased not implemented")}
+	}
+	const regexStr = `/subscriptions/(?P<subscriptionId>[!#&$-;=?-\[\]_a-zA-Z0-9~%@]+)/resourceGroups/(?P<groupName>[!#&$-;=?-\[\]_a-zA-Z0-9~%@]+)/providers/Microsoft.Network/loadBalancers/(?P<loadBalancerName>[!#&$-;=?-\[\]_a-zA-Z0-9~%@]+)/migrateToIpBased`
+	regex := regexp.MustCompile(regexStr)
+	matches := regex.FindStringSubmatch(req.URL.EscapedPath())
+	if matches == nil || len(matches) < 3 {
+		return nil, fmt.Errorf("failed to parse path %s", req.URL.Path)
+	}
+	body, err := server.UnmarshalRequestAsJSON[armnetwork.MigrateLoadBalancerToIPBasedRequest](req)
+	if err != nil {
+		return nil, err
+	}
+	groupNameUnescaped, err := url.PathUnescape(matches[regex.SubexpIndex("groupName")])
+	if err != nil {
+		return nil, err
+	}
+	loadBalancerNameUnescaped, err := url.PathUnescape(matches[regex.SubexpIndex("loadBalancerName")])
+	if err != nil {
+		return nil, err
+	}
+	var options *armnetwork.LoadBalancersClientMigrateToIPBasedOptions
+	if !reflect.ValueOf(body).IsZero() {
+		options = &armnetwork.LoadBalancersClientMigrateToIPBasedOptions{
+			Parameters: &body,
+		}
+	}
+	respr, errRespr := l.srv.MigrateToIPBased(req.Context(), groupNameUnescaped, loadBalancerNameUnescaped, options)
+	if respErr := server.GetError(errRespr, req); respErr != nil {
+		return nil, respErr
+	}
+	respContent := server.GetResponseContent(respr)
+	if !contains([]int{http.StatusOK}, respContent.HTTPStatus) {
+		return nil, &nonRetriableError{fmt.Errorf("unexpected status code %d. acceptable values are http.StatusOK", respContent.HTTPStatus)}
+	}
+	resp, err := server.MarshalResponseAsJSON(respContent, server.GetResponse(respr).MigratedPools, req)
+	if err != nil {
+		return nil, err
+	}
 	return resp, nil
 }
 

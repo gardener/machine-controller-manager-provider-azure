@@ -205,7 +205,7 @@ func (b *VMAccessBuilder) updatedDataDisksCascadeDeleteOption(vmName string, sto
 // Build builds armcompute.VirtualMachinesClient.
 func (b *VMAccessBuilder) Build() (*armcompute.VirtualMachinesClient, error) {
 	b.withGet().withBeginDelete().withBeginUpdate().withBeginCreateOrUpdate()
-	return armcompute.NewVirtualMachinesClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
+	return armcompute.NewVirtualMachinesClient(testhelp.SubscriptionID, &azfake.TokenCredential{}, &arm.ClientOptions{
 		ClientOptions: azcore.ClientOptions{
 			Transport: fakecompute.NewVirtualMachinesServerTransport(&b.server),
 		},

@@ -138,7 +138,7 @@ func createResourcesResponse(vmNames []string) armresourcegraph.ClientResourcesR
 // Build builds armresourcegraph.Client.
 func (b *ResourceGraphAccessBuilder) Build() (*armresourcegraph.Client, error) {
 	b.withResources()
-	return armresourcegraph.NewClient(azfake.NewTokenCredential(), &arm.ClientOptions{
+	return armresourcegraph.NewClient(&azfake.TokenCredential{}, &arm.ClientOptions{
 		ClientOptions: azcore.ClientOptions{
 			Transport: fakeresourcegraph.NewServerTransport(&b.server),
 		},

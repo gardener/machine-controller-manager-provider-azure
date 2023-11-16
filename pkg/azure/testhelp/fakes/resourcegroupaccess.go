@@ -65,7 +65,7 @@ func (b *ResourceGroupsAccessBuilder) Build() (*armresources.ResourceGroupsClien
 	b.withCheckExistence()
 	return armresources.NewResourceGroupsClient(
 		testhelp.SubscriptionID,
-		azfake.NewTokenCredential(),
+		&azfake.TokenCredential{},
 		&arm.ClientOptions{
 			ClientOptions: policy.ClientOptions{
 				Transport: fakearmresources.NewResourceGroupsServerTransport(&b.server),

@@ -77,7 +77,7 @@ func (b *ImageAccessBuilder) withGet() *ImageAccessBuilder {
 // Build builds the armcompute.VirtualMachineImagesClient.
 func (b *ImageAccessBuilder) Build() (*armcompute.VirtualMachineImagesClient, error) {
 	b.withGet()
-	return armcompute.NewVirtualMachineImagesClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
+	return armcompute.NewVirtualMachineImagesClient(testhelp.SubscriptionID, &azfake.TokenCredential{}, &arm.ClientOptions{
 		ClientOptions: azcore.ClientOptions{
 			Transport: fakecompute.NewVirtualMachineImagesServerTransport(&b.server),
 		},

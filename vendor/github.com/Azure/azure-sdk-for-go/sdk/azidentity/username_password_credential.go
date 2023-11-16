@@ -11,7 +11,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
-	"github.com/AzureAD/microsoft-authentication-library-for-go/apps/public"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 )
 
 const credNameUserPassword = "UsernamePasswordCredential"
@@ -24,11 +24,19 @@ type UsernamePasswordCredentialOptions struct {
 	// Add the wildcard value "*" to allow the credential to acquire tokens for any tenant in which the
 	// application is registered.
 	AdditionallyAllowedTenants []string
+
+	// AuthenticationRecord returned by a call to a credential's Authenticate method. Set this option
+	// to enable the credential to use data from a previous authentication.
+	AuthenticationRecord AuthenticationRecord
+
 	// DisableInstanceDiscovery should be set true only by applications authenticating in disconnected clouds, or
-	// private clouds such as Azure Stack. It determines whether the credential requests Azure AD instance metadata
+	// private clouds such as Azure Stack. It determines whether the credential requests Microsoft Entra instance metadata
 	// from https://login.microsoft.com before authenticating. Setting this to true will skip this request, making
 	// the application responsible for ensuring the configured authority is valid and trustworthy.
 	DisableInstanceDiscovery bool
+
+	// TokenCachePersistenceOptions enables persistent token caching when not nil.
+	TokenCachePersistenceOptions *TokenCachePersistenceOptions
 }
 
 // UsernamePasswordCredential authenticates a user with a password. Microsoft doesn't recommend this kind of authentication,
@@ -36,10 +44,7 @@ type UsernamePasswordCredentialOptions struct {
 // with any form of multi-factor authentication, and the application must already have user or admin consent.
 // This credential can only authenticate work and school accounts; it can't authenticate Microsoft accounts.
 type UsernamePasswordCredential struct {
-	account            public.Account
-	client             publicClient
-	password, username string
-	s                  *syncer
+	client *publicClient
 }
 
 // NewUsernamePasswordCredential creates a UsernamePasswordCredential. clientID is the ID of the application the user
@@ -48,47 +53,38 @@ func NewUsernamePasswordCredential(tenantID string, clientID string, username st
 	if options == nil {
 		options = &UsernamePasswordCredentialOptions{}
 	}
-	msalOpts := msalClientOptions{
-		ClientOptions:            options.ClientOptions,
-		DisableInstanceDiscovery: options.DisableInstanceDiscovery,
+	opts := publicClientOptions{
+		AdditionallyAllowedTenants:   options.AdditionallyAllowedTenants,
+		ClientOptions:                options.ClientOptions,
+		DisableInstanceDiscovery:     options.DisableInstanceDiscovery,
+		Password:                     password,
+		Record:                       options.AuthenticationRecord,
+		TokenCachePersistenceOptions: options.TokenCachePersistenceOptions,
+		Username:                     username,
 	}
-	c, err := getPublicClient(clientID, tenantID, msalOpts)
+	c, err := newPublicClient(tenantID, clientID, credNameUserPassword, opts)
 	if err != nil {
 		return nil, err
 	}
-	upc := UsernamePasswordCredential{client: c, password: password, username: username}
-	upc.s = newSyncer(
-		credNameUserPassword,
-		tenantID,
-		upc.requestToken,
-		upc.silentAuth,
-		syncerOptions{
-			AdditionallyAllowedTenants: options.AdditionallyAllowedTenants,
-		},
-	)
-	return &upc, nil
+	return &UsernamePasswordCredential{client: c}, err
 }
 
-// GetToken requests an access token from Azure Active Directory. This method is called automatically by Azure SDK clients.
+// Authenticate the user. Subsequent calls to GetToken will automatically use the returned AuthenticationRecord.
+func (c *UsernamePasswordCredential) Authenticate(ctx context.Context, opts *policy.TokenRequestOptions) (AuthenticationRecord, error) {
+	var err error
+	ctx, endSpan := runtime.StartSpan(ctx, credNameUserPassword+"."+traceOpAuthenticate, c.client.azClient.Tracer(), nil)
+	defer func() { endSpan(err) }()
+	tk, err := c.client.Authenticate(ctx, opts)
+	return tk, err
+}
+
+// GetToken requests an access token from Microsoft Entra ID. This method is called automatically by Azure SDK clients.
 func (c *UsernamePasswordCredential) GetToken(ctx context.Context, opts policy.TokenRequestOptions) (azcore.AccessToken, error) {
-	return c.s.GetToken(ctx, opts)
-}
-
-func (c *UsernamePasswordCredential) requestToken(ctx context.Context, opts policy.TokenRequestOptions) (azcore.AccessToken, error) {
-	ar, err := c.client.AcquireTokenByUsernamePassword(ctx, opts.Scopes, c.username, c.password, public.WithClaims(opts.Claims), public.WithTenantID(opts.TenantID))
-	if err == nil {
-		c.account = ar.Account
-	}
-	return azcore.AccessToken{Token: ar.AccessToken, ExpiresOn: ar.ExpiresOn.UTC()}, err
-}
-
-func (c *UsernamePasswordCredential) silentAuth(ctx context.Context, opts policy.TokenRequestOptions) (azcore.AccessToken, error) {
-	ar, err := c.client.AcquireTokenSilent(ctx, opts.Scopes,
-		public.WithClaims(opts.Claims),
-		public.WithSilentAccount(c.account),
-		public.WithTenantID(opts.TenantID),
-	)
-	return azcore.AccessToken{Token: ar.AccessToken, ExpiresOn: ar.ExpiresOn.UTC()}, err
+	var err error
+	ctx, endSpan := runtime.StartSpan(ctx, credNameUserPassword+"."+traceOpGetToken, c.client.azClient.Tracer(), nil)
+	defer func() { endSpan(err) }()
+	tk, err := c.client.GetToken(ctx, opts)
+	return tk, err
 }
 
 var _ azcore.TokenCredential = (*UsernamePasswordCredential)(nil)

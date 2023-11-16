@@ -1338,8 +1338,8 @@ type ApplicationGatewayProbePropertiesFormat struct {
 	PickHostNameFromBackendSettings *bool
 
 	// Custom port which will be used for probing the backend servers. The valid value ranges from 1 to 65535. In case not set,
-	// port from http settings will be used. This property is valid for Standardv2 and
-	// WAFv2 only.
+	// port from http settings will be used. This property is valid for Basic,
+	// Standardv2 and WAFv2 only.
 	Port *int32
 
 	// The protocol used for the probe.
@@ -2819,6 +2819,9 @@ type BackendAddressPoolPropertiesFormat struct {
 	// The location of the backend address pool.
 	Location *string
 
+	// Backend address synchronous mode for the backend pool
+	SyncMode *SyncMode
+
 	// An array of gateway load balancer tunnel interfaces.
 	TunnelInterfaces []*GatewayLoadBalancerTunnelInterface
 
@@ -3007,12 +3010,21 @@ type BastionHostPropertiesFormat struct {
 
 	// IP configuration of the Bastion Host resource.
 	IPConfigurations []*BastionHostIPConfiguration
+	NetworkACLs      *BastionHostPropertiesFormatNetworkACLs
 
 	// The scale units for the Bastion Host resource.
 	ScaleUnits *int32
 
+	// Reference to an existing virtual network required for Developer Bastion Host only.
+	VirtualNetwork *SubResource
+
 	// READ-ONLY; The provisioning state of the bastion host resource.
 	ProvisioningState *ProvisioningState
+}
+
+type BastionHostPropertiesFormatNetworkACLs struct {
+	// Sets the IP ACL rules for Developer Bastion Host.
+	IPRules []*IPRule
 }
 
 // BastionSessionDeleteResult - Response for DisconnectActiveSessions.
@@ -6075,6 +6087,9 @@ type FirewallPolicyPropertiesFormat struct {
 
 	// READ-ONLY; List of references to FirewallPolicyRuleCollectionGroups.
 	RuleCollectionGroups []*SubResource
+
+	// READ-ONLY; A read-only string that represents the size of the FirewallPolicyPropertiesFormat in MB. (ex 0.5MB)
+	Size *string
 }
 
 // FirewallPolicyRule - Properties of a rule.
@@ -6155,6 +6170,9 @@ type FirewallPolicyRuleCollectionGroupProperties struct {
 
 	// READ-ONLY; The provisioning state of the firewall policy rule collection group resource.
 	ProvisioningState *ProvisioningState
+
+	// READ-ONLY; A read-only string that represents the size of the FirewallPolicyRuleCollectionGroupProperties in MB. (ex 1.2MB)
+	Size *string
 }
 
 // FirewallPolicySKU - SKU of Firewall policy.
@@ -6930,6 +6948,11 @@ type IPGroupPropertiesFormat struct {
 type IPPrefixesList struct {
 	// IP Prefix value.
 	IPPrefixes []*string
+}
+
+type IPRule struct {
+	// Specifies the IP or IP range in CIDR format. Only IPV4 address is allowed.
+	AddressPrefix *string
 }
 
 // IPSecPolicy - An IPSec Policy configuration for a virtual network gateway connection.
@@ -8322,6 +8345,18 @@ type MetricSpecification struct {
 
 	// Units the metric to be displayed in.
 	Unit *string
+}
+
+// MigrateLoadBalancerToIPBasedRequest - The request for a migrateToIpBased API.
+type MigrateLoadBalancerToIPBasedRequest struct {
+	// A list of pool names that should be migrated from Nic based to IP based pool
+	Pools []*string
+}
+
+// MigratedPools - The response for a migrateToIpBased API.
+type MigratedPools struct {
+	// A list of pools migrated from Nic based to IP based pool
+	MigratedPools []*string
 }
 
 // NatGateway - Nat Gateway resource.
@@ -11136,6 +11171,11 @@ type SubnetPropertiesFormat struct {
 	// Application gateway IP configurations of virtual network resource.
 	ApplicationGatewayIPConfigurations []*ApplicationGatewayIPConfiguration
 
+	// Set this property to false to disable default outbound connectivity for all VMs in the subnet. This property can only be
+	// set at the time of subnet creation and cannot be updated for an existing
+	// subnet.
+	DefaultOutboundAccess *bool
+
 	// An array of references to the delegations on the subnet.
 	Delegations []*Delegation
 
@@ -12856,6 +12896,20 @@ type VirtualNetworkGateway struct {
 	Type *string
 }
 
+type VirtualNetworkGatewayAutoScaleBounds struct {
+	// Maximum Scale Units for Autoscale configuration
+	Max *int32
+
+	// Minimum scale Units for Autoscale configuration
+	Min *int32
+}
+
+// VirtualNetworkGatewayAutoScaleConfiguration - Virtual Network Gateway Autoscale Configuration details
+type VirtualNetworkGatewayAutoScaleConfiguration struct {
+	// The bounds of the autoscale configuration
+	Bounds *VirtualNetworkGatewayAutoScaleBounds
+}
+
 // VirtualNetworkGatewayConnection - A common class for general resource information.
 type VirtualNetworkGatewayConnection struct {
 	// REQUIRED; Properties of the virtual network gateway connection.
@@ -13221,6 +13275,9 @@ type VirtualNetworkGatewayPropertiesFormat struct {
 
 	// Configures this gateway to accept traffic from remote Virtual WAN networks.
 	AllowVirtualWanTraffic *bool
+
+	// Autoscale configuration for virutal network gateway
+	AutoScaleConfiguration *VirtualNetworkGatewayAutoScaleConfiguration
 
 	// Virtual network gateway's BGP speaker settings.
 	BgpSettings *BgpSettings

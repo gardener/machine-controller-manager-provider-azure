@@ -96,7 +96,7 @@ func (b *MarketPlaceAgreementAccessBuilder) withCreate() *MarketPlaceAgreementAc
 // Build builds the armmarketplaceordering.MarketplaceAgreementsClient.
 func (b *MarketPlaceAgreementAccessBuilder) Build() (*armmarketplaceordering.MarketplaceAgreementsClient, error) {
 	b.withGet().withCreate()
-	return armmarketplaceordering.NewMarketplaceAgreementsClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
+	return armmarketplaceordering.NewMarketplaceAgreementsClient(testhelp.SubscriptionID, &azfake.TokenCredential{}, &arm.ClientOptions{
 		ClientOptions: azcore.ClientOptions{
 			Transport: fakemktplaceordering.NewMarketplaceAgreementsServerTransport(&b.server),
 		},

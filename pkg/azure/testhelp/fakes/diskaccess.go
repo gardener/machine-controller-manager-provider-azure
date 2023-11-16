@@ -103,7 +103,7 @@ func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
 // Build builds the armcompute.DiskClient.
 func (b *DiskAccessBuilder) Build() (*armcompute.DisksClient, error) {
 	b.withGet().withBeginDelete()
-	return armcompute.NewDisksClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
+	return armcompute.NewDisksClient(testhelp.SubscriptionID, &azfake.TokenCredential{}, &arm.ClientOptions{
 		ClientOptions: policy.ClientOptions{
 			Transport: fakecompute.NewDisksServerTransport(&b.server),
 		},

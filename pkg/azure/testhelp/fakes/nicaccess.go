@@ -123,7 +123,7 @@ func (b *NICAccessBuilder) withBeginCreateOrUpdate() *NICAccessBuilder {
 // Build builds armnetwork.InterfacesClient.
 func (b *NICAccessBuilder) Build() (*armnetwork.InterfacesClient, error) {
 	b.withGet().withBeginDelete().withBeginCreateOrUpdate()
-	return armnetwork.NewInterfacesClient(testhelp.SubscriptionID, azfake.NewTokenCredential(), &arm.ClientOptions{
+	return armnetwork.NewInterfacesClient(testhelp.SubscriptionID, &azfake.TokenCredential{}, &arm.ClientOptions{
 		ClientOptions: policy.ClientOptions{
 			Transport: fakenetwork.NewInterfacesServerTransport(&b.server),
 		},
