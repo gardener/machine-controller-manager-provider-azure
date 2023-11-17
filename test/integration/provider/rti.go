@@ -1,20 +1,37 @@
+// Copyright 2023 SAP SE or an SAP affiliate company
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package provider
 
 import (
+	"context"
 	"fmt"
 
 	v1alpha1 "github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 )
 
 var (
 	// ITResourceTagKey is specifically used for integration test
 	// primarily to avoid orphan collection of resources when the control cluster is
-	// non seed cluster
+	// non-seed cluster
 	ITResourceTagKey = "kubernetes.io-role-integration-test"
 
 	// ITResourceTagValue is specifically used for integration test
 	// primarily to avoid orphan collection of resources when the control cluster is
-	// non seed cluster
+	// non-seed cluster
 	ITResourceTagValue = "1"
 )
 
@@ -36,18 +53,15 @@ func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1
 	r.SecretData = secretData
 	r.ResourceGroup = clusterName // because the supplied cluster name is same as resource group name
 
-	initialVMs, initialVolumes, initialMachines, initialNICs, err := r.probeResources()
+	accessFactory, connectConfig := getAccessFactoryAndConfig(r.SecretData)
+	ctx := context.TODO()
+	initialVMs, initialVolumes, initialMachines, initialNICs, err := r.probeResources(ctx, accessFactory, connectConfig)
 	if err != nil {
 		fmt.Printf("Error in initial probe of orphaned resources: %s", err.Error())
 		return err
 	}
 
-	clients, err := getAzureClients(r.SecretData)
-	if err != nil {
-		return err
-	}
-
-	delErrOrphanedVms, delErrOrphanedVolumes, delErrOrphanedNICs := cleanUpOrphanedResources(initialVMs, initialVolumes, initialNICs, clients, r.ResourceGroup)
+	delErrOrphanedVms, delErrOrphanedVolumes, delErrOrphanedNICs := cleanUpOrphanedResources(ctx, accessFactory, connectConfig, r.ResourceGroup, initialVMs, initialVolumes, initialNICs)
 
 	if delErrOrphanedVms != nil || delErrOrphanedVolumes != nil || initialMachines != nil || delErrOrphanedNICs != nil {
 		fmt.Printf("Error in deleting the following Orphan Resources")
@@ -61,7 +75,9 @@ func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1
 // IsOrphanedResourcesAvailable checks whether there are any orphaned resources left.
 // If yes, then prints them and returns true. If not, then returns false.
 func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
-	afterTestExecutionVMs, afterTestExecutionAvailDisks, afterTestExecutionAvailmachines, afterTestExecutionNICs, err := r.probeResources()
+	accessFactory, connectConfig := getAccessFactoryAndConfig(r.SecretData)
+	ctx := context.TODO()
+	afterTestExecutionVMs, afterTestExecutionAvailDisks, afterTestExecutionAvailmachines, afterTestExecutionNICs, err := r.probeResources(ctx, accessFactory, connectConfig)
 	if err != nil {
 		fmt.Printf("Error probing orphaned resources: %s", err.Error())
 		return true
@@ -78,29 +94,25 @@ func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
 // probeResources will look for orphaned resources and returns
 // those in the order
 // orphanedInstances, orphanedVolumes, orphanedMachines, orphanedNICs
-func (r *ResourcesTrackerImpl) probeResources() ([]string, []string, []string, []string, error) {
+func (r *ResourcesTrackerImpl) probeResources(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig) ([]string, []string, []string, []string, error) {
+	accessFactory, connectConfig := getAccessFactoryAndConfig(r.SecretData)
 
-	clients, err := getAzureClients(r.SecretData)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-
-	VMs, err := getOrphanedVMs(clients, r.ResourceGroup)
+	VMs, err := getOrphanedVMs(ctx, accessFactory, connectConfig, r.ResourceGroup)
 	if err != nil {
 		return VMs, nil, nil, nil, err
 	}
 
-	availVols, err := getOrphanedDisks(clients, r.ResourceGroup)
+	availVols, err := getOrphanedDisks(ctx, accessFactory, connectConfig, r.ResourceGroup)
 	if err != nil {
 		return VMs, availVols, nil, nil, err
 	}
 
-	availMachines, err := getMachines(r.MachineClass, r.SecretData)
+	availMachines, err := getMachines(ctx, factory, r.MachineClass, r.SecretData)
 	if err != nil {
 		return VMs, availVols, availMachines, nil, err
 	}
 
-	availNICs, err := getOrphanedNICs(clients, r.ResourceGroup)
+	availNICs, err := getOrphanedNICs(ctx, factory, connectConfig, r.ResourceGroup)
 
 	return VMs, availVols, availMachines, availNICs, err
 
