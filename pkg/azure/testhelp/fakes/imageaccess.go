@@ -25,6 +25,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	fakecompute "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5/fake"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 // ImageAccessBuilder is a builder for VM images access.
@@ -50,7 +51,7 @@ func (b *ImageAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpe
 func (b *ImageAccessBuilder) withGet() *ImageAccessBuilder {
 	b.server.Get = func(ctx context.Context, location string, publisherName string, offer string, skus string, version string, options *armcompute.VirtualMachineImagesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachineImagesClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(VMImageResourceType), testhelp.AccessMethodGet)
+			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(utils.VMImageResourceType), testhelp.AccessMethodGet)
 			if err != nil {
 				errResp.SetError(err)
 				return

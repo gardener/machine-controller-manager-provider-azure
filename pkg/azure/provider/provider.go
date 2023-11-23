@@ -58,7 +58,7 @@ func (d defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachine
 	if err != nil {
 		return
 	}
-	vmNames, err := helpers.ExtractVMNamesFromVirtualMachinesAndNICs(ctx, d.factory, connectConfig, providerSpec.ResourceGroup, providerSpec.Tags)
+	vmNames, err := helpers.ExtractVMNamesFromVMsNICsDisks(ctx, d.factory, connectConfig, providerSpec.ResourceGroup, providerSpec)
 	if err != nil {
 		return
 	}

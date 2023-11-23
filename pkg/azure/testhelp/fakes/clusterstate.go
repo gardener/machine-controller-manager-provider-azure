@@ -143,7 +143,7 @@ func (c *ClusterState) WithAgreementTerms(accepted bool) *ClusterState {
 		},
 		ID:   &id,
 		Name: to.Ptr(c.VMImageSpec.SKU),
-		Type: to.Ptr(string(MarketPlaceOrderingOfferType)),
+		Type: to.Ptr(string(utils.MarketPlaceOrderingOfferType)),
 	}
 	return c
 }
@@ -231,7 +231,7 @@ func (c *ClusterState) GetSubnet(resourceGroup, subnetName, vnetName string) *ar
 				PrivateLinkServiceNetworkPolicies: to.Ptr(armnetwork.VirtualNetworkPrivateLinkServiceNetworkPoliciesEnabled),
 				ProvisioningState:                 to.Ptr(armnetwork.ProvisioningStateSucceeded),
 			},
-			Type: to.Ptr(string(SubnetResourceType)),
+			Type: to.Ptr(string(utils.SubnetResourceType)),
 		}
 	}
 	return nil

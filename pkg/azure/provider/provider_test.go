@@ -100,6 +100,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, dataDiskNames, false, true)
 			},
 		},
+		{},
 		{
 			"should skip delete if the resource group is not found",
 			testResourceGroupName,
@@ -606,11 +607,11 @@ func TestListMachineWithInducedErrors(t *testing.T) {
 	}{
 		{
 			"should fail listing machines when resource-graph query for VM resource type returns error",
-			fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(fakes.VirtualMachinesResourceType, testhelp.AccessMethodResources, testInternalServerError),
+			fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(utils.VirtualMachinesResourceType, testhelp.AccessMethodResources, testInternalServerError),
 		},
 		{
 			"should fail listing machines when resource-graph query for NIC resource type returns error",
-			fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(fakes.NetworkInterfacesResourceType, testhelp.AccessMethodResources, testInternalServerError),
+			fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(utils.NetworkInterfacesResourceType, testhelp.AccessMethodResources, testInternalServerError),
 		},
 	}
 
@@ -744,7 +745,7 @@ func TestCreateMachineWhenPrerequisitesFail(t *testing.T) {
 		{
 			"should fail machine creation when subnet GET fails, no resources should be created", subnetName, vnetName, nil, nil,
 			true, true, true, true,
-			nil, fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(fakes.SubnetResourceType, testhelp.AccessMethodGet, internalServerErr), nil, nil,
+			nil, fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(utils.SubnetResourceType, testhelp.AccessMethodGet, internalServerErr), nil, nil,
 			func(g *WithT, clusterState *fakes.ClusterState, err error) {
 				azRespErr := checkAndGetWrapperAzResponseError(g, err, codes.Internal)
 				g.Expect(azRespErr.StatusCode).To(Equal(http.StatusInternalServerError))
@@ -788,7 +789,7 @@ func TestCreateMachineWhenPrerequisitesFail(t *testing.T) {
 		{
 			"should fail machine creation when VM Image GET fails, no resources should be created", subnetName, vnetName, nil, nil,
 			true, true, true, true,
-			nil, nil, fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(fakes.VMImageResourceType, testhelp.AccessMethodGet, internalServerErr), nil,
+			nil, nil, fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(utils.VMImageResourceType, testhelp.AccessMethodGet, internalServerErr), nil,
 			func(g *WithT, clusterState *fakes.ClusterState, err error) {
 				azRespErr := checkAndGetWrapperAzResponseError(g, err, codes.Internal)
 				g.Expect(azRespErr.StatusCode).To(Equal(http.StatusInternalServerError))
@@ -810,7 +811,7 @@ func TestCreateMachineWhenPrerequisitesFail(t *testing.T) {
 			func(g *WithT, _ *fakes.ClusterState, err error) {
 				azRespErr := checkAndGetWrapperAzResponseError(g, err, codes.NotFound)
 				g.Expect(azRespErr.StatusCode).To(Equal(http.StatusBadRequest))
-				g.Expect(azRespErr.ErrorCode).To(Equal(testhelp.ErrorBadRequest))
+				g.Expect(azRespErr.ErrorCode).To(Equal(testhelp.ErrorCodeBadRequest))
 				g.Expect(azRespErr.RawResponse.Request.Method).To(Equal(http.MethodGet))
 				publisher, offer, sku, version := fakes.GetDefaultVMImageParts()
 				g.Expect(fakes.IsMktPlaceAgreementURIPath(azRespErr.RawResponse.Request.URL.Path, testhelp.SubscriptionID, fakes.VMImageSpec{
@@ -824,7 +825,7 @@ func TestCreateMachineWhenPrerequisitesFail(t *testing.T) {
 		{
 			"should fail machine creation when update of agreement for VM Image fails, no resources should be created", subnetName, vnetName, nil, nil,
 			true, true, true, false,
-			nil, nil, nil, fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(fakes.MarketPlaceOrderingOfferType, testhelp.AccessMethodCreate, testhelp.InternalServerError("test-error-code")),
+			nil, nil, nil, fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(utils.MarketPlaceOrderingOfferType, testhelp.AccessMethodCreate, testhelp.InternalServerError("test-error-code")),
 			func(g *WithT, _ *fakes.ClusterState, err error) {
 				azRespErr := checkAndGetWrapperAzResponseError(g, err, codes.Internal)
 				g.Expect(azRespErr.StatusCode).To(Equal(http.StatusInternalServerError))

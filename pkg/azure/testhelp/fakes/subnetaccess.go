@@ -25,6 +25,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	fakenetwork "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4/fake"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 // SubnetAccessBuilder is a builder for Subnet access.
@@ -50,7 +51,7 @@ func (b *SubnetAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSp
 func (b *SubnetAccessBuilder) withGet() *SubnetAccessBuilder {
 	b.server.Get = func(ctx context.Context, resourceGroupName string, virtualNetworkName string, subnetName string, options *armnetwork.SubnetsClientGetOptions) (resp azfake.Responder[armnetwork.SubnetsClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(SubnetResourceType), testhelp.AccessMethodGet)
+			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(utils.SubnetResourceType), testhelp.AccessMethodGet)
 			if err != nil {
 				errResp.SetError(err)
 				return

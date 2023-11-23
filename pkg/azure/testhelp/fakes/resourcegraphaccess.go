@@ -53,7 +53,7 @@ func (b *ResourceGraphAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBeh
 // to only test queries that are specified in `helpers.resourcegraph` package. If new queries are added then this implementation should be updated.
 func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder {
 	b.server.Resources = func(ctx context.Context, query armresourcegraph.QueryRequest, options *armresourcegraph.ClientResourcesOptions) (resp azfake.Responder[armresourcegraph.ClientResourcesResponse], errResp azfake.ErrorResponder) {
-		var resType *ResourceType
+		var resType *utils.ResourceType
 		if query.Query != nil {
 			resType = getResourceType(*query.Query)
 		}
@@ -73,9 +73,9 @@ func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder
 			tagsToMatch := b.getProviderSpecTagKeysToMatch()
 			if resType != nil {
 				switch *resType {
-				case VirtualMachinesResourceType:
+				case utils.VirtualMachinesResourceType:
 					vmNames = b.clusterState.GetVMsMatchingTagKeys(tagsToMatch)
-				case NetworkInterfacesResourceType:
+				case utils.NetworkInterfacesResourceType:
 					vmNames = b.clusterState.ExtractVMNamesFromNICsMatchingTagKeys(tagsToMatch)
 				}
 			} else {
@@ -95,12 +95,12 @@ func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder
 
 // getResourceType tries to find the table name from the query string. Resource graph defines one table per resource type.
 // Unfortunately I could not find a way to parse the KUSTO Query string to extract the table name and therefore string matching is used here. We can change it if we find a better way
-func getResourceType(query string) *ResourceType {
+func getResourceType(query string) *utils.ResourceType {
 	switch {
-	case strings.Contains(query, string(VirtualMachinesResourceType)):
-		return to.Ptr(VirtualMachinesResourceType)
-	case strings.Contains(query, string(NetworkInterfacesResourceType)):
-		return to.Ptr(NetworkInterfacesResourceType)
+	case strings.Contains(query, string(utils.VirtualMachinesResourceType)):
+		return to.Ptr(utils.VirtualMachinesResourceType)
+	case strings.Contains(query, string(utils.NetworkInterfacesResourceType)):
+		return to.Ptr(utils.NetworkInterfacesResourceType)
 	default:
 		return nil
 	}

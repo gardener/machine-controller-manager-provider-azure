@@ -89,7 +89,7 @@ func (b *NICAccessBuilder) withBeginDelete() *NICAccessBuilder {
 		// Azure API NIC deletion does not fail if the NIC does not exist. It still returns 200 Ok.
 		nic := b.clusterState.GetNIC(nicName)
 		if nic != nil && nic.Properties.VirtualMachine != nil && !utils.IsNilOrEmptyStringPtr(nic.Properties.VirtualMachine.ID) {
-			errResp.SetError(testhelp.ConflictErr(testhelp.ErrorOperationNotAllowed))
+			errResp.SetError(testhelp.ConflictErr(testhelp.ErrorCodeOperationNotAllowed))
 			return
 		}
 		b.clusterState.DeleteNIC(nicName)
