@@ -55,13 +55,13 @@ func CreateOSDiskName(vmName string) string {
 func CreateDataDiskName(vmName string, dataDisk api.AzureDataDisk) string {
 	prefix := vmName
 	suffix := GetDataDiskNameSuffix(dataDisk)
-	return fmt.Sprintf("%s-%s", prefix, suffix)
+	return fmt.Sprintf("%s%s", prefix, suffix)
 }
 
 // GetDataDiskNameSuffix creates the suffix based on an optional data disk name and required lun fields.
 func GetDataDiskNameSuffix(dataDisk api.AzureDataDisk) string {
 	infix := getDataDiskInfix(dataDisk)
-	return fmt.Sprintf("%s%s", infix, DataDiskSuffix)
+	return fmt.Sprintf("-%s%s", infix, DataDiskSuffix)
 }
 
 func getDataDiskInfix(dataDisk api.AzureDataDisk) string {

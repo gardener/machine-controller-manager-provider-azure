@@ -163,39 +163,43 @@ func CheckAndDeleteLeftoverNICsAndDisks(ctx context.Context, factory access.Fact
 	return nil
 }
 
-// UpdateCascadeDeleteOptionsAndDeleteVM updates the VirtualMachine properties and sets cascade delete options for NIC's and DISK's if it is not already set.
+// UpdateCascadeDeleteOptions updates the VirtualMachine properties and sets cascade delete options for NIC's and DISK's if it is not already set.
 // Once that is set then it deletes the VM. This will ensure that no separate calls to delete each NIC and DISK are made as they will get deleted along with the VM in one single atomic call.
-func UpdateCascadeDeleteOptionsAndDeleteVM(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup string, vm *armcompute.VirtualMachine) error {
+func UpdateCascadeDeleteOptions(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup string, vm *armcompute.VirtualMachine) error {
 	vmName := *vm.Name
-	if isVirtualMachineInTerminalState(vm) {
-		klog.Infof("VM: [ResourceGroup: %s, Name: %s] is stuck in terminal state, force deleting the VM", resourceGroup, vmName)
-		if err := accesshelpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName, true); err != nil {
-			return status.WrapError(codes.Internal, fmt.Sprintf("Failed to delete VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
+	if canUpdateVirtualMachine(vm) {
+		vmUpdateParams := computeDeleteOptionUpdatesForNICsAndDisksIfRequired(resourceGroup, vm)
+		if vmUpdateParams != nil {
+			// update the VM and set cascade delete on NIC and Disks (OSDisk and DataDisks) if not already set and then trigger VM deletion.
+			klog.V(4).Infof("Updating cascade deletion options for VM: [ResourceGroup: %s, Name: %s] resources", resourceGroup, vmName)
+			err := accesshelpers.SetCascadeDeleteForNICsAndDisks(ctx, vmAccess, resourceGroup, vmName, vmUpdateParams)
+			if err != nil {
+				return status.WrapError(codes.Internal, fmt.Sprintf("Failed to update cascade delete of associated resources for VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
+			}
 		}
-		return nil
+	} else {
+		return status.New(codes.Internal, fmt.Sprintf("Cannot update VM: [ResourceGroup: %s, Name: %s]. Either the VM has provisionState set to Failed or there are one or more data disks that are marked for detachment, update call to this VM will fail. Skipping the update call.", resourceGroup, vmName))
 	}
+	return nil
+}
 
-	vmUpdateParams := computeDeleteOptionUpdatesForNICsAndDisksIfRequired(resourceGroup, vm)
-	if vmUpdateParams != nil {
-		if utils.DataDisksMarkedForDetachment(vm) {
-			return status.New(codes.Internal, fmt.Sprintf("Cannot update VM: [ResourceGroup: %s, Name: %s]. There are one or more data disks that are marked for detachment, update to this VM will fail.", resourceGroup, vmName))
-		}
-		// update the VM and set cascade delete on NIC and Disks (OSDisk and DataDisks) if not already set and then trigger VM deletion.
-		klog.V(4).Infof("Updating cascade deletion options for VM: [ResourceGroup: %s, Name: %s] resources", resourceGroup, vmName)
-		err := accesshelpers.SetCascadeDeleteForNICsAndDisks(ctx, vmAccess, resourceGroup, vmName, vmUpdateParams)
-		if err != nil {
-			return status.WrapError(codes.Internal, fmt.Sprintf("Failed to update cascade delete of associated resources for VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
-		}
-	}
-	err := accesshelpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName, false)
+// DeleteVirtualMachine deletes the VirtualMachine, if there is any error it will wrap it into a status.Status error.
+func DeleteVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup string, vmName string) error {
+	klog.Infof("Deleting VM: [ResourceGroup: %s, Name: %s]", resourceGroup, vmName)
+	err := accesshelpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 	if err != nil {
 		return status.WrapError(codes.Internal, fmt.Sprintf("Failed to delete VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
 	}
 	return nil
 }
 
-func isVirtualMachineInTerminalState(vm *armcompute.VirtualMachine) bool {
-	return vm.Properties != nil && vm.Properties.ProvisioningState != nil && strings.ToLower(*vm.Properties.ProvisioningState) == "failed"
+// IsVirtualMachineInTerminalState checks if the provisioningState of the VM is set to Failed.
+func IsVirtualMachineInTerminalState(vm *armcompute.VirtualMachine) bool {
+	return vm.Properties != nil && vm.Properties.ProvisioningState != nil && strings.ToLower(*vm.Properties.ProvisioningState) == strings.ToLower(utils.ProvisioningStateFailed)
+}
+
+func canUpdateVirtualMachine(vm *armcompute.VirtualMachine) bool {
+	return IsVirtualMachineInTerminalState(vm) || utils.DataDisksMarkedForDetachment(vm)
 }
 
 // computeDeleteOptionUpdatesForNICsAndDisksIfRequired computes changes required to set cascade delete options for NICs, OSDisk and DataDisks.
@@ -238,7 +242,7 @@ func computeDeleteOptionUpdatesForNICsAndDisksIfRequired(resourceGroup string, v
 		}
 	}
 	if updatedOSDisk != nil {
-		klog.Infof("Identified OSDisk: %s requiring DeleteOption update for VM: [ResourceGroup: %s, Name: %s]", updatedOSDisk.Name, resourceGroup, vmName)
+		klog.Infof("Identified OSDisk: %s requiring DeleteOption update for VM: [ResourceGroup: %s, Name: %s]", *updatedOSDisk.Name, resourceGroup, vmName)
 		vmUpdateParams.Properties.StorageProfile.OSDisk = updatedOSDisk
 	}
 	if !utils.IsSliceNilOrEmpty(updatedDataDisks) {
