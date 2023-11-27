@@ -100,7 +100,6 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, dataDiskNames, false, true)
 			},
 		},
-		{},
 		{
 			"should skip delete if the resource group is not found",
 			testResourceGroupName,
@@ -256,6 +255,106 @@ func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 			entry.checkClusterStateFn(g, ctx, *fakeFactory, vmName, dataDiskNames)
 		})
 	}
+}
+
+//func TestForceDeleteVMInTerminalState(t *testing.T) {
+//	const vmName = "test-vm-0"
+//
+//	table := []struct {
+//		description         string
+//		cascadeDeleteOpts   fakes.CascadeDeleteOpts
+//		numDataDisks        int
+//		checkClusterStateFn func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string)
+//	}{
+//		{
+//			"should only delete the VM since no cascade delete is set for NIC and Disks",
+//			fakes.CascadeDeleteOpts{}, 1,
+//			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
+//				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, true, true, dataDiskNames, true, true)
+//			},
+//		},
+//		{
+//			"should delete the VM and all its associated resources when cascade delete is set",
+//			fakes.CascadeDeleteAllResources, 1,
+//			func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
+//				checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, dataDiskNames, false, false)
+//			},
+//		},
+//	}
+//
+//	g := NewWithT(t)
+//	for _, entry := range table {
+//		t.Run(entry.description, func(t *testing.T) {
+//			ctx := context.Background()
+//			// create provider spec
+//			providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
+//			if entry.numDataDisks > 0 {
+//				//Add data disks
+//				providerSpecBuilder.WithDataDisks(testDataDiskName, entry.numDataDisks)
+//			}
+//			providerSpec := providerSpecBuilder.Build()
+//			// create cluster state
+//			clusterState := fakes.NewClusterState(providerSpec)
+//			clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).WithCascadeDeleteOptions(entry.cascadeDeleteOpts).BuildWith(true, true, true, true, nil))
+//			clusterState.MarkVirtualMachineInTerminalState(vmName)
+//
+//			// create fake factory
+//			fakeFactory := createDefaultFakeFactoryForDeleteMachine(g, providerSpec.ResourceGroup, clusterState)
+//
+//			// Create machine and machine class to be used to create DeleteMachineRequest
+//			machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+//			g.Expect(err).To(BeNil())
+//			machine := &v1alpha1.Machine{
+//				ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
+//			}
+//
+//			// Test
+//			//----------------------------------------------------------------------------
+//			testDriver := NewDefaultDriver(fakeFactory)
+//			_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
+//				Machine:      machine,
+//				MachineClass: machineClass,
+//				Secret:       fakes.CreateProviderSecret(),
+//			})
+//			g.Expect(err).To(BeNil())
+//			dataDiskNames := testhelp.CreateDataDiskNames(vmName, providerSpec)
+//			entry.checkClusterStateFn(g, ctx, *fakeFactory, vmName, dataDiskNames)
+//		})
+//	}
+//}
+
+func TestDeleteExistingVMWithDataDisksInDetachment(t *testing.T) {
+	const vmName = "test-vm-0"
+	g := NewWithT(t)
+	ctx := context.Background()
+	// create provider spec
+	providerSpec := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().WithDataDisks(testDataDiskName, 2).Build()
+	// create cluster state
+	clusterState := fakes.NewClusterState(providerSpec)
+	clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).WithCascadeDeleteOptions(fakes.CascadeDeleteOpts{}).BuildWith(true, true, true, true, nil))
+	g.Expect(clusterState.MarkAllDataDisksInDetachment(vmName)).To(BeTrue())
+
+	// create fake factory
+	fakeFactory := createDefaultFakeFactoryForDeleteMachine(g, providerSpec.ResourceGroup, clusterState)
+
+	// Create machine and machine class to be used to create DeleteMachineRequest
+	machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+	g.Expect(err).To(BeNil())
+	machine := &v1alpha1.Machine{
+		ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
+	}
+	// Test
+	//----------------------------------------------------------------------------
+	testDriver := NewDefaultDriver(fakeFactory)
+	_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
+		Machine:      machine,
+		MachineClass: machineClass,
+		Secret:       fakes.CreateProviderSecret(),
+	})
+	g.Expect(err).ToNot(BeNil())
+	var statusErr *status.Status
+	g.Expect(errors.As(err, &statusErr)).To(BeTrue())
+	g.Expect(statusErr.Code()).To(Equal(codes.Internal))
 }
 
 func TestDeleteMachineWithInducedErrors(t *testing.T) {
@@ -500,6 +599,8 @@ func TestListMachines(t *testing.T) {
 		vmTags map[string]string
 		// if present this will overwrite the tags that are borrowed from provider spec for this machine resource NIC. Only specify this when nicPresent is true else it will never reflect.
 		nicTags map[string]string
+		// if present this will overwrite the tags that are borrowed from provider spec for this machine resource OSDisk. Only specify this when nicPresent is true else it will never reflect.
+		osDiskTags map[string]string
 	}
 
 	const nonMatchingShootNs = "non-matching-shoot-ns"
@@ -522,25 +623,32 @@ func TestListMachines(t *testing.T) {
 		{
 			"should return all vm names where vms exist",
 			[]machineResourcesTestSpec{
-				{"vm-0", true, true, true, nil, nil},
-				{"vm-1", true, true, true, nil, nil},
+				{"vm-0", true, true, true, nil, nil, nil},
+				{"vm-1", true, true, true, nil, nil, nil},
 			}, nil, []string{"vm-0", "vm-1"}, false,
 		},
 		{
 			"should return vm names only for vms where vm does not exist but a nic exists",
 			[]machineResourcesTestSpec{
-				{"vm-0", false, false, false, nil, nil},
-				{"vm-1", false, false, true, nil, nil},
+				{"vm-0", false, false, false, nil, nil, nil},
+				{"vm-1", false, false, true, nil, nil, nil},
+			}, nil, []string{"vm-1"}, false,
+		},
+		{
+			"should return vm names only for vms where vm does not exist but an osdisk exists",
+			[]machineResourcesTestSpec{
+				{"vm-0", false, false, false, nil, nil, nil},
+				{"vm-1", false, true, false, nil, nil, nil},
 			}, nil, []string{"vm-1"}, false,
 		},
 		{
 			"should only return vms matching mandatory provider spec tags",
 			[]machineResourcesTestSpec{
-				{"vm-0", true, true, true, nonMatchingTags, nonMatchingTags},
-				{"vm-1", true, true, true, nil, nil},
-				{"vm-2", true, true, true, nonMatchingTags, nonMatchingTags},
-				{"vm-3", true, true, true, nil, nil},
-				{"vm-4", true, true, true, nonMatchingTags, nil},
+				{"vm-0", true, true, true, nonMatchingTags, nonMatchingTags, nonMatchingTags},
+				{"vm-1", true, true, true, nil, nil, nil},
+				{"vm-2", true, true, true, nonMatchingTags, nonMatchingTags, nonMatchingTags},
+				{"vm-3", true, true, true, nil, nil, nil},
+				{"vm-4", true, true, true, nonMatchingTags, nil, nonMatchingTags},
 			}, nil, []string{"vm-1", "vm-3", "vm-4"}, false,
 		},
 	}
@@ -570,6 +678,9 @@ func TestListMachines(t *testing.T) {
 					if mrTestSpec.nicPresent && mrTestSpec.nicTags != nil {
 						mr.NIC.Tags = utils.CreateResourceTags(mrTestSpec.nicTags)
 					}
+					if mrTestSpec.osDiskPresent && mrTestSpec.osDiskTags != nil {
+						mr.OSDisk.Tags = utils.CreateResourceTags(mrTestSpec.osDiskTags)
+					}
 					clusterState.AddMachineResources(mr)
 				}
 			}
@@ -589,7 +700,8 @@ func TestListMachines(t *testing.T) {
 				Secret:       fakes.CreateProviderSecret(),
 			})
 			g.Expect(err != nil).To(Equal(entry.expectedErr))
-			g.Expect(fakes.ActualSliceEqualsExpectedSlice(getVMNamesFromListMachineResponse(listMachinesResp), entry.expectedResult)).To(BeTrue())
+			actualVMNames := getVMNamesFromListMachineResponse(listMachinesResp)
+			g.Expect(fakes.ActualSliceEqualsExpectedSlice(actualVMNames, entry.expectedResult)).To(BeTrue())
 		})
 	}
 }

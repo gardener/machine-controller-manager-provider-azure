@@ -18,7 +18,7 @@ import (
 const (
 	listVmsNICsAndDisksQueryTemplate = `
 	Resources
-	| where type =~ 'microsoft.network/virtualMachines' or type =~ 'microsoft.network/networkinterfaces' or type =~ 'microsoft.compute/disks'
+	| where type =~ 'microsoft.compute/virtualmachines' or type =~ 'microsoft.network/networkinterfaces' or type =~ 'microsoft.compute/disks'
 	| where resourceGroup =~ '%s'
 	| extend tagKeys = bag_keys(tags)
 	| where tagKeys has '%s' and tagKeys has '%s'
@@ -67,12 +67,12 @@ func prepareQueryTemplateArgs(resourceGroup string, providerSpecTags map[string]
 
 func createVMNameMapperFn() accesshelpers.MapperFn[resultEntry] {
 	return func(m map[string]interface{}) *resultEntry {
-		resourceName, nameKeyFound := m["name"]
-		resourceType, typeKeyFound := m["type"]
+		resourceName, nameKeyFound := m["name"].(string)
+		resourceType, typeKeyFound := m["type"].(string)
 		if nameKeyFound && typeKeyFound {
 			return to.Ptr(resultEntry{
-				resourceType: resourceType.(utils.ResourceType),
-				name:         resourceName.(string),
+				resourceType: utils.ResourceType(resourceType),
+				name:         resourceName,
 			})
 		}
 		return nil

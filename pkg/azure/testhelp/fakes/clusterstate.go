@@ -26,7 +26,6 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
-
 	"golang.org/x/exp/slices"
 )
 
@@ -237,6 +236,37 @@ func (c *ClusterState) GetSubnet(resourceGroup, subnetName, vnetName string) *ar
 	return nil
 }
 
+// MarkVirtualMachineInTerminalState marks the virtual machine in terminal state.
+func (c *ClusterState) MarkVirtualMachineInTerminalState(vmName string) bool {
+	if machineResources, ok := c.MachineResourcesMap[vmName]; ok {
+		if machineResources.VM == nil || machineResources.VM.Properties == nil {
+			// There is no VM present, skipping marking the VM in terminal state
+			return false
+		}
+		machineResources.VM.Properties.ProvisioningState = to.Ptr(utils.ProvisioningStateFailed)
+	}
+	// There is no VM with the given vmName
+	return false
+}
+
+// MarkAllDataDisksInDetachment marks all data disks that are captured as part of VirtualMachine.Properties.StorageProfile.DataDisks as currently being detached.
+func (c *ClusterState) MarkAllDataDisksInDetachment(vmName string) bool {
+	if machineResources, ok := c.MachineResourcesMap[vmName]; ok {
+		if machineResources.VM == nil ||
+			machineResources.VM.Properties == nil ||
+			machineResources.VM.Properties.StorageProfile == nil ||
+			utils.IsSliceNilOrEmpty(machineResources.VM.Properties.StorageProfile.DataDisks) {
+			return false
+		}
+		for _, dataDisk := range machineResources.VM.Properties.StorageProfile.DataDisks {
+			dataDisk.ToBeDetached = to.Ptr(true)
+		}
+		return true
+	}
+	// There is no VM with the given vmName
+	return false
+}
+
 // GetVM returns an armcompute.VirtualMachine having the same name as the passed in vmName.
 func (c *ClusterState) GetVM(vmName string) *armcompute.VirtualMachine {
 	if machineResources, ok := c.MachineResourcesMap[vmName]; ok {
@@ -372,20 +402,6 @@ func (c *ClusterState) DeleteDisk(diskName string) {
 	}
 }
 
-// ExtractVMNamesFromNICsMatchingTagKeys extracts VM names from all configured NICs in the ClusterState that has all tagKeys.
-func (c *ClusterState) ExtractVMNamesFromNICsMatchingTagKeys(tagKeys []string) []string {
-	vmNames := make([]string, 0, len(c.MachineResourcesMap))
-	for vmName, mr := range c.MachineResourcesMap {
-		if mr.NIC != nil {
-			// check if all tag keys are present for this NIC
-			if containsAllTagKeys(mr.NIC.Tags, tagKeys) {
-				vmNames = append(vmNames, vmName)
-			}
-		}
-	}
-	return vmNames
-}
-
 // GetVMsMatchingTagKeys returns VM names for all configured VMs in the ClusterState that has all tagKeys.
 func (c *ClusterState) GetVMsMatchingTagKeys(tagKeys []string) []string {
 	vmNames := make([]string, 0, len(c.MachineResourcesMap))
@@ -398,6 +414,40 @@ func (c *ClusterState) GetVMsMatchingTagKeys(tagKeys []string) []string {
 		}
 	}
 	return vmNames
+}
+
+// GetNICNamesMatchingTagKeys returns NIC names in ClusterState that has all tagKeys.
+func (c *ClusterState) GetNICNamesMatchingTagKeys(tagKeys []string) []string {
+	nicNames := make([]string, 0, len(c.MachineResourcesMap))
+	for _, mr := range c.MachineResourcesMap {
+		if mr.NIC != nil {
+			// check if all tag keys are present for this NIC
+			if containsAllTagKeys(mr.NIC.Tags, tagKeys) {
+				nicNames = append(nicNames, *mr.NIC.Name)
+			}
+		}
+	}
+	return nicNames
+}
+
+// GetDiskNamesMatchingTagKeys returns Disk (OS and Data disk) names in ClusterState that has all tagKeys.
+func (c *ClusterState) GetDiskNamesMatchingTagKeys(tagKeys []string) []string {
+	var diskNames []string
+	for _, mr := range c.MachineResourcesMap {
+		if mr.OSDisk != nil {
+			if containsAllTagKeys(mr.OSDisk.Tags, tagKeys) {
+				diskNames = append(diskNames, *mr.OSDisk.Name)
+			}
+		}
+		if mr.DataDisks != nil {
+			for _, disk := range mr.DataDisks {
+				if containsAllTagKeys(disk.Tags, tagKeys) {
+					diskNames = append(diskNames, *disk.Name)
+				}
+			}
+		}
+	}
+	return diskNames
 }
 
 func containsAllTagKeys(resourceTags map[string]*string, tagKeys []string) bool {

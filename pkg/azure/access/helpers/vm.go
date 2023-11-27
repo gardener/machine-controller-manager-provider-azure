@@ -60,11 +60,15 @@ func GetVirtualMachine(ctx context.Context, vmClient *armcompute.VirtualMachines
 // DeleteVirtualMachine deletes the Virtual Machine with the give name and belonging to the passed in resource group.
 // If cascade delete is set for associated NICs and Disks then these resources will also be deleted along with the VM.
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
-func DeleteVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup, vmName string) (err error) {
+func DeleteVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup, vmName string, forceDelete bool) (err error) {
 	defer instrument.RecordAzAPIMetric(err, vmDeleteServiceLabel, time.Now())
 	delCtx, cancelFn := context.WithTimeout(ctx, defaultDeleteVMTimeout)
 	defer cancelFn()
-	poller, err := vmAccess.BeginDelete(delCtx, resourceGroup, vmName, nil)
+	deleteOptions := armcompute.VirtualMachinesClientBeginDeleteOptions{}
+	if forceDelete {
+		deleteOptions.ForceDeletion = &forceDelete
+	}
+	poller, err := vmAccess.BeginDelete(delCtx, resourceGroup, vmName, &deleteOptions)
 	if err != nil {
 		errors.LogAzAPIError(err, "Failed to trigger delete of VM [ResourceGroup: %s, VMName: %s]", resourceGroup, vmName)
 		return
