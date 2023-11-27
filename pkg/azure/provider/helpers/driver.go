@@ -199,7 +199,7 @@ func IsVirtualMachineInTerminalState(vm *armcompute.VirtualMachine) bool {
 }
 
 func canUpdateVirtualMachine(vm *armcompute.VirtualMachine) bool {
-	return IsVirtualMachineInTerminalState(vm) || utils.DataDisksMarkedForDetachment(vm)
+	return !IsVirtualMachineInTerminalState(vm) && !utils.DataDisksMarkedForDetachment(vm)
 }
 
 // computeDeleteOptionUpdatesForNICsAndDisksIfRequired computes changes required to set cascade delete options for NICs, OSDisk and DataDisks.
