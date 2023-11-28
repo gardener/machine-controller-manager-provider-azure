@@ -58,7 +58,7 @@ func (d defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachine
 	if err != nil {
 		return
 	}
-	vmNames, err := helpers.ExtractVMNamesFromVirtualMachinesAndNICs(ctx, d.factory, connectConfig, providerSpec.ResourceGroup, providerSpec.Tags)
+	vmNames, err := helpers.ExtractVMNamesFromVMsNICsDisks(ctx, d.factory, connectConfig, providerSpec.ResourceGroup, providerSpec)
 	if err != nil {
 		return
 	}
@@ -141,9 +141,21 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 			return
 		}
 	} else {
-		err = helpers.UpdateCascadeDeleteOptionsAndDeleteVM(ctx, vmAccess, resourceGroup, vm)
-		if err != nil {
-			return
+		if helpers.IsVirtualMachineInTerminalState(vm) {
+			klog.Infof("VM: [ResourceGroup: %s, Name: %s] has ProvisionState set to Failed, will delete the VM and all its associated resources.", resourceGroup, vmName)
+			if err = helpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName); err != nil {
+				return
+			}
+			if err = helpers.CheckAndDeleteLeftoverNICsAndDisks(ctx, d.factory, vmName, connectConfig, providerSpec); err != nil {
+				return
+			}
+		} else {
+			if err = helpers.UpdateCascadeDeleteOptions(ctx, vmAccess, resourceGroup, vm); err != nil {
+				return
+			}
+			if err = helpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName); err != nil {
+				return
+			}
 		}
 		klog.Infof("Successfully deleted all Machine resources[VM, NIC, Disks] for [ResourceGroup: %s, VMName: %s]", providerSpec.ResourceGroup, vmName)
 	}

@@ -25,6 +25,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering"
 	fakemktplaceordering "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering/fake"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 // MarketPlaceAgreementAccessBuilder is a builder for MarketPlace Agreement access.
@@ -50,7 +51,7 @@ func (b *MarketPlaceAgreementAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec 
 func (b *MarketPlaceAgreementAccessBuilder) withGet() *MarketPlaceAgreementAccessBuilder {
 	b.server.Get = func(ctx context.Context, offerType armmarketplaceordering.OfferType, publisherID string, offerID string, planID string, options *armmarketplaceordering.MarketplaceAgreementsClientGetOptions) (resp azfake.Responder[armmarketplaceordering.MarketplaceAgreementsClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(MarketPlaceOrderingOfferType), testhelp.AccessMethodGet)
+			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(utils.MarketPlaceOrderingOfferType), testhelp.AccessMethodGet)
 			if err != nil {
 				errResp.SetError(err)
 				return
@@ -60,7 +61,7 @@ func (b *MarketPlaceAgreementAccessBuilder) withGet() *MarketPlaceAgreementAcces
 		agreementTerms := b.clusterState.GetAgreementTerms(offerType, publisherID, offerID)
 		if agreementTerms == nil {
 			// Instead of returning 404 the client returns 400 bad request. See https://github.com/Azure/azure-sdk-for-go/issues/21286
-			errResp.SetError(testhelp.BadRequestError(testhelp.ErrorBadRequest))
+			errResp.SetError(testhelp.BadRequestError(testhelp.ErrorCodeBadRequest))
 			return
 		}
 		resp.SetResponse(http.StatusOK, armmarketplaceordering.MarketplaceAgreementsClientGetResponse{AgreementTerms: *agreementTerms}, nil)
@@ -74,7 +75,7 @@ func (b *MarketPlaceAgreementAccessBuilder) withGet() *MarketPlaceAgreementAcces
 func (b *MarketPlaceAgreementAccessBuilder) withCreate() *MarketPlaceAgreementAccessBuilder {
 	b.server.Create = func(ctx context.Context, offerType armmarketplaceordering.OfferType, publisherID string, offerID string, planID string, parameters armmarketplaceordering.AgreementTerms, options *armmarketplaceordering.MarketplaceAgreementsClientCreateOptions) (resp azfake.Responder[armmarketplaceordering.MarketplaceAgreementsClientCreateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(MarketPlaceOrderingOfferType), testhelp.AccessMethodCreate)
+			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(utils.MarketPlaceOrderingOfferType), testhelp.AccessMethodCreate)
 			if err != nil {
 				errResp.SetError(err)
 				return

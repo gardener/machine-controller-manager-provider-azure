@@ -31,10 +31,10 @@ const (
 	ErrorCodeResourceNotFound = "ResourceNotFound"
 	// ErrorCodeResourceGroupNotFound is the error code returned in Azure response header when resource group is not found.
 	ErrorCodeResourceGroupNotFound = "ResourceGroupNotFound"
-	// ErrorOperationNotAllowed is the error code returned in Azure response if an operation is not allowed on a resource.
-	ErrorOperationNotAllowed = "OperationNotAllowed"
-	// ErrorBadRequest is the error code returned in Azure response if the request is not as per the spec. In some cases this code is returned in place of not found.
-	ErrorBadRequest = "BadRequest"
+	// ErrorCodeOperationNotAllowed is the error code returned in Azure response if an operation is not allowed on a resource.
+	ErrorCodeOperationNotAllowed = "OperationNotAllowed"
+	// ErrorCodeBadRequest is the error code returned in Azure response if the request is not as per the spec. In some cases this code is returned in place of not found.
+	ErrorCodeBadRequest = "BadRequest"
 	// ErrorCodeVMImageNotFound is the error code returned in Azure response if the VM Image is not found.
 	// We have created 2 different constants for not found error because Azure is not consistent. For certain resources it returns
 	// ResourceNotFound while for others it just returns NotFound.
@@ -43,9 +43,12 @@ const (
 	// We have created 2 different constants for not found error because Azure is not consistent. For certain resources it returns
 	// ResourceNotFound while for others it just returns NotFound.
 	ErrorCodeSubnetNotFound = "NotFound"
-	// ErrorCodeReferencedResourceNotFound	 is the error code returned in Azure response if a referenced resource
+	// ErrorCodeReferencedResourceNotFound is the error code returned in Azure response if a referenced resource
 	// is not found to exist.
 	ErrorCodeReferencedResourceNotFound = "NotFound"
+	// ErrorCodeAttachDiskWhileBeingDetached is the error code returned in Azure response if there is an attempt to update the DeleteOptions for
+	// associated Disks when the Disk is currently getting detached.
+	ErrorCodeAttachDiskWhileBeingDetached = "AttachDiskWhileBeingDetached"
 )
 
 // ContextTimeoutError creates an error mimicking timeout of a context.

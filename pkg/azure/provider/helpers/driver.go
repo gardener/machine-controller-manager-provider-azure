@@ -29,7 +29,6 @@ import (
 	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api/validation"
 	"golang.org/x/crypto/ssh"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/pointer"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
@@ -105,87 +104,6 @@ func DeriveInstanceID(location, vmName string) string {
 	return fmt.Sprintf("azure:///%s/%s", location, vmName)
 }
 
-// Helper functions used for driver.ListMachines
-// ---------------------------------------------------------------------------------------------------------------------
-
-const (
-	listVMsQueryTemplate = `
-	Resources
-	| where type =~ 'Microsoft.Compute/virtualMachines'
-	| where resourceGroup =~ '%s'
-	| extend tagKeys = bag_keys(tags)
-	| where tagKeys has '%s' and tagKeys has '%s'
-	| project name
-	`
-	listNICsQueryTemplate = `
-	Resources
-	| where type =~ 'microsoft.network/networkinterfaces'
-	| where resourceGroup =~ '%s'
-	| extend tagKeys = bag_keys(tags)
-	| where tagKeys has '%s' and tagKeys has '%s'
-	| project name
-	`
-
-	nicSuffix = "-nic"
-)
-
-// ExtractVMNamesFromVirtualMachinesAndNICs extracts VM names from virtual machines and NIC names and returns a slice of unique vm names.
-// This method uses azure resource graph client which in turn uses KUSTO as their query language.
-// For additional information on KUSTO start here: [https://learn.microsoft.com/en-us/azure/data-explorer/kusto/query/]
-func ExtractVMNamesFromVirtualMachinesAndNICs(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, resourceGroup string, providerSpecTags map[string]string) ([]string, error) {
-	rgAccess, err := factory.GetResourceGraphAccess(connectConfig)
-	if err != nil {
-		return nil, err
-	}
-	vmNames := sets.New[string]()
-
-	queryTemplateArgs := prepareQueryTemplateArgs(resourceGroup, providerSpecTags)
-	vmNamesFromVirtualMachines, err := accesshelpers.QueryAndMap[string](ctx, rgAccess, connectConfig.SubscriptionID, createVMNameMapperFn(nil), listVMsQueryTemplate, queryTemplateArgs...)
-	if err != nil {
-		return nil, status.WrapError(codes.Internal, fmt.Sprintf("failed to get VM names from VirtualMachines for resourceGroup :%s: error: %v", resourceGroup, err), err)
-	}
-	vmNames.Insert(vmNamesFromVirtualMachines...)
-
-	// extract VM Names from existing NICs. Why is this required?
-	// A Machine in MCM terminology is a collective entity consisting of but not limited to VM, NIC(s), Disk(s).
-	// MCM orphan collection needs to track resources which have a separate lifecycle and are orphaned. Currently in case of azure it is VM's and NICs.
-	// Disks (OS and Data) are created and deleted along with the VM.
-	// In order to get any orphaned VM or NIC, its currently essential that a machine name(collective entity) should be collected
-	// by introspecting VMs and NICs.
-	vmNamesFromNICs, err := accesshelpers.QueryAndMap[string](ctx, rgAccess, connectConfig.SubscriptionID, createVMNameMapperFn(to.Ptr(nicSuffix)), listNICsQueryTemplate, queryTemplateArgs...)
-	if err != nil {
-		return nil, status.WrapError(codes.Internal, fmt.Sprintf("failed to get VM names from NICs for resourceGroup :%s: error: %v", resourceGroup, err), err)
-	}
-	vmNames.Insert(vmNamesFromNICs...)
-	return vmNames.UnsortedList(), nil
-}
-
-func prepareQueryTemplateArgs(resourceGroup string, providerSpecTags map[string]string) []any {
-	// NOTE: length is 3 because in the query we have a max of 3 parameter substitutions. This should be changed if the number of parameters change to prevent unnecessary resizing.
-	templateArgs := make([]any, 0, 3)
-	// NOTE: preserve the same order as these are ordered parameters which will be used for substitution.
-	templateArgs = append(templateArgs, resourceGroup)
-	for k := range providerSpecTags {
-		if strings.HasPrefix(k, utils.ClusterTagPrefix) || strings.HasPrefix(k, utils.RoleTagPrefix) {
-			templateArgs = append(templateArgs, k)
-		}
-	}
-	return templateArgs
-}
-
-func createVMNameMapperFn(suffix *string) accesshelpers.MapperFn[string] {
-	return func(r map[string]interface{}) *string {
-		if resourceNameVal, keyFound := r["name"]; keyFound {
-			resourceName := resourceNameVal.(string)
-			if suffix != nil && strings.HasSuffix(resourceName, *suffix) {
-				return to.Ptr(resourceName[:len(resourceName)-len(*suffix)])
-			}
-			return to.Ptr(resourceName)
-		}
-		return nil
-	}
-}
-
 // Helper functions used for driver.DeleteMachine
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -245,20 +163,160 @@ func CheckAndDeleteLeftoverNICsAndDisks(ctx context.Context, factory access.Fact
 	return nil
 }
 
-// UpdateCascadeDeleteOptionsAndDeleteVM updates the VirtualMachine properties and sets cascade delete options for NIC's and DISK's if it is not already set.
+// UpdateCascadeDeleteOptions updates the VirtualMachine properties and sets cascade delete options for NIC's and DISK's if it is not already set.
 // Once that is set then it deletes the VM. This will ensure that no separate calls to delete each NIC and DISK are made as they will get deleted along with the VM in one single atomic call.
-func UpdateCascadeDeleteOptionsAndDeleteVM(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup string, vm *armcompute.VirtualMachine) error {
-	// update the VM and set cascade delete on NIC and Disks (OSDisk and DataDisks) if not already set and then trigger VM deletion.
+func UpdateCascadeDeleteOptions(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup string, vm *armcompute.VirtualMachine) error {
 	vmName := *vm.Name
-	err := accesshelpers.SetCascadeDeleteForNICsAndDisks(ctx, vmAccess, resourceGroup, vm)
-	if err != nil {
-		return status.WrapError(codes.Internal, fmt.Sprintf("Failed to update cascade delete of associated resources for VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
+	if canUpdateVirtualMachine(vm) {
+		vmUpdateParams := computeDeleteOptionUpdatesForNICsAndDisksIfRequired(resourceGroup, vm)
+		if vmUpdateParams != nil {
+			// update the VM and set cascade delete on NIC and Disks (OSDisk and DataDisks) if not already set and then trigger VM deletion.
+			klog.V(4).Infof("Updating cascade deletion options for VM: [ResourceGroup: %s, Name: %s] resources", resourceGroup, vmName)
+			err := accesshelpers.SetCascadeDeleteForNICsAndDisks(ctx, vmAccess, resourceGroup, vmName, vmUpdateParams)
+			if err != nil {
+				return status.WrapError(codes.Internal, fmt.Sprintf("Failed to update cascade delete of associated resources for VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
+			}
+		}
+	} else {
+		return status.New(codes.Internal, fmt.Sprintf("Cannot update VM: [ResourceGroup: %s, Name: %s]. Either the VM has provisionState set to Failed or there are one or more data disks that are marked for detachment, update call to this VM will fail. Skipping the update call.", resourceGroup, vmName))
 	}
-	err = accesshelpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
+	return nil
+}
+
+// DeleteVirtualMachine deletes the VirtualMachine, if there is any error it will wrap it into a status.Status error.
+func DeleteVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachinesClient, resourceGroup string, vmName string) error {
+	klog.Infof("Deleting VM: [ResourceGroup: %s, Name: %s]", resourceGroup, vmName)
+	err := accesshelpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 	if err != nil {
 		return status.WrapError(codes.Internal, fmt.Sprintf("Failed to delete VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
 	}
 	return nil
+}
+
+// IsVirtualMachineInTerminalState checks if the provisioningState of the VM is set to Failed.
+func IsVirtualMachineInTerminalState(vm *armcompute.VirtualMachine) bool {
+	return vm.Properties != nil && vm.Properties.ProvisioningState != nil && strings.ToLower(*vm.Properties.ProvisioningState) == strings.ToLower(utils.ProvisioningStateFailed)
+}
+
+func canUpdateVirtualMachine(vm *armcompute.VirtualMachine) bool {
+	return !IsVirtualMachineInTerminalState(vm) && !utils.DataDisksMarkedForDetachment(vm)
+}
+
+// computeDeleteOptionUpdatesForNICsAndDisksIfRequired computes changes required to set cascade delete options for NICs, OSDisk and DataDisks.
+// If there are no changes then a nil is returned. If there are changes then delta changes are captured in armcompute.VirtualMachineUpdate
+func computeDeleteOptionUpdatesForNICsAndDisksIfRequired(resourceGroup string, vm *armcompute.VirtualMachine) *armcompute.VirtualMachineUpdate {
+	var (
+		vmUpdateParams       *armcompute.VirtualMachineUpdate
+		updatedNicReferences []*armcompute.NetworkInterfaceReference
+		updatedDataDisks     []*armcompute.DataDisk
+		updatedOSDisk        *armcompute.OSDisk
+		vmName               = *vm.Name
+	)
+
+	// Return early if VM does not have any properties set. This should ideally never happen.
+	if vm.Properties == nil {
+		klog.Errorf("Weird, but it seems that the VM: [ResourceGroup: %s, Name: %s] does not have Properties set, skipping computing cascade delete update computation for this VM", resourceGroup, vmName)
+		return vmUpdateParams
+	}
+
+	updatedNicReferences = getNetworkInterfaceReferencesToUpdate(vm.Properties.NetworkProfile)
+	updatedOSDisk = getOSDiskToUpdate(vm.Properties.StorageProfile)
+	updatedDataDisks = getDataDisksToUpdate(vm.Properties.StorageProfile)
+
+	// If there are no updates on NIC(s), OSDisk and DataDisk(s) then just return early.
+	if utils.IsSliceNilOrEmpty(updatedNicReferences) && updatedOSDisk == nil && utils.IsSliceNilOrEmpty(updatedDataDisks) {
+		klog.Infof("All configured NICs, OSDisk and DataDisks have cascade delete already set for VM: [ResourceGroup: %s, Name: %s]", resourceGroup, vmName)
+		return vmUpdateParams
+	}
+
+	vmUpdateParams = &armcompute.VirtualMachineUpdate{
+		Properties: &armcompute.VirtualMachineProperties{
+			StorageProfile: &armcompute.StorageProfile{},
+		},
+	}
+
+	if !utils.IsSliceNilOrEmpty(updatedNicReferences) {
+		klog.Infof("Identified #%d NICs requiring DeleteOption updates for VM: [ResourceGroup: %s, Name: %s]", len(updatedNicReferences), resourceGroup, vmName)
+		vmUpdateParams.Properties.NetworkProfile = &armcompute.NetworkProfile{
+			NetworkInterfaces: updatedNicReferences,
+		}
+	}
+	if updatedOSDisk != nil {
+		klog.Infof("Identified OSDisk: %s requiring DeleteOption update for VM: [ResourceGroup: %s, Name: %s]", *updatedOSDisk.Name, resourceGroup, vmName)
+		vmUpdateParams.Properties.StorageProfile.OSDisk = updatedOSDisk
+	}
+	if !utils.IsSliceNilOrEmpty(updatedDataDisks) {
+		vmUpdateParams.Properties.StorageProfile.DataDisks = updatedDataDisks
+	}
+
+	return vmUpdateParams
+}
+
+// getNetworkInterfaceReferencesToUpdate checks if there are still NICs which do not have cascade delete set. These are captured and changed
+// NetworkInterfaceReference's are then returned with cascade delete option set.
+func getNetworkInterfaceReferencesToUpdate(networkProfile *armcompute.NetworkProfile) []*armcompute.NetworkInterfaceReference {
+	if networkProfile == nil || utils.IsSliceNilOrEmpty(networkProfile.NetworkInterfaces) {
+		return nil
+	}
+	updatedNicRefs := make([]*armcompute.NetworkInterfaceReference, 0, len(networkProfile.NetworkInterfaces))
+	for _, nicRef := range networkProfile.NetworkInterfaces {
+		updatedNicRef := &armcompute.NetworkInterfaceReference{ID: nicRef.ID}
+		if !isNicCascadeDeleteSet(nicRef) {
+			if updatedNicRef.Properties == nil {
+				updatedNicRef.Properties = &armcompute.NetworkInterfaceReferenceProperties{}
+			}
+			updatedNicRef.Properties.DeleteOption = to.Ptr(armcompute.DeleteOptionsDelete)
+			updatedNicRefs = append(updatedNicRefs, updatedNicRef)
+		}
+	}
+	return updatedNicRefs
+}
+
+// isNicCascadeDeleteSet checks if for a given NIC, cascade deletion option is set.
+func isNicCascadeDeleteSet(nicRef *armcompute.NetworkInterfaceReference) bool {
+	if nicRef.Properties == nil {
+		return false
+	}
+	deleteOption := nicRef.Properties.DeleteOption
+	return deleteOption != nil && *deleteOption == armcompute.DeleteOptionsDelete
+}
+
+// getOSDiskToUpdate checks if cascade delete option is set on OSDisk, if it is not then it will set it and return the
+// updated OSDisk else it will return nil.
+func getOSDiskToUpdate(storageProfile *armcompute.StorageProfile) *armcompute.OSDisk {
+	var updatedOSDisk *armcompute.OSDisk
+	if storageProfile != nil && storageProfile.OSDisk != nil {
+		existingOSDisk := storageProfile.OSDisk
+		existingDeleteOption := existingOSDisk.DeleteOption
+		if existingDeleteOption == nil || *existingDeleteOption != armcompute.DiskDeleteOptionTypesDelete {
+			updatedOSDisk = &armcompute.OSDisk{
+				Name:         existingOSDisk.Name,
+				DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
+			}
+		}
+	}
+	return updatedOSDisk
+}
+
+// getDataDisksToUpdate checks if cascade delete option set for all DataDisks attached to the Virtual machine.
+// All data disks that do not have that set, it will set the appropriate DeleteOption and return the updated
+// DataDisks else it will return nil
+func getDataDisksToUpdate(storageProfile *armcompute.StorageProfile) []*armcompute.DataDisk {
+	var updatedDataDisks []*armcompute.DataDisk
+	if storageProfile != nil && !utils.IsSliceNilOrEmpty(storageProfile.DataDisks) {
+		updatedDataDisks = make([]*armcompute.DataDisk, 0, len(storageProfile.DataDisks))
+		for _, dataDisk := range storageProfile.DataDisks {
+			if dataDisk.DeleteOption == nil || *dataDisk.DeleteOption != armcompute.DiskDeleteOptionTypesDelete {
+				updatedDataDisk := &armcompute.DataDisk{
+					Lun:          dataDisk.Lun,
+					DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
+					Name:         dataDisk.Name,
+				}
+				updatedDataDisks = append(updatedDataDisks, updatedDataDisk)
+			}
+		}
+	}
+	return updatedDataDisks
 }
 
 func createNICDeleteTask(resourceGroup, nicName string, nicAccess *armnetwork.InterfacesClient) utils.Task {

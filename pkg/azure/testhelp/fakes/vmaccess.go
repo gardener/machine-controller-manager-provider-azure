@@ -141,6 +141,11 @@ func (b *VMAccessBuilder) withBeginUpdate() *VMAccessBuilder {
 			return
 		}
 
+		if utils.DataDisksMarkedForDetachment(machineResources.VM) {
+			errResp.SetError(testhelp.ConflictErr(testhelp.ErrorCodeAttachDiskWhileBeingDetached))
+			return
+		}
+
 		// NOTE: Currently we are only using update API to set cascade delete option for NIC and Disks.
 		// So to avoid complexity, we will restrict it to only updating cascade delete options only.
 		// If in future the usage changes then changes should also be done here to reflect that.

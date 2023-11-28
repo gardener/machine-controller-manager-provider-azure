@@ -20,24 +20,8 @@ import (
 	"time"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 	"k8s.io/klog/v2"
-)
-
-// ResourceType is an enum type representing type different resource types supported by Azure.
-type ResourceType string
-
-const (
-	// VirtualMachinesResourceType is a type used by Azure to represent virtual machine resources.
-	VirtualMachinesResourceType ResourceType = "Microsoft.Compute/virtualMachines"
-	// NetworkInterfacesResourceType is a type used by Azure to represent network interfaces resources.
-	NetworkInterfacesResourceType ResourceType = "microsoft.network/networkinterfaces" //as defined in azure
-	// VMImageResourceType is a type used by Azure to represent VM Image resources.
-	// This is not defined in azure, however we have created this to allow defining API behavior for VM Images.
-	VMImageResourceType ResourceType = "Microsoft.Compute/VMImage"
-	// MarketPlaceOrderingOfferType is a type used by Azure to represent marketplace ordering offer types.
-	MarketPlaceOrderingOfferType ResourceType = "Microsoft.MarketplaceOrdering/offertypes"
-	// SubnetResourceType is a type used by Azure to represent subnet resources.
-	SubnetResourceType ResourceType = "Microsoft.Network/virtualNetworks/subnets"
 )
 
 // APIBehaviorSpec allows tests to define custom behavior either for a specific resource or a resource type.
@@ -45,7 +29,7 @@ type APIBehaviorSpec struct {
 	resourceReactionsByName map[string]map[string]ResourceReaction
 	// This is primarily going to be used for resource graph behavior specifications
 	// If the query is for a specific type then this map should be populated and used.
-	resourceReactionsByType map[ResourceType]map[string]ResourceReaction
+	resourceReactionsByType map[utils.ResourceType]map[string]ResourceReaction
 }
 
 // ResourceReaction captures reaction for a resource.
@@ -60,7 +44,7 @@ type ResourceReaction struct {
 func NewAPIBehaviorSpec() *APIBehaviorSpec {
 	return &APIBehaviorSpec{
 		resourceReactionsByName: make(map[string]map[string]ResourceReaction),
-		resourceReactionsByType: make(map[ResourceType]map[string]ResourceReaction),
+		resourceReactionsByType: make(map[utils.ResourceType]map[string]ResourceReaction),
 	}
 }
 
@@ -88,14 +72,14 @@ func (s *APIBehaviorSpec) AddErrorResourceReaction(resourceName, method string, 
 
 // AddContextTimeoutResourceTypeReaction adds a context timeout reaction for all resources of the given resourceType.
 // Context timeout is simulated after the given timeoutAfter duration when the given method on the resource client is invoked.
-func (s *APIBehaviorSpec) AddContextTimeoutResourceTypeReaction(resourceType ResourceType, method string, timeoutAfter time.Duration) *APIBehaviorSpec {
+func (s *APIBehaviorSpec) AddContextTimeoutResourceTypeReaction(resourceType utils.ResourceType, method string, timeoutAfter time.Duration) *APIBehaviorSpec {
 	s.initializeResourceTypeReactionMapForResource(resourceType)
 	s.resourceReactionsByType[resourceType][method] = ResourceReaction{timeoutAfter: &timeoutAfter}
 	return s
 }
 
 // AddPanicResourceTypeReaction adds a panic reaction for all resources of a given resourceType when a given method on the resource client is invoked.
-func (s *APIBehaviorSpec) AddPanicResourceTypeReaction(resourceType ResourceType, method string) *APIBehaviorSpec {
+func (s *APIBehaviorSpec) AddPanicResourceTypeReaction(resourceType utils.ResourceType, method string) *APIBehaviorSpec {
 	s.initializeResourceTypeReactionMapForResource(resourceType)
 	s.resourceReactionsByType[resourceType][method] = ResourceReaction{panic: true}
 	return s
@@ -103,7 +87,7 @@ func (s *APIBehaviorSpec) AddPanicResourceTypeReaction(resourceType ResourceType
 
 // AddErrorResourceTypeReaction adds an error reaction for all resources of a given resourceType. The give error is returned
 // when the given method is invoked on the respective resource client.
-func (s *APIBehaviorSpec) AddErrorResourceTypeReaction(resourceType ResourceType, method string, err error) *APIBehaviorSpec {
+func (s *APIBehaviorSpec) AddErrorResourceTypeReaction(resourceType utils.ResourceType, method string, err error) *APIBehaviorSpec {
 	s.initializeResourceTypeReactionMapForResource(resourceType)
 	s.resourceReactionsByType[resourceType][method] = ResourceReaction{err: err}
 	return s
@@ -115,14 +99,14 @@ func (s *APIBehaviorSpec) initializeResourceReactionMapForResource(resourceName 
 	}
 }
 
-func (s *APIBehaviorSpec) initializeResourceTypeReactionMapForResource(resourceType ResourceType) {
+func (s *APIBehaviorSpec) initializeResourceTypeReactionMapForResource(resourceType utils.ResourceType) {
 	if _, ok := s.resourceReactionsByType[resourceType]; !ok {
 		s.resourceReactionsByType[resourceType] = make(map[string]ResourceReaction)
 	}
 }
 
 // SimulateForResourceType runs the simulation for a resourceType and method combination using any configured reactions.
-func (s *APIBehaviorSpec) SimulateForResourceType(ctx context.Context, resourceGroup string, resourceType *ResourceType, method string) error {
+func (s *APIBehaviorSpec) SimulateForResourceType(ctx context.Context, resourceGroup string, resourceType *utils.ResourceType, method string) error {
 	resTypeReaction := s.getResourceTypeReaction(resourceType, method)
 	return doSimulate(ctx, resTypeReaction, fmt.Sprintf("Panicking for ResourceType -> [resourceGroup: %s, type: %s]", resourceGroup, *resourceType))
 }
@@ -158,7 +142,7 @@ func (s *APIBehaviorSpec) getResourceReaction(resourceName, method string) *Reso
 	return &reaction
 }
 
-func (s *APIBehaviorSpec) getResourceTypeReaction(resourceType *ResourceType, method string) *ResourceReaction {
+func (s *APIBehaviorSpec) getResourceTypeReaction(resourceType *utils.ResourceType, method string) *ResourceReaction {
 	// This will result in a search across all resource types, first reaction matching method will be returned
 	if resourceType == nil {
 		klog.Infof("(getResourceTypeReaction) resourceType passed is nil, will return the first set reaction for the method: %s", method)

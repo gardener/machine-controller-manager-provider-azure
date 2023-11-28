@@ -90,7 +90,7 @@ func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
 		// Azure API Disk deletion does not fail if the Disk does not exist. It still returns 200 Ok.
 		disk := b.clusterState.GetDisk(diskName)
 		if disk != nil && !utils.IsNilOrEmptyStringPtr(disk.ManagedBy) {
-			errResp.SetError(testhelp.ConflictErr(testhelp.ErrorOperationNotAllowed))
+			errResp.SetError(testhelp.ConflictErr(testhelp.ErrorCodeOperationNotAllowed))
 			return
 		}
 		b.clusterState.DeleteDisk(diskName)

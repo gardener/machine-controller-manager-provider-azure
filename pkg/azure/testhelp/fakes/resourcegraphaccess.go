@@ -50,60 +50,74 @@ func (b *ResourceGraphAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBeh
 }
 
 // withResources sets the implementation for `Resources` method. The implementation is not generic and currently only assumes that user will use this fake server method
-// to only test queries that are specified in `helpers.resourcegraph` package. If new queries are added then this implementation should be updated.
+// to only test queries that are specified in `helpers.ExtractVMNamesFromVMsNICsDisks` function. If new queries are added then this implementation should be updated.
 func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder {
 	b.server.Resources = func(ctx context.Context, query armresourcegraph.QueryRequest, options *armresourcegraph.ClientResourcesOptions) (resp azfake.Responder[armresourcegraph.ClientResourcesResponse], errResp azfake.ErrorResponder) {
-		var resType *ResourceType
-		if query.Query != nil {
-			resType = getResourceType(*query.Query)
-		}
-		if b.apiBehaviorSpec != nil {
-			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, resType, testhelp.AccessMethodResources)
-			if err != nil {
-				errResp.SetError(err)
-				return
+
+		foundResourceTypes := getResourceTypes(query)
+
+		if b.apiBehaviorSpec != nil && !utils.IsSliceNilOrEmpty(foundResourceTypes) {
+			for _, resType := range foundResourceTypes {
+				err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, &resType, testhelp.AccessMethodResources)
+				if err != nil {
+					errResp.SetError(err)
+					return
+				}
 			}
 		}
 		// ------------------------------- NOTE --------------------------------
 		// When a non-existent resource group is passed in the resource graph query
 		// then it does not error out instead it returns 0 results.
 		//-----------------------------------------------------------------------
-		var vmNames []string
+		resTypeToVMNames := make(map[string][]string)
 		if query.Query != nil {
 			tagsToMatch := b.getProviderSpecTagKeysToMatch()
-			if resType != nil {
-				switch *resType {
-				case VirtualMachinesResourceType:
-					vmNames = b.clusterState.GetVMsMatchingTagKeys(tagsToMatch)
-				case NetworkInterfacesResourceType:
-					vmNames = b.clusterState.ExtractVMNamesFromNICsMatchingTagKeys(tagsToMatch)
+			if foundResourceTypes != nil {
+				for _, resType := range foundResourceTypes {
+					switch resType {
+					case utils.VirtualMachinesResourceType:
+						vmNames := b.clusterState.GetVMsMatchingTagKeys(tagsToMatch)
+						if !utils.IsSliceNilOrEmpty(vmNames) {
+							resTypeToVMNames[string(resType)] = vmNames
+						}
+					case utils.NetworkInterfacesResourceType:
+						vmNames := b.clusterState.GetNICNamesMatchingTagKeys(tagsToMatch)
+						if !utils.IsSliceNilOrEmpty(vmNames) {
+							resTypeToVMNames[string(resType)] = vmNames
+						}
+					case utils.DiskResourceType:
+						vmNames := b.clusterState.GetDiskNamesMatchingTagKeys(tagsToMatch)
+						if !utils.IsSliceNilOrEmpty(vmNames) {
+							resTypeToVMNames[string(resType)] = vmNames
+						}
+					}
 				}
-			} else {
-				// if there is not resultType this means that the query does not have a filter on resource type
-				// in this case we will now search for VM names across all resources that we preserve as part of ClusterState.
-				vmNames = b.clusterState.GetAllVMNamesFromMachineResources()
 			}
 		}
 		// create the response
 		// currently the fake implementation does not have paging support. This means the Count is also the TotalRecords.
-		queryResp := createResourcesResponse(vmNames)
+		queryResp := createResourcesResponse(resTypeToVMNames)
 		resp.SetResponse(http.StatusOK, queryResp, nil)
 		return
 	}
 	return b
 }
 
-// getResourceType tries to find the table name from the query string. Resource graph defines one table per resource type.
-// Unfortunately I could not find a way to parse the KUSTO Query string to extract the table name and therefore string matching is used here. We can change it if we find a better way
-func getResourceType(query string) *ResourceType {
-	switch {
-	case strings.Contains(query, string(VirtualMachinesResourceType)):
-		return to.Ptr(VirtualMachinesResourceType)
-	case strings.Contains(query, string(NetworkInterfacesResourceType)):
-		return to.Ptr(NetworkInterfacesResourceType)
-	default:
-		return nil
+// getResourceTypes tries to find the table names from the query string. Resource graph defines one table per resource type.
+// Unfortunately there seems to be no way to parse the KUSTO Query string to extract the table name and therefore string matching is used here.
+// We can change it if we find a better way
+func getResourceTypes(query armresourcegraph.QueryRequest) []utils.ResourceType {
+	var foundResourceTypes []utils.ResourceType
+	if query.Query == nil {
+		return foundResourceTypes
 	}
+	resourceTypesToMatch := []utils.ResourceType{utils.VirtualMachinesResourceType, utils.NetworkInterfacesResourceType, utils.DiskResourceType}
+	for _, resType := range resourceTypesToMatch {
+		if strings.Contains(*query.Query, string(resType)) {
+			foundResourceTypes = append(foundResourceTypes, resType)
+		}
+	}
+	return foundResourceTypes
 }
 
 func (b *ResourceGraphAccessBuilder) getProviderSpecTagKeysToMatch() []string {
@@ -116,21 +130,24 @@ func (b *ResourceGraphAccessBuilder) getProviderSpecTagKeysToMatch() []string {
 	return tagKeys
 }
 
-func createResourcesResponse(vmNames []string) armresourcegraph.ClientResourcesResponse {
-	body := make([]interface{}, 0, len(vmNames))
-	if !utils.IsSliceNilOrEmpty(vmNames) {
-		for _, vmName := range vmNames {
-			entry := make(map[string]interface{})
-			entry["name"] = vmName
-			body = append(body, entry)
+func createResourcesResponse(resTypeToVMNames map[string][]string) armresourcegraph.ClientResourcesResponse {
+	body := make([]interface{}, 0, len(resTypeToVMNames))
+	if resTypeToVMNames != nil {
+		for resType, vmNames := range resTypeToVMNames {
+			for _, vmName := range vmNames {
+				entry := make(map[string]interface{})
+				entry["type"] = resType
+				entry["name"] = vmName
+				body = append(body, entry)
+			}
 		}
 	}
 	return armresourcegraph.ClientResourcesResponse{
 		QueryResponse: armresourcegraph.QueryResponse{
-			Count:           pointer.Int64(int64(len(vmNames))),
+			Count:           pointer.Int64(int64(len(resTypeToVMNames))),
 			Data:            body,
 			ResultTruncated: to.Ptr(armresourcegraph.ResultTruncatedFalse),
-			TotalRecords:    pointer.Int64(int64(len(vmNames))),
+			TotalRecords:    pointer.Int64(int64(len(resTypeToVMNames))),
 		},
 	}
 }
