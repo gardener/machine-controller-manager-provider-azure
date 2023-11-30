@@ -57,7 +57,7 @@ machine-controller-manager-provider-azure:
           interval: '24h'
         update_component_deps:
           set_dependency_version_script_container_image:
-            image_reference: 'golang:1.20.5'
+            image_reference: 'golang:1.21.4'
     release:
       <<: *steps_anchor
       traits:
