@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -24,7 +25,13 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/internal/log"
 )
 
-const credNameAzureCLI = "AzureCLICredential"
+const (
+	credNameAzureCLI  = "AzureCLICredential"
+	timeoutCLIRequest = 10 * time.Second
+)
+
+// used by tests to fake invoking the CLI
+type azureCLITokenProvider func(ctx context.Context, resource string, tenantID string) ([]byte, error)
 
 // AzureCLICredentialOptions contains optional parameters for AzureCLICredential.
 type AzureCLICredentialOptions struct {
@@ -32,21 +39,17 @@ type AzureCLICredentialOptions struct {
 	// to TenantID. Add the wildcard value "*" to allow the credential to acquire tokens for any tenant the
 	// logged in account can access.
 	AdditionallyAllowedTenants []string
-
 	// TenantID identifies the tenant the credential should authenticate in.
 	// Defaults to the CLI's default tenant, which is typically the home tenant of the logged in user.
 	TenantID string
 
-	// inDefaultChain is true when the credential is part of DefaultAzureCredential
-	inDefaultChain bool
-	// tokenProvider is used by tests to fake invoking az
-	tokenProvider cliTokenProvider
+	tokenProvider azureCLITokenProvider
 }
 
 // init returns an instance of AzureCLICredentialOptions initialized with default values.
 func (o *AzureCLICredentialOptions) init() {
 	if o.tokenProvider == nil {
-		o.tokenProvider = defaultAzTokenProvider
+		o.tokenProvider = defaultTokenProvider
 	}
 }
 
@@ -70,41 +73,46 @@ func NewAzureCLICredential(options *AzureCLICredentialOptions) (*AzureCLICredent
 // GetToken requests a token from the Azure CLI. This credential doesn't cache tokens, so every call invokes the CLI.
 // This method is called automatically by Azure SDK clients.
 func (c *AzureCLICredential) GetToken(ctx context.Context, opts policy.TokenRequestOptions) (azcore.AccessToken, error) {
-	at := azcore.AccessToken{}
 	if len(opts.Scopes) != 1 {
-		return at, errors.New(credNameAzureCLI + ": GetToken() requires exactly one scope")
+		return azcore.AccessToken{}, errors.New(credNameAzureCLI + ": GetToken() requires exactly one scope")
 	}
 	tenant, err := resolveTenant(c.opts.TenantID, opts.TenantID, credNameAzureCLI, c.opts.AdditionallyAllowedTenants)
 	if err != nil {
-		return at, err
+		return azcore.AccessToken{}, err
 	}
+	// pass the CLI an AAD v1 resource because we don't know which CLI version is installed and older ones don't support v2 scopes
+	opts.Scopes = []string{strings.TrimSuffix(opts.Scopes[0], defaultSuffix)}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	b, err := c.opts.tokenProvider(ctx, opts.Scopes, tenant)
-	if err == nil {
-		at, err = c.createAccessToken(b)
-	}
+	b, err := c.opts.tokenProvider(ctx, opts.Scopes[0], tenant)
 	if err != nil {
-		err = unavailableIfInChain(err, c.opts.inDefaultChain)
-		return at, err
+		return azcore.AccessToken{}, err
+	}
+	at, err := c.createAccessToken(b)
+	if err != nil {
+		return azcore.AccessToken{}, err
 	}
 	msg := fmt.Sprintf("%s.GetToken() acquired a token for scope %q", credNameAzureCLI, strings.Join(opts.Scopes, ", "))
 	log.Write(EventAuthentication, msg)
 	return at, nil
 }
 
-var defaultAzTokenProvider cliTokenProvider = func(ctx context.Context, scopes []string, tenantID string) ([]byte, error) {
-	if !validScope(scopes[0]) {
-		return nil, fmt.Errorf("%s.GetToken(): invalid scope %q", credNameAzureCLI, scopes[0])
+var defaultTokenProvider azureCLITokenProvider = func(ctx context.Context, resource string, tenantID string) ([]byte, error) {
+	match, err := regexp.MatchString("^[0-9a-zA-Z-.:/]+$", resource)
+	if err != nil {
+		return nil, err
 	}
-	// pass the CLI a Microsoft Entra ID v1 resource because we don't know which CLI version is installed and older ones don't support v2 scopes
-	resource := strings.TrimSuffix(scopes[0], defaultSuffix)
+	if !match {
+		return nil, fmt.Errorf(`%s: unexpected scope "%s". Only alphanumeric characters and ".", ";", "-", and "/" are allowed`, credNameAzureCLI, resource)
+	}
+
 	// set a default timeout for this authentication iff the application hasn't done so already
 	var cancel context.CancelFunc
 	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
-		ctx, cancel = context.WithTimeout(ctx, cliTimeout)
+		ctx, cancel = context.WithTimeout(ctx, timeoutCLIRequest)
 		defer cancel()
 	}
+
 	commandLine := "az account get-access-token -o json --resource " + resource
 	if tenantID != "" {
 		commandLine += " --tenant " + tenantID
