@@ -6,7 +6,7 @@
 
 BINARY_PATH         := bin/
 COVERPROFILE        := test/output/coverprofile.out
-IMAGE_REPOSITORY    := eu.gcr.io/gardener-project/gardener/machine-controller-manager-provider-azure
+IMAGE_REPOSITORY    := europe-docker.pkg.dev/gardener-project/public/gardener/machine-controller-manager-provider-azure
 IMAGE_TAG           := $(shell cat VERSION)
 PROVIDER_NAME       := Azure
 PROJECT_NAME        := gardener
