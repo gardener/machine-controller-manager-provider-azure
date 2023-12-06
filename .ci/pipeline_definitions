@@ -1,5 +1,4 @@
 machine-controller-manager-provider-azure:
-  template: 'default'
   base_definition:
     repo: ~
   inherit:
@@ -12,7 +11,6 @@ machine-controller-manager-provider-azure:
                 source: ~ # default
               steps:
                 build: ~
-            registry: 'gcr-readwrite'
             image: 'eu.gcr.io/gardener-project/gardener/machine-controller-manager-provider-azure'
             resource_labels:
             - name: 'gardener.cloud/cve-categorisation'
