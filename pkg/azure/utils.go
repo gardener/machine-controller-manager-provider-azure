@@ -58,6 +58,12 @@ const (
 	nicDeletionTimeout = 10 * time.Minute
 )
 
+// constant for provisioning states
+const (
+	// provisioningStateFailed is the provisioning state of the VM set by the provider indicating that the VM is in terminal state.
+	provisioningStateFailed = "Failed"
+)
+
 func dependencyNameFromVMName(vmName, suffix string) string {
 	return vmName + suffix
 }
@@ -595,12 +601,16 @@ func (d *MachinePlugin) createVMNicDisk(req *driver.CreateMachineRequest) (*comp
 // deleteVMNicDisks deletes the VM and associated Disks and NIC
 func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, clients spi.AzureDriverClientsInterface, resourceGroupName string, VMName string, nicName string, diskName string, dataDiskNames []string) error {
 
-	// We try to fetch the VM, detach its data disks and finally delete it
+	// We try to fetch the VM, detach its data disks(if VM is not in terminal state) and finally delete it
 	if vm, vmErr := clients.GetVM().Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
 
-		if detachmentErr := waitForDataDiskDetachment(ctx, clients, resourceGroupName, vm); detachmentErr != nil {
-			return detachmentErr
+		if !isVirtualMachineInTerminalState(vm) {
+			klog.V(2).Infof("VM %s is not in terminal state. Proceeding with disk detachments..", VMName)
+			if detachmentErr := waitForDataDiskDetachment(ctx, clients, resourceGroupName, vm); detachmentErr != nil {
+				return detachmentErr
+			}
 		}
+
 		if deleteErr := DeleteVM(ctx, clients, resourceGroupName, VMName); deleteErr != nil {
 			return deleteErr
 		}
@@ -754,6 +764,11 @@ func deleteDisk(ctx context.Context, clients spi.AzureDriverClientsInterface, re
 	OnARMAPISuccess(prometheusServiceDisk, "Disk deletion was successful for %s", diskName)
 	klog.V(2).Infof("Disk deleted for %q", diskName)
 	return nil
+}
+
+// isVirtualMachineInTerminalState checks if the provisioningState of the VM is set to Failed.
+func isVirtualMachineInTerminalState(vm compute.VirtualMachine) bool {
+	return vm.ProvisioningState != nil && *vm.ProvisioningState == provisioningStateFailed
 }
 
 // GetDeleterForDisk executes the deletion of the attached disk
