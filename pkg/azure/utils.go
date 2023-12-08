@@ -768,7 +768,7 @@ func deleteDisk(ctx context.Context, clients spi.AzureDriverClientsInterface, re
 
 // isVirtualMachineInTerminalState checks if the provisioningState of the VM is set to Failed.
 func isVirtualMachineInTerminalState(vm compute.VirtualMachine) bool {
-	return vm.ProvisioningState != nil && *vm.ProvisioningState == provisioningStateFailed
+	return vm.ProvisioningState != nil && (strings.ToLower(*vm.ProvisioningState) == strings.ToLower(provisioningStateFailed))
 }
 
 // GetDeleterForDisk executes the deletion of the attached disk
