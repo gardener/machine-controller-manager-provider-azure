@@ -613,10 +613,10 @@ func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, clients spi.AzureD
 			}
 		}
 
-		if isVirtualMachineInTerminalState(vm){
-			klog.V(2).Infof("VM %s is in terminal state.. Proceeding with deletion of VM",VMName)
+		if isVirtualMachineInTerminalState(vm) {
+			klog.V(2).Infof("VM %s is in terminal state.. Proceeding with deletion of VM", VMName)
 		}
-		
+
 		if deleteErr := DeleteVM(ctx, clients, resourceGroupName, VMName); deleteErr != nil {
 			return deleteErr
 		}
