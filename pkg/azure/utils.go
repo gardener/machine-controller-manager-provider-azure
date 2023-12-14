@@ -606,15 +606,13 @@ func (d *MachinePlugin) deleteVMNicDisks(ctx context.Context, clients spi.AzureD
 	// We try to fetch the VM, detach its data disks(if VM is not in terminal state) and finally delete it
 	if vm, vmErr := clients.GetVM().Get(ctx, resourceGroupName, VMName, ""); vmErr == nil {
 
-		if !isVirtualMachineInTerminalState(vm) && !isVirtualMachineMarkedForDeletion(vm) {
+		if isVirtualMachineInTerminalState(vm) {
+			klog.V(2).Infof("VM %s is in terminal state.. Proceeding with deletion of VM", VMName)
+		} else if !isVirtualMachineMarkedForDeletion(vm) {
 			klog.V(2).Infof("VM %s is neither in terminal state nor marked for deletion. Proceeding with disk detachments..", VMName)
 			if detachmentErr := waitForDataDiskDetachment(ctx, clients, resourceGroupName, vm); detachmentErr != nil {
 				return detachmentErr
 			}
-		}
-
-		if isVirtualMachineInTerminalState(vm) {
-			klog.V(2).Infof("VM %s is in terminal state.. Proceeding with deletion of VM", VMName)
 		}
 
 		if deleteErr := DeleteVM(ctx, clients, resourceGroupName, VMName); deleteErr != nil {
