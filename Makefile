@@ -8,10 +8,9 @@ IMAGE_REPOSITORY    := eu.gcr.io/gardener-project/gardener/machine-controller-ma
 IMAGE_TAG           := $(shell cat VERSION)
 PROVIDER_NAME       := Azure
 PROJECT_NAME        := gardener
-CONTROL_NAMESPACE=shoot--hc-dev--j338255fe-haas
-CONTROL_KUBECONFIG=/Users/himanshui544024/go/src/github.com/gardener/machine-controller-manager-provider-azure/dev/kube-configs/kubeconfig_control.yaml
-TARGET_KUBECONFIG=/Users/himanshui544024/go/src/github.com/gardener/machine-controller-manager-provider-azure/dev/kube-configs/kubeconfig_target.yaml
-
+CONTROL_NAMESPACE  := default
+CONTROL_KUBECONFIG := dev/control-kubeconfig.yaml
+TARGET_KUBECONFIG  := dev/target-kubeconfig.yaml
 # Below ones are used in tests
 MACHINECLASS_V1 	:= dev/machineclassv1.yaml
 MACHINECLASS_V2 	:= 
