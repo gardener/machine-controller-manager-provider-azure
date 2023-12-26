@@ -4,13 +4,14 @@
 
 -include .env
 
-BINARY_PATH         := bin/
-COVERPROFILE        := test/output/coverprofile.out
-IMAGE_REPOSITORY    := europe-docker.pkg.dev/gardener-project/public/gardener/machine-controller-manager-provider-azure
-IMAGE_TAG           := $(shell cat VERSION)
-PROVIDER_NAME       := Azure
-PROJECT_NAME        := gardener
-
+BINARY_PATH         		:= bin/
+COVERPROFILE        		:= test/output/coverprofile.out
+IMAGE_REPOSITORY    		:= europe-docker.pkg.dev/gardener-project/public/gardener/machine-controller-manager-provider-azure
+IMAGE_TAG           		:= $(shell cat VERSION)
+PROVIDER_NAME       		:= Azure
+PROJECT_NAME        		:= gardener
+TARGET_RESOURCE_GROUP 		:= shoot--project--cluster-name
+IS_CONTROL_CLUSTER_SEED 	:= true
 
 # Below ones are used in tests
 LEADER_ELECT 	    := "true"
@@ -81,13 +82,15 @@ test-unit:
 
 .PHONY: test-integration
  test-integration:
-	@if [[ -f $(PWD)/$(CONTROL_KUBECONFIG) ]]; then export CONTROL_KUBECONFIG=$(PWD)/$(CONTROL_KUBECONFIG); fi; \
-	if [[ -f $(PWD)/$(TARGET_KUBECONFIG) ]]; then export TARGET_KUBECONFIG=$(PWD)/$(TARGET_KUBECONFIG); fi; \
-	if [[ -f $(PWD)/$(MACHINECLASS_V1) ]]; then export MACHINECLASS_V1=$(PWD)/$(MACHINECLASS_V1); fi; \
-	if [[ -f $(PWD)/$(MACHINECLASS_V2) ]]; then export MACHINECLASS_V2=$(PWD)/$(MACHINECLASS_V2); fi; \
+	@if [[ -f $(PWD)/$(CONTROL_KUBECONFIG) ]]; then export CONTROL_KUBECONFIG=$(PWD)/$(CONTROL_KUBECONFIG); elif [[ -f $(CONTROL_KUBECONFIG) ]]; then export CONTROL_KUBECONFIG=$(CONTROL_KUBECONFIG);else echo "No such file exists for CONTROL_KUBECONFIG";exit 1; fi; \
+	if [[ -f $(PWD)/$(TARGET_KUBECONFIG) ]]; then export TARGET_KUBECONFIG=$(PWD)/$(TARGET_KUBECONFIG); elif [[ -f $(TARGET_KUBECONFIG) ]]; then export TARGET_KUBECONFIG=$(TARGET_KUBECONFIG);else echo "No such file exists for TARGET_KUBECONFIG";exit 1; fi; \
+	if [[ -f $(PWD)/$(MACHINECLASS_V1) ]]; then export MACHINECLASS_V1=$(PWD)/$(MACHINECLASS_V1);elif [[ -f $(PWD)/$(MACHINECLASS_V1) ]]; then export MACHINECLASS_V1="$(MACHINECLASS_V1)"; fi; \
+	if [[ -f $(PWD)/$(MACHINECLASS_V2) ]]; then export MACHINECLASS_V2=$(PWD)/$(MACHINECLASS_V2);elif [[ -f $(PWD)/$(MACHINECLASS_V2) ]]; then export MACHINECLASS_V2="$(MACHINECLASS_V2)"; fi; \
 	export MC_CONTAINER_IMAGE=$(MC_IMAGE); \
 	export MCM_CONTAINER_IMAGE=$(MCM_IMAGE); \
+	export IS_CONTROL_CLUSTER_SEED=$(IS_CONTROL_CLUSTER_SEED); \
  	export CONTROL_CLUSTER_NAMESPACE=$(CONTROL_NAMESPACE); \
+ 	export TARGET_RESOURCE_GROUP=$(TARGET_RESOURCE_GROUP); \
  	export MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME=$(MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME); \
  	.ci/local_integration_test
 
