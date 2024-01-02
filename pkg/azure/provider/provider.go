@@ -25,10 +25,9 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"k8s.io/klog/v2"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
-
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 	clienthelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/provider/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
@@ -99,6 +98,9 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 	return
 }
 
+// InitializeMachine should handle post-creation, one-time VM instance initialization operations. (Ex: Like setting up special network config, etc)
+// At this point in time, there are no special VM instance initialization activties in the Azure provider.
+// See [driver.Driver.InitializeMachine] for further information
 func (d defaultDriver) InitializeMachine(ctx context.Context, request *driver.InitializeMachineRequest) (*driver.InitializeMachineResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "InitializeMachine is not yet implemented by the azure provider")
 }
