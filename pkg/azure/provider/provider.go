@@ -20,11 +20,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"k8s.io/klog/v2"
+
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 	clienthelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
@@ -96,6 +97,10 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 	resp = helpers.ConstructCreateMachineResponse(providerSpec.Location, vmName)
 	helpers.LogVMCreation(providerSpec.Location, providerSpec.ResourceGroup, vm)
 	return
+}
+
+func (d defaultDriver) InitializeMachine(ctx context.Context, request *driver.InitializeMachineRequest) (*driver.InitializeMachineResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "InitializeMachine is not yet implemented by the azure provider")
 }
 
 func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (resp *driver.DeleteMachineResponse, err error) {
