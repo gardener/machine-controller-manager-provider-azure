@@ -19,12 +19,13 @@ set -e
 
 cd test/integration/controller
 if ! hash ginkgo; then
-    # Install Ginkgo (test framework) to be able to execute the tests.
-    echo "Fetching Ginkgo frawework"
-    GO111MODULE=off go get -u github.com/onsi/ginkgo/ginkgo
-    echo "Successfully fetched Ginkgo frawework"
+	# Install Ginkgo (test framework) to be able to execute the tests.
+	echo "Fetching Ginkgo frawework"
+	go install github.com/onsi/ginkgo/v2/ginkgo
+	echo "Successfully fetched Ginkgo frawework"
+	ginkgo version
 fi
 
 echo "Starting integration tests..."
 
-ginkgo -v
+ginkgo -v --show-node-events --poll-progress-after=480s --poll-progress-interval=90s

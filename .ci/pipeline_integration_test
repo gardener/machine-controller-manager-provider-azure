@@ -18,6 +18,7 @@ export CONTROL_KUBECONFIG
 export TARGET_KUBECONFIG
 export MACHINECLASS_V1=${SOURCE_PATH}/dev/v1machineclass_converted.yaml
 export MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME="machine-controller-manager"
+export TARGET_RESOURCE_GROUP=shoot--mcm-ci--az-ci-it
 
 ############################################## <Helper fn> ##############################################
 
@@ -42,6 +43,7 @@ function hf_num_of_ready_nodes() {
 }
 
 function hf_wait_on() {
+    wait_interval=30
     function_name=$1
     function_param=$2
     count_to_match=$3
@@ -53,7 +55,8 @@ function hf_wait_on() {
         ret=$?
         [[ $ret -ne $count_to_match ]]
     do
-        sleep 30
+        printf "\n\t Error: %s invoked with %s did not return expected value %s. Will retry again in %s...\n" "$function_name" "$function_param" "$count_to_match" "$ wait_interval"
+        sleep $wait_interval
         ((iteration_count--))
 
         # Exit script when timeout occurs
@@ -74,7 +77,7 @@ function hf_wait_on() {
 
 function setup_ginkgo() {
     echo "Installing Ginkgo..."
-    GO111MODULE=off go get -u github.com/onsi/ginkgo/ginkgo
+	  go install github.com/onsi/ginkgo/v2/ginkgo
     ginkgo version
     echo "Successfully installed Ginkgo."
 }
@@ -148,10 +151,13 @@ function check_cluster_state() {
 ############################################## <Modules> ########################################################
 
 function run_integration_tests() {
+    echo "Printing env.."
+    env
+    echo "---"
     echo "Starting integration tests..."
     set +e
 
-    ginkgo -v -mod=vendor test/integration/controller
+    ginkgo -v --show-node-events --poll-progress-after=480s --poll-progress-interval=90s test/integration/controller
     TEST_RESULT=$?
     
     set -e
@@ -189,7 +195,7 @@ fi
 run_integration_tests
 print_controller_logs
 printf "\n\t\t\t----- End of Test Script -----------\n"
-
+printf "\n\t\t\t----- Exiting with TEST_RESULT: %s -----------\n" "$TEST_RESULT"
 exit $TEST_RESULT
 
 ############################################## </Main> ########################################################
