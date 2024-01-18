@@ -229,6 +229,12 @@ function run_integration_tests() {
     echo "Printing env.."
     env
     echo "---"
+    echo "--- Printing CONTROL_KUBECONFIG.."
+    cat $CONTROL_KUBECONFIG
+    echo "---"
+    echo "--- Printing TARGET_KUBECONFIG..."
+    cat $TARGET_KUBECONFIG
+    echo "---"
     echo "Starting integration tests..."
     set +e
 
