@@ -97,7 +97,6 @@ function fetch_service_account_kubeconfig() {
 function request_kubeconfig() {
     echo "request_kubeconfig: $1 $2 $3"
     rawUrl="/apis/core.gardener.cloud/v1beta1/namespaces/$1/shoots/$2/adminkubeconfig"
-    echo "request_kubeconfig: Making request to rawUrl: $rawUrl"
     kubectl --kubeconfig=dev/sa_kubeconfig.yaml create -f <(printf '{"spec":{"expirationSeconds":%s}}' $KUBECONFIG_EXPIRY) --raw "$rawUrl" | jq -r ".status.kubeconfig" | base64 -d  > "$3"
 }
 
