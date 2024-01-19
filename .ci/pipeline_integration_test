@@ -99,9 +99,6 @@ function request_kubeconfig() {
     rawUrl="/apis/core.gardener.cloud/v1beta1/namespaces/$1/shoots/$2/adminkubeconfig"
     echo "request_kubeconfig: Making request to rawUrl: $rawUrl"
     kubectl --kubeconfig=dev/sa_kubeconfig.yaml create -f <(printf '{"spec":{"expirationSeconds":%s}}' $KUBECONFIG_EXPIRY) --raw "$rawUrl" | jq -r ".status.kubeconfig" | base64 -d  > "$3"
-    echo "----- Printing $3"
-    cat "$3"
-    echo "-----"
 }
 
 # Fetch *-ci-it cluster kubeconfig
@@ -160,7 +157,7 @@ type: Opaque
 EOF
 )
     echo "---Printing test_mc_secret..."
-    echo $secret_yaml
+    echo "$secret_yaml"
     echo "---"
     echo "Creating test_mc_secret..."
     echo "$secret_yaml" | kubectl --kubeconfig=$CONTROL_KUBECONFIG apply -f -
