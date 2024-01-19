@@ -92,25 +92,22 @@ function setup_ginkgo() {
 function fetch_service_account_kubeconfig() {
     echo "fetch_service_account_kubeconfig: ${cli_path} config attribute --cfg-type kubernetes --cfg-name mcm-ci-garden-dev-virtual --key kubeconfig  > dev/sa_kubeconfig.yaml"
     ${cli_path} config attribute --cfg-type kubernetes --cfg-name mcm-ci-garden-dev-virtual --key kubeconfig  > dev/sa_kubeconfig.yaml
-    echo "Printing dev/sa_kubeconfig.yaml"
-    cat dev/sa_kubeconfig.yaml
-    echo "------"
 }
 
 function request_kubeconfig() {
+    echo "request_kubeconfig: $1 $2 $3"
     rawUrl="/apis/core.gardener.cloud/v1beta1/namespaces/$1/shoots/$2/adminkubeconfig"
     echo "request_kubeconfig: Making request to rawUrl: $rawUrl"
-    set -x #added for diagnosis in logs
-    kubectl --kubeconfig=dev/sa_kubeconfig.yaml create -f <(printf '{"spec":{"expirationSeconds":%s}}' $KUBECONFIG_EXPIRY) --raw /apis/core.gardener.cloud/v1beta1/namespaces/"$1"/shoots/"$2"/adminkubeconfig | jq -r ".status.kubeconfig" | base64 -d  > "$3"
-    set +x
+    kubectl --kubeconfig=dev/sa_kubeconfig.yaml create -f <(printf '{"spec":{"expirationSeconds":%s}}' $KUBECONFIG_EXPIRY) --raw "$rawUrl" | jq -r ".status.kubeconfig" | base64 -d  > "$3"
+    echo "----- Printing $3"
+    cat "$3"
+    echo "-----"
 }
 
 # Fetch *-ci-it cluster kubeconfig
 function fetch_oot_cluster_kubeconfig() {
     NAMESPACE=garden-mcm-ci
-    echo "Executing: request_kubeconfig $NAMESPACE $TEST_SHOOT dev/target_kubeconfig.yaml"
     request_kubeconfig "$NAMESPACE" "$TEST_SHOOT" "dev/target_kubeconfig.yaml"
-    echo "Executing: request_kubeconfig $NAMESPACE $TEST_SHOOT dev/control_kubeconfig.yaml"
     request_kubeconfig "$NAMESPACE" "$TEST_SHOOT" "dev/control_kubeconfig.yaml"
 }
 
@@ -162,7 +159,17 @@ metadata:
 type: Opaque
 EOF
 )
+    echo "---Printing test_mc_secret..."
+    echo $secret_yaml
+    echo "---"
+    echo "Creating test_mc_secret..."
     echo "$secret_yaml" | kubectl --kubeconfig=$CONTROL_KUBECONFIG apply -f -
+    local exec_result=$?
+    echo "test_mc_secret create result: $exec_result"
+    if [[ exec_result -ne 0 ]]; then
+        printf "create_test_mc_secret failed with error: $exec_result" >&2
+        exit $exec_result
+    fi
 }
 
 function delete_test_mc_secret() {
