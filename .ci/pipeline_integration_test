@@ -9,7 +9,6 @@ logs_path=.ci/controllers-test/logs
 TEST_RESULT=
 cli_path=/cc/utils/cli.py
 num_of_existing_nodes=1
-TEST_SHOOT=az-ci-it
 CREDENTIALS_SECRET_NAME=shoot-operator-az-team
 GARDEN_CORE_NAMESPACE=garden-core
 KUBECONFIG_EXPIRY=10800
@@ -17,6 +16,7 @@ KUBECONFIG_EXPIRY=10800
 #these variables are accessed in test/integration/controller so prefixed by ${SOURCE_PATH} for absolute path
 declare CONTROL_KUBECONFIG=${SOURCE_PATH}/dev/control_kubeconfig.yaml
 declare TARGET_KUBECONFIG=${SOURCE_PATH}/dev/target_kubeconfig.yaml
+declare TEST_SHOOT=az-ci-it
 declare TEST_CREDS_SECRET=test-mc-secret
 declare TARGET_RESOURCE_GROUP="shoot--mcm-ci--$TEST_SHOOT"
 
@@ -98,16 +98,20 @@ function fetch_service_account_kubeconfig() {
 }
 
 function request_kubeconfig() {
+    rawUrl="/apis/core.gardener.cloud/v1beta1/namespaces/$1/shoots/$2/adminkubeconfig"
+    echo "request_kubeconfig: Making request to rawUrl: $rawUrl"
     set -x #added for diagnosis in logs
-    kubectl --kubeconfig=dev/sa_kubeconfig.yaml create -f <(printf '{"spec":{"expirationSeconds":%s}}' $KUBECONFIG_EXPIRY) --raw /apis/core.gardener.cloud/v1beta1/namespaces/"$1"/shoots/"$2"/adminkubeconfig | jq -r ".status.kubeconfig" | base64 -d > "$3"
+    kubectl --kubeconfig=dev/sa_kubeconfig.yaml create -f <(printf '{"spec":{"expirationSeconds":%s}}' $KUBECONFIG_EXPIRY) --raw /apis/core.gardener.cloud/v1beta1/namespaces/"$1"/shoots/"$2"/adminkubeconfig | jq -r ".status.kubeconfig" | base64 -d  > "$3"
     set +x
 }
 
 # Fetch *-ci-it cluster kubeconfig
 function fetch_oot_cluster_kubeconfig() {
     NAMESPACE=garden-mcm-ci
-    request_kubeconfig $NAMESPACE $TEST_SHOOT "dev/target_kubeconfig.yaml"
-    request_kubeconfig $NAMESPACE $TEST_SHOOT "dev/control_kubeconfig.yaml"
+    echo "Executing: request_kubeconfig $NAMESPACE $TEST_SHOOT dev/target_kubeconfig.yaml"
+    request_kubeconfig "$NAMESPACE" "$TEST_SHOOT" "dev/target_kubeconfig.yaml"
+    echo "Executing: request_kubeconfig $NAMESPACE $TEST_SHOOT dev/control_kubeconfig.yaml"
+    request_kubeconfig "$NAMESPACE" "$TEST_SHOOT" "dev/control_kubeconfig.yaml"
 }
 
 function fetch_userdata(){
