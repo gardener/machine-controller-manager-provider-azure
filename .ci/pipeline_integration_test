@@ -114,6 +114,9 @@ function fetch_userdata(){
     USERDATA_SECRET_NAME=$(kubectl --kubeconfig=dev/seed_kubeconfig.yaml get secrets -n shoot--mcm-ci--$TEST_SHOOT -o custom-columns=Name:.metadata.name --no-headers | grep shoot--mcm-ci)
     kubectl --kubeconfig=dev/seed_kubeconfig.yaml get secret $USERDATA_SECRET_NAME -n shoot--mcm-ci--$TEST_SHOOT -oyaml > dev/userData.yaml
     userData=$(yq eval '.data.userData' dev/userData.yaml)
+
+    # The below echo is re-directed to variable and not printed.
+    echo $userData
 }
 
 function fetch_machine_class(){
@@ -130,6 +133,8 @@ function fetch_credentials(){
    subscriptionID=$(yq eval '.data.subscriptionID' dev/credentials.yaml)
    tenantID=$(yq eval '.data.tenantID' dev/credentials.yaml)
 
+   # The below echo is re-directed to variable and not printed.
+   echo "$clientID" "$clientSecret" "$subscriptionID" "$tenantID"
 }
 
 function create_test_mc_secret() {
