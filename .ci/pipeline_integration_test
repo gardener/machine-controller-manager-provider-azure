@@ -154,9 +154,6 @@ metadata:
 type: Opaque
 EOF
 )
-    echo "---Printing test_mc_secret..."
-    echo "$secret_yaml"
-    echo "---"
     echo "Creating test_mc_secret..."
     echo "$secret_yaml" | kubectl --kubeconfig=$CONTROL_KUBECONFIG apply -f -
     local exec_result=$?
