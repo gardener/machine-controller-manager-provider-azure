@@ -130,7 +130,6 @@ function fetch_credentials(){
    subscriptionID=$(yq eval '.data.subscriptionID' dev/credentials.yaml)
    tenantID=$(yq eval '.data.tenantID' dev/credentials.yaml)
 
-   echo "$clientID" "$clientSecret" "$subscriptionID" "$tenantID"
 }
 
 function create_test_mc_secret() {
