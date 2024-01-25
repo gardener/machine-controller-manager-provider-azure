@@ -19,7 +19,7 @@ declare CONTROL_KUBECONFIG=${SOURCE_PATH}/dev/control_kubeconfig.yaml
 declare TARGET_KUBECONFIG=${SOURCE_PATH}/dev/target_kubeconfig.yaml
 declare TEST_SHOOT=az-ci-it
 declare TEST_CREDS_SECRET=test-mc-secret
-declare TARGET_RESOURCE_GROUP="shoot--mcm-ci--$TEST_SHOOT"
+declare TARGET_CLUSTER_NAME="shoot--mcm-ci--$TEST_SHOOT"
 
 export CONTROL_KUBECONFIG
 export TARGET_KUBECONFIG
