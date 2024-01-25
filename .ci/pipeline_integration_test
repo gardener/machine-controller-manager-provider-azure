@@ -26,7 +26,7 @@ export TARGET_KUBECONFIG
 export TEST_CREDS_SECRET
 export MACHINECLASS_V1=${SOURCE_PATH}/dev/v1machineclass_converted.yaml
 export MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME="machine-controller-manager"
-export TARGET_RESOURCE_GROUP
+export TARGET_CLUSTER_NAME
 
 ############################################## <Helper fn> ##############################################
 
