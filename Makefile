@@ -11,7 +11,7 @@ IMAGE_REPOSITORY    		:= europe-docker.pkg.dev/gardener-project/public/gardener/
 IMAGE_TAG           		:= $(shell cat VERSION)
 PROVIDER_NAME       		:= Azure
 PROJECT_NAME        		:= gardener
-TARGET_RESOURCE_GROUP 		:= shoot--project--cluster-name
+TARGET_CLUSTER_NAME			:= shoot--project--cluster-name
 IS_CONTROL_CLUSTER_SEED 	:= true
 
 # Below ones are used in tests
@@ -92,7 +92,7 @@ test-unit:
 	export MCM_CONTAINER_IMAGE=$(MCM_IMAGE); \
 	export IS_CONTROL_CLUSTER_SEED=$(IS_CONTROL_CLUSTER_SEED); \
  	export CONTROL_CLUSTER_NAMESPACE=$(CONTROL_NAMESPACE); \
- 	export TARGET_RESOURCE_GROUP=$(TARGET_RESOURCE_GROUP); \
+ 	export TARGET_CLUSTER_NAME=$(TARGET_CLUSTER_NAME); \
  	export MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME=$(MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME); \
  	.ci/local_integration_test
 

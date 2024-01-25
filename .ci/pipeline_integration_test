@@ -5,6 +5,7 @@ NC='\033[0m' # No Color
 
 mkdir -p dev
 
+mcm_repo_path="dev/mcm"
 logs_path=.ci/controllers-test/logs
 TEST_RESULT=
 cli_path=/cc/utils/cli.py
@@ -18,14 +19,14 @@ declare CONTROL_KUBECONFIG=${SOURCE_PATH}/dev/control_kubeconfig.yaml
 declare TARGET_KUBECONFIG=${SOURCE_PATH}/dev/target_kubeconfig.yaml
 declare TEST_SHOOT=az-ci-it
 declare TEST_CREDS_SECRET=test-mc-secret
-declare TARGET_RESOURCE_GROUP="shoot--mcm-ci--$TEST_SHOOT"
+declare TARGET_CLUSTER_NAME="shoot--mcm-ci--$TEST_SHOOT"
 
 export CONTROL_KUBECONFIG
 export TARGET_KUBECONFIG
 export TEST_CREDS_SECRET
 export MACHINECLASS_V1=${SOURCE_PATH}/dev/v1machineclass_converted.yaml
 export MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME="machine-controller-manager"
-export TARGET_RESOURCE_GROUP
+export TARGET_CLUSTER_NAME
 
 ############################################## <Helper fn> ##############################################
 
@@ -197,7 +198,15 @@ function setup_environment() {
     if ! [ -x "$(command -v ginkgo)" ]; then
     setup_ginkgo
     fi
-    
+
+    # Clone MCM Repo into $mcm_repo_path
+    if [[ ! -d "$mcm_repo_path" ]]; then
+      printf "Cloning machine-controller-manager repo into %s.\n" "$mcm_repo_path"
+      local cloneCmd="git clone https://github.com/gardener/machine-controller-manager.git "$mcm_repo_path" --recursive"
+      printf "Executing %s...\n" "$cloneCmd"
+      eval $cloneCmd
+    fi
+
     fetch_service_account_kubeconfig
     fetch_oot_cluster_kubeconfig
     create_test_mc_secret
