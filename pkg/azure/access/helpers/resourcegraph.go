@@ -17,7 +17,6 @@ package helpers
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resourcegraph/armresourcegraph"
@@ -37,7 +36,8 @@ type MapperFn[T any] func(map[string]interface{}) *T
 // The result of the query are then mapped using a mapperFn and the result or an error is returned.
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func QueryAndMap[T any](ctx context.Context, client *armresourcegraph.Client, subscriptionID string, mapperFn MapperFn[T], queryTemplate string, templateArgs ...any) (results []T, err error) {
-	defer instrument.RecordAzAPIMetric(err, resourceGraphQueryServiceLabel, time.Now())
+	defer instrument.AZAPIMetricRecorderFn(resourceGraphQueryServiceLabel, &err)()
+
 	query := fmt.Sprintf(queryTemplate, templateArgs...)
 	resources, err := client.Resources(ctx,
 		armresourcegraph.QueryRequest{

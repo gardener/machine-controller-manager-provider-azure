@@ -16,7 +16,6 @@ package helpers
 
 import (
 	"context"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
@@ -33,7 +32,7 @@ const (
 // GetAgreementTerms fetches the agreement terms for the purchase plan.
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func GetAgreementTerms(ctx context.Context, mktPlaceAgreementAccess *armmarketplaceordering.MarketplaceAgreementsClient, purchasePlan armcompute.PurchasePlan) (agreementTerms *armmarketplaceordering.AgreementTerms, err error) {
-	defer instrument.RecordAzAPIMetric(err, mktPlaceAgreementGetServiceLabel, time.Now())
+	defer instrument.AZAPIMetricRecorderFn(mktPlaceAgreementGetServiceLabel, &err)()
 	resp, err := mktPlaceAgreementAccess.Get(ctx, armmarketplaceordering.OfferTypeVirtualmachine, *purchasePlan.Publisher, *purchasePlan.Product, *purchasePlan.Name, nil)
 	if err != nil {
 		errors.LogAzAPIError(err, "Failed to get marketplace agreement for PurchasePlan: %+v", purchasePlan)
@@ -46,7 +45,7 @@ func GetAgreementTerms(ctx context.Context, mktPlaceAgreementAccess *armmarketpl
 // AcceptAgreement updates the agreementTerms as accepted.
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func AcceptAgreement(ctx context.Context, mktPlaceAgreementAccess *armmarketplaceordering.MarketplaceAgreementsClient, purchasePlan armcompute.PurchasePlan, existingAgreement armmarketplaceordering.AgreementTerms) (err error) {
-	defer instrument.RecordAzAPIMetric(err, mktPlaceAgreementCreateServiceLabel, time.Now())
+	defer instrument.AZAPIMetricRecorderFn(mktPlaceAgreementCreateServiceLabel, &err)()
 	updatedAgreement := existingAgreement
 	updatedAgreement.Properties.Accepted = to.Ptr(true)
 	_, err = mktPlaceAgreementAccess.Create(ctx, armmarketplaceordering.OfferTypeVirtualmachine, *purchasePlan.Publisher, *purchasePlan.Product, *purchasePlan.Name, updatedAgreement, nil)

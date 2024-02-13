@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
@@ -53,7 +52,7 @@ func NewDefaultDriver(accessFactory access.Factory) driver.Driver {
 }
 
 func (d defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachinesRequest) (resp *driver.ListMachinesResponse, err error) {
-	defer instrument.RecordDriverAPIMetric(err, listMachinesOperationLabel, time.Now())
+	defer instrument.DriverAPIMetricRecorderFn(listMachinesOperationLabel, &err)()
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
 	if err != nil {
 		return
@@ -67,7 +66,8 @@ func (d defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachine
 }
 
 func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (resp *driver.CreateMachineResponse, err error) {
-	defer instrument.RecordDriverAPIMetric(err, createMachineOperationLabel, time.Now())
+	defer instrument.DriverAPIMetricRecorderFn(createMachineOperationLabel, &err)()
+
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
 	if err != nil {
 		return
@@ -99,7 +99,8 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 }
 
 func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (resp *driver.DeleteMachineResponse, err error) {
-	defer instrument.RecordDriverAPIMetric(err, deleteMachineOperationLabel, time.Now())
+	defer instrument.DriverAPIMetricRecorderFn(deleteMachineOperationLabel, &err)()
+
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
 	if err != nil {
 		return
@@ -164,7 +165,8 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 }
 
 func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (resp *driver.GetMachineStatusResponse, err error) {
-	defer instrument.RecordDriverAPIMetric(err, getMachineStatusOperationLabel, time.Now())
+	defer instrument.DriverAPIMetricRecorderFn(getMachineStatusOperationLabel, &err)()
+
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
 	if err != nil {
 		return nil, err
@@ -195,7 +197,8 @@ func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMach
 }
 
 func (d defaultDriver) GetVolumeIDs(_ context.Context, request *driver.GetVolumeIDsRequest) (resp *driver.GetVolumeIDsResponse, err error) {
-	defer instrument.RecordDriverAPIMetric(err, getVolumeIDsOperationLabel, time.Now())
+	defer instrument.DriverAPIMetricRecorderFn(getVolumeIDsOperationLabel, &err)()
+
 	var volumeIDs []string
 
 	if request.PVSpecs != nil {

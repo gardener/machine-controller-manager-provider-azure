@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/metrics"
 )
@@ -67,6 +68,8 @@ func RecordDriverAPIMetric(err error, operation string, invocationTime time.Time
 		)
 		if errors.As(err, &statusErr) {
 			labels = append(labels, strconv.Itoa(int(statusErr.Code())))
+		} else {
+			labels = append(labels, strconv.Itoa(int(codes.Internal)))
 		}
 		metrics.DriverFailedAPIRequests.
 			WithLabelValues(labels...).
@@ -79,4 +82,22 @@ func RecordDriverAPIMetric(err error, operation string, invocationTime time.Time
 		prometheusProviderLabelValue,
 		operation,
 	).Observe(elapsed.Seconds())
+}
+
+// AZAPIMetricRecorderFn returns a function that can be used to record a prometheus metric for Azure API calls.
+// NOTE: a pointer to an error (which itself is a fat interface pointer) is necessary to enable the callers of this function to enclose this call into a `defer` statement.
+func AZAPIMetricRecorderFn(azServiceName string, err *error) func() {
+	invocationTime := time.Now()
+	return func() {
+		RecordAzAPIMetric(*err, azServiceName, invocationTime)
+	}
+}
+
+// DriverAPIMetricRecorderFn returns a function that can be used to record a prometheus metric for driver API calls.
+// NOTE: a pointer to an error (which itself is a fat interface pointer) is necessary to enable the callers of this function to enclose this call into a `defer` statement.
+func DriverAPIMetricRecorderFn(operation string, err *error) func() {
+	invocationTime := time.Now()
+	return func() {
+		RecordDriverAPIMetric(*err, operation, invocationTime)
+	}
 }

@@ -26,7 +26,6 @@ import (
 
 // labels used for recording prometheus metrics
 const (
-	subnetGetServiceLabel = "subnet_get"
 	nicGetServiceLabel    = "nic_get"
 	nicDeleteServiceLabel = "nic_delete"
 	nicCreateServiceLabel = "nic_create"
@@ -40,7 +39,8 @@ const (
 // DeleteNIC deletes the NIC identified by a resourceGroup and nicName.
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func DeleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) (err error) {
-	defer instrument.RecordAzAPIMetric(err, nicDeleteServiceLabel, time.Now())
+	defer instrument.AZAPIMetricRecorderFn(nicDeleteServiceLabel, &err)()
+
 	var poller *runtime.Poller[armnetwork.InterfacesClientDeleteResponse]
 	delCtx, cancelFn := context.WithTimeout(ctx, defaultDeleteNICTimeout)
 	defer cancelFn()
@@ -61,7 +61,8 @@ func DeleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourc
 // GetNIC fetches a NIC identified by resourceGroup and nic name.
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func GetNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGroup, nicName string) (nic *armnetwork.Interface, err error) {
-	defer instrument.RecordAzAPIMetric(err, nicGetServiceLabel, time.Now())
+	defer instrument.AZAPIMetricRecorderFn(nicGetServiceLabel, &err)()
+
 	resp, err := client.Get(ctx, resourceGroup, nicName, nil)
 	if err != nil {
 		if errors.IsNotFoundAzAPIError(err) {
@@ -76,7 +77,8 @@ func GetNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourceGr
 // CreateNIC creates a NIC given the resourceGroup, nic name and NIC creation parameters.
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func CreateNIC(ctx context.Context, nicAccess *armnetwork.InterfacesClient, resourceGroup string, nicParams armnetwork.Interface, nicName string) (nic *armnetwork.Interface, err error) {
-	defer instrument.RecordAzAPIMetric(err, nicCreateServiceLabel, time.Now())
+	defer instrument.AZAPIMetricRecorderFn(nicCreateServiceLabel, &err)()
+
 	var (
 		poller       *runtime.Poller[armnetwork.InterfacesClientCreateOrUpdateResponse]
 		creationResp armnetwork.InterfacesClientCreateOrUpdateResponse
