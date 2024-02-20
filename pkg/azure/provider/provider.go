@@ -142,19 +142,19 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 			return
 		}
 	} else {
-		if helpers.IsVirtualMachineInTerminalState(vm) {
-			klog.Infof("VM: [ResourceGroup: %s, Name: %s] has ProvisionState set to Failed, will delete the VM and all its associated resources.", resourceGroup, vmName)
-			if err = helpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName); err != nil {
-				return
-			}
-			if err = helpers.CheckAndDeleteLeftoverNICsAndDisks(ctx, d.factory, vmName, connectConfig, providerSpec); err != nil {
-				return
-			}
-		} else {
+		if helpers.CanUpdateVirtualMachine(vm) {
 			if err = helpers.UpdateCascadeDeleteOptions(ctx, vmAccess, resourceGroup, vm); err != nil {
 				return
 			}
 			if err = helpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName); err != nil {
+				return
+			}
+		} else {
+			klog.Infof("Cannot update VM: [ResourceGroup: %s, Name: %s]. Either the VM has provisionState set to Failed or there are one or more data disks that are marked for detachment, update call to this VM will fail and therefore skipped. Will now delete the VM and all its associated resources.", resourceGroup, vmName)
+			if err = helpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName); err != nil {
+				return
+			}
+			if err = helpers.CheckAndDeleteLeftoverNICsAndDisks(ctx, d.factory, vmName, connectConfig, providerSpec); err != nil {
 				return
 			}
 		}
