@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -26,7 +28,8 @@ const providerAzure = "Azure"
 // If it is not then it will return an error indicating that this provider implementation cannot fulfill the request.
 func ValidateMachineClassProvider(mcc *v1alpha1.MachineClass) error {
 	if mcc.Provider != providerAzure {
-		return field.Invalid(field.NewPath("provider"), mcc.Provider, fmt.Sprintf("Request for provider %s cannot be fulfilled. Only %s provider is supported.", mcc.Provider, providerAzure))
+		err := field.Invalid(field.NewPath("provider"), mcc.Provider, fmt.Sprintf("Request for provider %s cannot be fulfilled. Only %s provider is supported.", mcc.Provider, providerAzure))
+		return status.Error(codes.InvalidArgument, fmt.Sprintf("error validating provider %v", err))
 	}
 	return nil
 }

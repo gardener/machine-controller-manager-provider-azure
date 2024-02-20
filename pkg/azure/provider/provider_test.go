@@ -34,9 +34,7 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/gstruct"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 const (
@@ -495,17 +493,12 @@ func TestDeleteMachineWhenProviderIsNotAzure(t *testing.T) {
 		Secret:       fakes.CreateProviderSecret(),
 	})
 	g.Expect(err).ToNot(BeNil())
-	var validationErr *field.Error
-	g.Expect(errors.As(err, &validationErr)).Should(BeTrue())
-	g.Expect(validationErr).To(
-		PointTo(MatchFields(IgnoreExtras, Fields{
-			"Type":  Equal(field.ErrorTypeInvalid),
-			"Field": Equal("provider"),
-		})))
+	var statusErr *status.Status
+	g.Expect(errors.As(err, &statusErr)).To(BeTrue())
+	g.Expect(statusErr.Code()).To(Equal(codes.InvalidArgument))
 }
 
 func TestGetMachineStatus(t *testing.T) {
-
 	const testErrorCode = "test-error-code"
 	testInternalServerError := testhelp.InternalServerError(testErrorCode)
 

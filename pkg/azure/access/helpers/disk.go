@@ -16,7 +16,6 @@ package helpers
 
 import (
 	"context"
-	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
@@ -32,7 +31,7 @@ const (
 // DeleteDisk deletes disk for passed in resourceGroup and diskName.
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
 func DeleteDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string) (err error) {
-	defer instrument.RecordAzAPIMetric(err, diskDeleteServiceLabel, time.Now())
+	defer instrument.AZAPIMetricRecorderFn(diskDeleteServiceLabel, &err)()
 	var poller *runtime.Poller[armcompute.DisksClientDeleteResponse]
 	poller, err = client.BeginDelete(ctx, resourceGroup, diskName, nil)
 	if err != nil {
