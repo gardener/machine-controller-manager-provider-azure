@@ -351,10 +351,10 @@ func TestDeleteExistingVMWithDataDisksInDetachment(t *testing.T) {
 		MachineClass: machineClass,
 		Secret:       fakes.CreateProviderSecret(),
 	})
-	g.Expect(err).ToNot(BeNil())
-	var statusErr *status.Status
-	g.Expect(errors.As(err, &statusErr)).To(BeTrue())
-	g.Expect(statusErr.Code()).To(Equal(codes.Internal))
+	g.Expect(err).To(BeNil())
+	g.Expect(clusterState.GetVM(vmName)).To(BeNil())
+	_, ok := clusterState.MachineResourcesMap[vmName]
+	g.Expect(ok).ToNot(BeTrue())
 }
 
 func TestDeleteMachineWithInducedErrors(t *testing.T) {
