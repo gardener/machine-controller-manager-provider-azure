@@ -16,7 +16,6 @@ package fakes
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
@@ -74,6 +73,8 @@ type VMImageSpec struct {
 	Version string
 	// OfferType is the offer type. E.g. armmarketplaceordering.OfferTypeVirtualmachine.
 	OfferType armmarketplaceordering.OfferType
+	// PlanExists is a flag to indicate if the VMImageSpec has a plan.
+	PlanExists bool
 }
 
 // DiskType is used as an enum type to define types of disks that can be associated to a VM.
@@ -113,11 +114,12 @@ func (c *ClusterState) WithVMImageSpec(vmImageSpec VMImageSpec) *ClusterState {
 func (c *ClusterState) WithDefaultVMImageSpec() *ClusterState {
 	publisher, offer, sku, version := GetDefaultVMImageParts()
 	c.VMImageSpec = &VMImageSpec{
-		Publisher: publisher,
-		Offer:     offer,
-		SKU:       sku,
-		Version:   version,
-		OfferType: defaultOfferType,
+		Publisher:  publisher,
+		Offer:      offer,
+		SKU:        sku,
+		Version:    version,
+		OfferType:  defaultOfferType,
+		PlanExists: true,
 	}
 	return c
 }
@@ -166,11 +168,11 @@ func (c *ClusterState) ResourceGroupExists(resourceGroupName string) bool {
 
 // GetVirtualMachineImage gets an armcompute.VirtualMachineImage from a VMImageSpec.
 func (c *ClusterState) GetVirtualMachineImage(vmImageSpec VMImageSpec) *armcompute.VirtualMachineImage {
-	if c.VMImageSpec == nil || !reflect.DeepEqual(vmImageSpec, *c.VMImageSpec) {
+	if c.VMImageSpec == nil || !vmImageSpecURNPartsEqual(*c.VMImageSpec, vmImageSpec) {
 		return nil
 	}
 	id := fmt.Sprintf("/Subscriptions/%s/Providers/Microsoft.Compute/Locations/%s/Publishers/%s/ArtifactTypes/VMImage/Offers/%s/Skus/%s/Versions/%s", testhelp.SubscriptionID, testhelp.Location, c.VMImageSpec.Publisher, c.VMImageSpec.Offer, c.VMImageSpec.SKU, c.VMImageSpec.Version)
-	return &armcompute.VirtualMachineImage{
+	vmImage := &armcompute.VirtualMachineImage{
 		Location: to.Ptr(testhelp.Location),
 		Name:     to.Ptr(c.VMImageSpec.Version),
 		ID:       &id,
@@ -193,13 +195,16 @@ func (c *ClusterState) GetVirtualMachineImage(vmImageSpec VMImageSpec) *armcompu
 			},
 			ImageDeprecationStatus: &armcompute.ImageDeprecationStatus{ImageState: to.Ptr(armcompute.ImageStateActive)},
 			OSDiskImage:            &armcompute.OSDiskImage{OperatingSystem: to.Ptr(armcompute.OperatingSystemTypesLinux)},
-			Plan: &armcompute.PurchasePlan{
-				Name:      to.Ptr(c.VMImageSpec.SKU),
-				Product:   to.Ptr(c.VMImageSpec.Offer),
-				Publisher: to.Ptr(c.VMImageSpec.Publisher),
-			},
 		},
 	}
+	if c.VMImageSpec.PlanExists {
+		vmImage.Properties.Plan = &armcompute.PurchasePlan{
+			Name:      to.Ptr(c.VMImageSpec.SKU),
+			Product:   to.Ptr(c.VMImageSpec.Offer),
+			Publisher: to.Ptr(c.VMImageSpec.Publisher),
+		}
+	}
+	return vmImage
 }
 
 // GetAgreementTerms returns an armmarketplaceordering.AgreementTerms matching passed in offerType, publisherID and offerID.
@@ -494,4 +499,11 @@ func getReferencedNICIDFromVirtualMachine(vmParams armcompute.VirtualMachine) *s
 		return vmParams.Properties.NetworkProfile.NetworkInterfaces[0].ID
 	}
 	return nil
+}
+
+func vmImageSpecURNPartsEqual(spec1 VMImageSpec, spec2 VMImageSpec) bool {
+	return spec1.SKU == spec2.SKU &&
+		spec1.Offer == spec2.Offer &&
+		spec1.Publisher == spec2.Publisher &&
+		spec1.Version == spec2.Version
 }

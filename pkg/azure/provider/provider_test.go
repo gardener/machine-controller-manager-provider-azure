@@ -1120,42 +1120,62 @@ func TestCreateMachineWhenNICOrVMCreationFails(t *testing.T) {
 }
 
 func TestSuccessfulCreationOfMachine(t *testing.T) {
-	g := NewWithT(t)
 	providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).
 		WithDefaultValues().
 		WithDataDisks(testDataDiskName, 2)
 	providerSpec := providerSpecBuilder.Build()
 
-	// initialize cluster state
-	//----------------------------------------------------------------------------
-	// create cluster state
-	clusterState := fakes.NewClusterState(providerSpec)
-	clusterState.WithDefaultVMImageSpec().WithAgreementTerms(true).WithSubnet(providerSpec.ResourceGroup, fakes.CreateSubnetName(testShootNs), testShootNs)
-	// create fake factory
-	fakeFactory := createFakeFactoryForCreateMachineWithAPIBehaviorSpecs(g, providerSpec.ResourceGroup, clusterState, nil, nil, nil, nil, nil)
-	// Create machine and machine class to be used to create DeleteMachineRequest
-	machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
-	const vmName = "vm-0"
-	g.Expect(err).To(BeNil())
-	ctx := context.Background()
-	machine := &v1alpha1.Machine{
-		ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
+	table := []struct {
+		description      string
+		withPurchasePlan bool
+	}{
+		{"should create machine successfully if purchase plan is present", true},
+		{"should create machine successfully if purchase plan is not present", false},
 	}
-	dataDiskNames := testhelp.CreateDataDiskNames(vmName, providerSpec)
 
-	// Test
-	//----------------------------------------------------------------------------
-	testDriver := NewDefaultDriver(fakeFactory)
-	resp, err := testDriver.CreateMachine(ctx, &driver.CreateMachineRequest{
-		Machine:      machine,
-		MachineClass: machineClass,
-		Secret:       fakes.CreateProviderSecret(),
-	})
-	g.Expect(err).To(BeNil())
-	checkClusterStateAndGetMachineResources(g, ctx, *fakeFactory, vmName, true, true, true, dataDiskNames, true, true)
-	g.Expect(resp.NodeName).To(Equal(vmName))
-	expectedProviderID := helpers.DeriveInstanceID(providerSpec.Location, vmName)
-	g.Expect(resp.ProviderID).To(Equal(expectedProviderID))
+	g := NewWithT(t)
+	for _, entry := range table {
+		t.Run(entry.description, func(t *testing.T) {
+			// initialize cluster state
+			//----------------------------------------------------------------------------
+			// create cluster state
+			clusterState := fakes.NewClusterState(providerSpec)
+			publisher, offer, sku, version := fakes.GetDefaultVMImageParts()
+			vmImageSpec := fakes.VMImageSpec{
+				Publisher:  publisher,
+				Offer:      offer,
+				SKU:        sku,
+				Version:    version,
+				PlanExists: entry.withPurchasePlan,
+			}
+			clusterState.WithVMImageSpec(vmImageSpec).WithAgreementTerms(true).WithSubnet(providerSpec.ResourceGroup, fakes.CreateSubnetName(testShootNs), testShootNs)
+			// create fake factory
+			fakeFactory := createFakeFactoryForCreateMachineWithAPIBehaviorSpecs(g, providerSpec.ResourceGroup, clusterState, nil, nil, nil, nil, nil)
+			// Create machine and machine class to be used to create DeleteMachineRequest
+			machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+			const vmName = "vm-0"
+			g.Expect(err).To(BeNil())
+			ctx := context.Background()
+			machine := &v1alpha1.Machine{
+				ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
+			}
+			dataDiskNames := testhelp.CreateDataDiskNames(vmName, providerSpec)
+
+			// Test
+			//----------------------------------------------------------------------------
+			testDriver := NewDefaultDriver(fakeFactory)
+			resp, err := testDriver.CreateMachine(ctx, &driver.CreateMachineRequest{
+				Machine:      machine,
+				MachineClass: machineClass,
+				Secret:       fakes.CreateProviderSecret(),
+			})
+			g.Expect(err).To(BeNil())
+			checkClusterStateAndGetMachineResources(g, ctx, *fakeFactory, vmName, true, true, true, dataDiskNames, true, true)
+			g.Expect(resp.NodeName).To(Equal(vmName))
+			expectedProviderID := helpers.DeriveInstanceID(providerSpec.Location, vmName)
+			g.Expect(resp.ProviderID).To(Equal(expectedProviderID))
+		})
+	}
 }
 
 // unit test helper functions

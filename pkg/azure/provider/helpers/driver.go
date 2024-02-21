@@ -438,11 +438,11 @@ func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, co
 			if err != nil {
 				return
 			}
-		}
-		plan = &armcompute.Plan{
-			Name:      vmImage.Properties.Plan.Name,
-			Product:   vmImage.Properties.Plan.Product,
-			Publisher: vmImage.Properties.Plan.Publisher,
+			plan = &armcompute.Plan{
+				Name:      vmImage.Properties.Plan.Name,
+				Product:   vmImage.Properties.Plan.Product,
+				Publisher: vmImage.Properties.Plan.Publisher,
+			}
 		}
 	}
 	return imgRef, plan, nil
