@@ -16,6 +16,7 @@ package helpers
 
 import (
 	"context"
+	"k8s.io/klog/v2"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
@@ -44,5 +45,6 @@ func DeleteDisk(ctx context.Context, client *armcompute.DisksClient, resourceGro
 	if err != nil {
 		errors.LogAzAPIError(err, "Polling failed while waiting for Deleting for [resourceGroup: %s, Name: %s]", diskName, resourceGroup)
 	}
+	klog.Infof("Successfully deleted Disk: %s, for ResourceGroup: %s", diskName, resourceGroup)
 	return
 }

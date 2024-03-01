@@ -16,6 +16,7 @@ package helpers
 
 import (
 	"context"
+	"k8s.io/klog/v2"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
@@ -76,6 +77,7 @@ func DeleteVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachi
 		errors.LogAzAPIError(err, "Polling failed while waiting for delete of VM: %s for ResourceGroup: %s", vmName, resourceGroup)
 		return
 	}
+	klog.Infof("Successfully deleted VM: %s, for ResourceGroup: %s", vmName, resourceGroup)
 	return
 }
 

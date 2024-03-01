@@ -16,6 +16,7 @@ package helpers
 
 import (
 	"context"
+	"k8s.io/klog/v2"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
@@ -55,6 +56,7 @@ func DeleteNIC(ctx context.Context, client *armnetwork.InterfacesClient, resourc
 	if err != nil {
 		errors.LogAzAPIError(err, "Polling failed while waiting for Deleting of NIC [ResourceGroup: %s, Name: %s]", resourceGroup, nicName)
 	}
+	klog.Infof("Successfully deleted NIC: %s, for ResourceGroup: %s", nicName, resourceGroup)
 	return
 }
 
