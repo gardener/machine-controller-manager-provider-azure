@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
@@ -116,6 +117,27 @@ func validateProperties(properties api.AzureVirtualMachineProperties, fldPath *f
 	allErrs = append(allErrs, validateOSProfile(properties.OsProfile, fldPath.Child("osProfile"))...)
 	// validate availability set and vmss
 	allErrs = append(allErrs, validateAvailabilityAndScalingConfig(properties, fldPath)...)
+	allErrs = append(allErrs, validateSecurityProfile(properties.SecurityProfile, fldPath)...)
+	return allErrs
+}
+
+func validateSecurityProfile(prof *api.AzureSecurityProfile, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	if prof == nil {
+		return allErrs
+	}
+
+	exists := func() bool {
+		for _, v := range armcompute.PossibleSecurityTypesValues() {
+			if strings.EqualFold(string(v), prof.SecurityType) {
+				return true
+			}
+		}
+		return false
+	}()
+	if !exists {
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("securityType"), prof.SecurityType, "security type not supported"))
+	}
 	return allErrs
 }
 

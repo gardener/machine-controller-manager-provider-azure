@@ -106,6 +106,12 @@ type AzureVirtualMachineProperties struct {
 	VirtualMachineScaleSet *AzureSubResource `json:"virtualMachineScaleSet,omitempty"`
 	// Deprecated: Use either AvailabilitySet or VirtualMachineScaleSet instead
 	MachineSet *AzureMachineSetConfig `json:"machineSet,omitempty"`
+	// SecurityProfile specifies foo
+	SecurityProfile *AzureSecurityProfile `json:"securityProfile,omitempty"`
+}
+
+type AzureSecurityProfile struct {
+	SecurityType string `json:"securityType,omitempty"`
 }
 
 // AzureHardwareProfile specifies the hardware settings for the virtual machine.
