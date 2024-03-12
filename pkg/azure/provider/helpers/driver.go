@@ -16,24 +16,24 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
-	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api/validation"
-	"golang.org/x/crypto/ssh"
-	"k8s.io/utils/pointer"
-
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
-	accesshelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
+
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
+	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
+	accesshelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api/validation"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 // ExtractProviderSpecAndConnectConfig extracts api.AzureProviderSpec from mcc and access.ConnectConfig from secret.
@@ -429,7 +429,7 @@ func createNICTags(tags map[string]string) map[string]*string {
 func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
 	imgRef = getImageReference(providerSpec)
 	isMarketPlaceImage := providerSpec.Properties.StorageProfile.ImageReference.URN != nil
-	if isMarketPlaceImage {
+	if isMarketPlaceImage && !providerSpec.Properties.StorageProfile.ImageReference.PrivatePlan {
 		var vmImage *armcompute.VirtualMachineImage
 		vmImage, err = getVirtualMachineImage(ctx, factory, connectConfig, providerSpec.Location, imgRef)
 		if err != nil {
@@ -580,7 +580,7 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 		return armcompute.VirtualMachine{}, err
 	}
 
-	return armcompute.VirtualMachine{
+	vm := armcompute.VirtualMachine{
 		Location: to.Ptr(providerSpec.Location),
 		Plan:     plan,
 		Properties: &armcompute.VirtualMachineProperties{
@@ -629,7 +629,21 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 		Zones:    getZonesFromProviderSpec(providerSpec),
 		Name:     &vmName,
 		Identity: getVMIdentity(providerSpec.Properties.IdentityID),
-	}, nil
+	}
+
+	if prop := providerSpec.Properties.SecurityProfile; prop != nil {
+		vm.Properties.SecurityProfile = &armcompute.SecurityProfile{
+			SecurityType: to.Ptr(armcompute.SecurityTypes(prop.SecurityType)),
+			UefiSettings: &armcompute.UefiSettings{
+				VTpmEnabled: to.Ptr(true),
+			},
+		}
+		vm.Properties.StorageProfile.OSDisk.ManagedDisk.SecurityProfile = &armcompute.VMDiskSecurityProfile{
+			SecurityEncryptionType: to.Ptr(armcompute.SecurityEncryptionTypesVMGuestStateOnly),
+		}
+	}
+
+	return vm, nil
 }
 
 func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcompute.DataDisk {
@@ -644,6 +658,7 @@ func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcomput
 			caching = armcompute.CachingTypes(specDataDisk.Caching)
 		}
 		dataDisk := &armcompute.DataDisk{
+
 			CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),
 			Lun:          specDataDisk.Lun,
 			Caching:      to.Ptr(caching),

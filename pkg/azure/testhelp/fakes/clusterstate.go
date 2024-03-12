@@ -12,10 +12,11 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
+	"golang.org/x/exp/slices"
+
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
-	"golang.org/x/exp/slices"
 )
 
 // ClusterState is a holder of state of cluster resources.

@@ -109,6 +109,12 @@ type AzureVirtualMachineProperties struct {
 	DiagnosticsProfile *AzureDiagnosticsProfile `json:"diagnosticsProfile,omitempty"`
 	// Deprecated: Use either AvailabilitySet or VirtualMachineScaleSet instead
 	MachineSet *AzureMachineSetConfig `json:"machineSet,omitempty"`
+	// SecurityProfile specifies foo
+	SecurityProfile *AzureSecurityProfile `json:"securityProfile,omitempty"`
+}
+
+type AzureSecurityProfile struct {
+	SecurityType string `json:"securityType,omitempty"`
 }
 
 // AzureHardwareProfile specifies the hardware settings for the virtual machine.
@@ -151,6 +157,9 @@ type AzureImageReference struct {
 	CommunityGalleryImageID *string `json:"communityGalleryImageID,omitempty"`
 	// SharedGalleryImageID is the id of the OS image to be used, hosted within an Azure Shared Image Gallery.
 	SharedGalleryImageID *string `json:"sharedGalleryImageID,omitempty"`
+	// PrivatePlan refers to images that are not available to be checked for marketplace agreement. When PrivatePlan is enabled,
+	// the marketplace agreement should be skipped
+	PrivatePlan bool `json:"privatePlan,omitempty"`
 }
 
 // AzureOSDisk specifies information about the operating system disk used by the virtual machine.
