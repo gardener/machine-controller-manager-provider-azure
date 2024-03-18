@@ -104,6 +104,9 @@ type AzureVirtualMachineProperties struct {
 	// 3. Only `Flexible` variant of VMSS is currently supported. It is strongly recommended that consumers turn-off any
 	// autoscaling capabilities as it interferes with the lifecycle management of MCM and auto-scaling capabilities offered by Cluster-Autoscaler.
 	VirtualMachineScaleSet *AzureSubResource `json:"virtualMachineScaleSet,omitempty"`
+	// DiagnosticsProfile specifies if boot metrics are enabled and where they are stored
+	// For additional information see: [https://learn.microsoft.com/en-us/azure/virtual-machines/boot-diagnostics]
+	DiagnosticsProfile *AzureDiagnosticsProfile `json:"diagnosticsProfile,omitempty"`
 	// Deprecated: Use either AvailabilitySet or VirtualMachineScaleSet instead
 	MachineSet *AzureMachineSetConfig `json:"machineSet,omitempty"`
 }
@@ -265,4 +268,13 @@ type AzureSubnetInfo struct {
 	VnetResourceGroup *string `json:"vnetResourceGroup,omitempty"`
 	// SubnetName is the name of the subnet which is unique within a resource group.
 	SubnetName string `json:"subnetName,omitempty"`
+}
+
+// AzureDiagnosticsProfile specifies boot diagnostic options
+type AzureDiagnosticsProfile struct {
+	// Enabled configures boot diagnostics to be stored or not
+	Enabled bool `json:"enabled,omitempty"`
+	// StorageURI is the URI of the storage account to use for storing console output and screenshot.
+	// If not specified azure managed storage will be used.
+	StorageURI *string `json:"storageURI,omitempty"`
 }
