@@ -137,4 +137,4 @@ clean:
 
 .PHONY: add-license-headers
 add-license-headers: $(GO_ADD_LICENSE)
-	@./hack/add_license_headers.sh
+	@./hack/add_license_headers.sh ${YEAR}

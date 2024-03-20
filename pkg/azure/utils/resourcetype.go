@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 SAP SE or an SAP affiliate company and Gardener contributors
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package utils
 
 // ResourceType is an enum type representing type different resource types supported by Azure.
