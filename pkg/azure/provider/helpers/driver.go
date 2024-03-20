@@ -620,12 +620,7 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 			},
 			AvailabilitySet:        getAvailabilitySet(providerSpec.Properties.AvailabilitySet),
 			VirtualMachineScaleSet: getVirtualMachineScaleSet(providerSpec.Properties.VirtualMachineScaleSet),
-			DiagnosticsProfile: &armcompute.DiagnosticsProfile{
-				BootDiagnostics: &armcompute.BootDiagnostics{
-					Enabled:    to.Ptr(providerSpec.Properties.DiagnosticsProfile.Enabled),
-					StorageURI: providerSpec.Properties.DiagnosticsProfile.StorageURI,
-				},
-			},
+			DiagnosticsProfile:     getDiagnosticsProfile(providerSpec.Properties.DiagnosticsProfile),
 		},
 		Tags:     vmTags,
 		Zones:    getZonesFromProviderSpec(providerSpec),
@@ -732,4 +727,16 @@ func getZonesFromProviderSpec(spec api.AzureProviderSpec) []*string {
 		zones = append(zones, to.Ptr(strconv.Itoa(*spec.Properties.Zone)))
 	}
 	return zones
+}
+
+func getDiagnosticsProfile(profile *api.AzureDiagnosticsProfile) *armcompute.DiagnosticsProfile {
+	if profile == nil {
+		return nil
+	}
+	return &armcompute.DiagnosticsProfile{
+		BootDiagnostics: &armcompute.BootDiagnostics{
+			Enabled:    to.Ptr(profile.Enabled),
+			StorageURI: profile.StorageURI,
+		},
+	}
 }

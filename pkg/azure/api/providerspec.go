@@ -106,7 +106,7 @@ type AzureVirtualMachineProperties struct {
 	VirtualMachineScaleSet *AzureSubResource `json:"virtualMachineScaleSet,omitempty"`
 	// DiagnosticsProfile specifies if boot metrics are enabled and where they are stored
 	// For additional information see: [https://learn.microsoft.com/en-us/azure/virtual-machines/boot-diagnostics]
-	DiagnosticsProfile AzureDiagnosticsProfile `json:"diagnosticsProfile,omitempty"`
+	DiagnosticsProfile *AzureDiagnosticsProfile `json:"diagnosticsProfile,omitempty"`
 	// Deprecated: Use either AvailabilitySet or VirtualMachineScaleSet instead
 	MachineSet *AzureMachineSetConfig `json:"machineSet,omitempty"`
 }
