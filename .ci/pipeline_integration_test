@@ -12,7 +12,7 @@ cli_path=/cc/utils/cli.py
 num_of_existing_nodes=1
 CREDENTIALS_SECRET_NAME=shoot-operator-az-team
 GARDEN_CORE_NAMESPACE=garden-core
-KUBECONFIG_EXPIRY=10800
+KUBECONFIG_EXPIRY=86400
 
 #these variables are accessed in test/integration/controller so prefixed by ${SOURCE_PATH} for absolute path
 declare CONTROL_KUBECONFIG=${SOURCE_PATH}/dev/control_kubeconfig.yaml
