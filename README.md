@@ -1,6 +1,6 @@
 # machine-controller-manager-provider-azure
 
-[![reuse compliant](https://reuse.software/badge/reuse-compliant.svg)](https://reuse.software/)
+[![REUSE status](https://api.reuse.software/badge/github.com/gardener/machine-controller-manager-provider-azure)](https://api.reuse.software/info/github.com/gardener/machine-controller-manager-provider-azure)
 
 Out of tree (controller based) implementation for `Azure` as a new provider.
 
