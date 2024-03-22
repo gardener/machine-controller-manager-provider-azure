@@ -107,7 +107,7 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 	ctx := context.Background()
 
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			// initialize cluster state
 			//----------------------------------------------------------------------------
 			// create provider spec
@@ -204,7 +204,7 @@ func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 	ctx := context.Background()
 
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			// initialize cluster state
 			//----------------------------------------------------------------------------
 			// create provider spec
@@ -272,7 +272,7 @@ func TestDeleteVMInTerminalState(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			ctx := context.Background()
 			// create provider spec
 			providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()

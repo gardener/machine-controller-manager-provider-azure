@@ -19,6 +19,7 @@ issues:
     - indent-error-flow # if block ends with a return statement, so drop this else and outdent its block
     - unexported-return # exported func .* returns unexported type .*, which can be annoying to use
     - "exported: (type|func) name will be used as .* by other packages, and that stutters;"
+    - unused-parameter # consider removing or renaming it as _
     # typecheck:
     - "undeclared name: `.*`"
     - "\".*\" imported but not used"
