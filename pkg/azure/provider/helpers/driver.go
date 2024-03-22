@@ -189,7 +189,7 @@ func DeleteVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachi
 
 // IsVirtualMachineInTerminalState checks if the provisioningState of the VM is set to Failed.
 func IsVirtualMachineInTerminalState(vm *armcompute.VirtualMachine) bool {
-	return vm.Properties != nil && vm.Properties.ProvisioningState != nil && strings.ToLower(*vm.Properties.ProvisioningState) == strings.ToLower(utils.ProvisioningStateFailed)
+	return vm.Properties != nil && vm.Properties.ProvisioningState != nil && strings.EqualFold(*vm.Properties.ProvisioningState, utils.ProvisioningStateFailed)
 }
 
 // CanUpdateVirtualMachine checks if the VM is not in terminal state and if there are no data disks marked for detachment.
