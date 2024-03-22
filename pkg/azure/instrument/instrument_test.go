@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	testErr          = errors.New("test-error")
+	errTest          = errors.New("test-error")
 	defaultErrorCode = strconv.Itoa(int(codes.Internal))
 	testStatusErr    = status.New(codes.InvalidArgument, "test-status-error")
 )
@@ -30,7 +30,7 @@ func TestAPIMetricRecorderFn(t *testing.T) {
 		name string
 		err  error
 	}{
-		{"assert that function captures failed API request count when the error is not nil", testErr},
+		{"assert that function captures failed API request count when the error is not nil", errTest},
 		{"assert that function captures successful API request count when the error is nil", nil},
 	}
 	g := NewWithT(t)
@@ -61,7 +61,7 @@ func TestDriverAPIMetricRecorderFn(t *testing.T) {
 		name string
 		err  error
 	}{
-		{"assert that function captures failed driver API request with default error code for internal error when there is an error", testErr},
+		{"assert that function captures failed driver API request with default error code for internal error when there is an error", errTest},
 		{"assert that function captures failed driver API request with error code from status.Status on error", testStatusErr},
 		{"assert that function captures successful driver API request count when the error is nil", nil},
 	}
@@ -111,7 +111,7 @@ func deferredMetricsRecorderInvoker(shouldReturnErr bool, isStatusErr bool, fn r
 		if isStatusErr {
 			err = testStatusErr
 		} else {
-			err = testErr
+			err = errTest
 		}
 	}
 	return
