@@ -45,7 +45,7 @@ func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1
 
 	accessFactory, connectConfig := getAccessFactoryAndConfig(r.SecretData)
 	ctx := context.TODO()
-	initialVMs, initialVolumes, initialMachines, initialNICs, err := r.probeResources(ctx, accessFactory, connectConfig)
+	initialVMs, initialVolumes, initialMachines, initialNICs, err := r.probeResources(ctx, accessFactory)
 	if err != nil {
 		fmt.Printf("Error in initial probe of orphaned resources: %s", err.Error())
 		return err
@@ -65,9 +65,9 @@ func (r *ResourcesTrackerImpl) InitializeResourcesTracker(machineClass *v1alpha1
 // IsOrphanedResourcesAvailable checks whether there are any orphaned resources left.
 // If yes, then prints them and returns true. If not, then returns false.
 func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
-	accessFactory, connectConfig := getAccessFactoryAndConfig(r.SecretData)
+	accessFactory, _ := getAccessFactoryAndConfig(r.SecretData)
 	ctx := context.TODO()
-	afterTestExecutionVMs, afterTestExecutionAvailDisks, afterTestExecutionAvailmachines, afterTestExecutionNICs, err := r.probeResources(ctx, accessFactory, connectConfig)
+	afterTestExecutionVMs, afterTestExecutionAvailDisks, afterTestExecutionAvailmachines, afterTestExecutionNICs, err := r.probeResources(ctx, accessFactory)
 	if err != nil {
 		fmt.Printf("Error probing orphaned resources: %s", err.Error())
 		return true
@@ -84,7 +84,7 @@ func (r *ResourcesTrackerImpl) IsOrphanedResourcesAvailable() bool {
 // probeResources will look for orphaned resources and returns
 // those in the order
 // orphanedInstances, orphanedVolumes, orphanedMachines, orphanedNICs
-func (r *ResourcesTrackerImpl) probeResources(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig) ([]string, []string, []string, []string, error) {
+func (r *ResourcesTrackerImpl) probeResources(ctx context.Context, factory access.Factory) ([]string, []string, []string, []string, error) {
 	accessFactory, connectConfig := getAccessFactoryAndConfig(r.SecretData)
 
 	VMs, err := getOrphanedVMs(ctx, accessFactory, connectConfig, r.ResourceGroup)
