@@ -118,10 +118,8 @@ func findMatchingDataDiskNameSuffix(dataDiskName string, dataDiskNameSuffixes se
 func getDataDiskNameSuffixes(providerSpec api.AzureProviderSpec) sets.Set[string] {
 	dataDiskNameSuffixes := sets.New[string]()
 	dataDisks := providerSpec.Properties.StorageProfile.DataDisks
-	if dataDisks != nil {
-		for _, dataDisk := range dataDisks {
-			dataDiskNameSuffixes.Insert(utils.GetDataDiskNameSuffix(dataDisk))
-		}
+	for _, dataDisk := range dataDisks {
+		dataDiskNameSuffixes.Insert(utils.GetDataDiskNameSuffix(dataDisk))
 	}
 	return dataDiskNameSuffixes
 }
