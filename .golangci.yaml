@@ -23,3 +23,5 @@ issues:
     # typecheck:
     - "undeclared name: `.*`"
     - "\".*\" imported but not used"
+    # staticcheck
+    - SA1019 # alert if anything deprecated is used
