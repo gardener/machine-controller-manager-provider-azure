@@ -154,7 +154,6 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 
 			var dataDiskNames []string
 			if !utils.IsSliceNilOrEmpty(providerSpec.Properties.StorageProfile.DataDisks) {
-				dataDiskNames = make([]string, 0, len(providerSpec.Properties.StorageProfile.DataDisks))
 				dataDiskNames = testhelp.CreateDataDiskNames(entry.targetVMNameToDelete, providerSpec)
 			}
 			// evaluate cluster state post delete machine operation
