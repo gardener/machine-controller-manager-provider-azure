@@ -38,7 +38,7 @@ rename-project:
 
 .PHONY: start
 start:
-	@GO111MODULE=on go run \
+	@go run \
 			-mod=vendor \
 			cmd/machine-controller/main.go \
 			--control-kubeconfig=$(CONTROL_KUBECONFIG) \
@@ -67,12 +67,12 @@ check:
 
 .PHONY: revendor
 revendor:
-	@env GO111MODULE=on go mod tidy -v
-	@env GO111MODULE=on go mod vendor -v
+	@go mod tidy -v
+	@go mod vendor -v
 
 .PHONY: update-dependencies
 update-dependencies:
-	@env GO111MODULE=on go get -u
+	@go get -u ./...
 
 #########################################
 # Rules for testing
