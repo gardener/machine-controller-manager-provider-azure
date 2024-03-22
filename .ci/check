@@ -36,4 +36,4 @@ golangci-lint version
 ###############################################################################
 
 echo "Executing golangci-lint"
-golangci-lint run -c ${SOURCE_PATH}/.golangci.yaml --timeout 10m
+golangci-lint run -c ${SOURCE_PATH}/.golangci.yaml --timeout 10m ${SOURCE_PATH}/...
