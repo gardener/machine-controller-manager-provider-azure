@@ -38,4 +38,5 @@ PACKAGES="$(go list -e ./... | grep -vE '/tmp/')"
 LINT_FOLDERS="$(echo ${PACKAGES} | sed "s|github.com/gardener/machine-controller-manager-provider-azure|.|g")"
 
 echo "Executing golangci-lint"
-golangci-lint run -c ${SOURCE_PATH}/.golangci.yaml --timeout 10m ${SOURCE_PATH}/...
+# golangci-lint can't be run from outside the directory
+(cd ${SOURCE_PATH} && golangci-lint run -c .golangci.yaml --timeout 10m)
