@@ -45,10 +45,8 @@ const (
 func ContextTimeoutError(parentCtx context.Context, timeout time.Duration) error {
 	opCtx, cancelFn := context.WithTimeout(parentCtx, timeout)
 	defer cancelFn()
-	select {
-	case <-opCtx.Done():
-		return opCtx.Err()
-	}
+	<-opCtx.Done()
+	return opCtx.Err()
 }
 
 // ResourceNotFoundErr creates a resource not found error setting azure specific error code as a response header.
