@@ -37,6 +37,5 @@ golangci-lint version
 PACKAGES="$(go list -e ./... | grep -vE '/tmp/')"
 LINT_FOLDERS="$(echo ${PACKAGES} | sed "s|github.com/gardener/machine-controller-manager-provider-azure|.|g")"
 
-PACKAGES="${SOURCE_PATH}/cmd/... ${SOURCE_PATH}/pkg/... ${SOURCE_PATH}/test/..."
 echo "Executing golangci-lint"
-GOPATH="${SOURCE_PATH}" golangci-lint run -c ${SOURCE_PATH}/.golangci.yaml --timeout 10m ${PACKAGES}
+golangci-lint run -c ${SOURCE_PATH}/.golangci.yaml --timeout 10m
