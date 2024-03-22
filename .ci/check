@@ -39,4 +39,4 @@ LINT_FOLDERS="$(echo ${PACKAGES} | sed "s|github.com/gardener/machine-controller
 
 PACKAGES="${SOURCE_PATH}/cmd/... ${SOURCE_PATH}/pkg/... ${SOURCE_PATH}/test/..."
 echo "Executing golangci-lint"
-golangci-lint run -c ${SOURCE_PATH}/.golangci.yaml --timeout 10m ${PACKAGES}
+GOPATH="${SOURCE_PATH}" golangci-lint run -c ${SOURCE_PATH}/.golangci.yaml --timeout 10m ${PACKAGES}
