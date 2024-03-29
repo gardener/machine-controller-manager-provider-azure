@@ -54,6 +54,9 @@ providerSpec:
     machineSet: 
       id: <string>
       Kind: <string>
+    diagnosticsProfile:
+      enabled: false
+    # storageURI: <string>
   resourceGroup: <resource-group-name>
   subnetInfo:
     # vnetResourceGroup: <vnet-resource-group-name>
