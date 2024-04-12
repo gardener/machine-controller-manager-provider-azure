@@ -151,6 +151,13 @@ func (m *MachineResources) UpdateDataDisksDeleteOpt(deleteOpt *armcompute.DiskDe
 	}
 }
 
+func (m *MachineResources) AttachDataDisk(spec api.AzureProviderSpec, diskName string, lun int32, deleteOption armcompute.DiskDeleteOptionTypes) {
+	dataDisk := createDataDisk(lun, "None", &deleteOption, 20, testhelp.StorageAccountType, diskName)
+	d := createDiskResource(spec, diskName, m.VM.ID, nil)
+	m.DataDisks[diskName] = d
+	m.VM.Properties.StorageProfile.DataDisks = append(m.VM.Properties.StorageProfile.DataDisks, dataDisk)
+}
+
 func isCascadeDeleteSetForAllDataDisks(dataDiskDeleteOptsMap map[string]*armcompute.DiskDeleteOptionTypes) bool {
 	for _, deleteOpt := range dataDiskDeleteOptsMap {
 		if *deleteOpt != armcompute.DiskDeleteOptionTypesDelete {
@@ -429,18 +436,23 @@ func createDataDisks(spec api.AzureProviderSpec, vmName string, deleteOption *ar
 	}
 	dataDisks := make([]*armcompute.DataDisk, 0, len(specDataDisks))
 	for _, disk := range specDataDisks {
-		d := &armcompute.DataDisk{
-			CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),
-			Lun:          disk.Lun,
-			Caching:      to.Ptr(armcompute.CachingTypes(disk.Caching)),
-			DeleteOption: deleteOption,
-			DiskSizeGB:   pointer.Int32(disk.DiskSizeGB),
-			ManagedDisk: &armcompute.ManagedDiskParameters{
-				StorageAccountType: to.Ptr(armcompute.StorageAccountTypes(disk.StorageAccountType)),
-			},
-			Name: to.Ptr(utils.CreateDataDiskName(vmName, disk)),
-		}
+		diskName := utils.CreateDataDiskName(vmName, disk)
+		d := createDataDisk(*disk.Lun, armcompute.CachingTypes(disk.Caching), deleteOption, disk.DiskSizeGB, armcompute.StorageAccountTypes(disk.StorageAccountType), diskName)
 		dataDisks = append(dataDisks, d)
 	}
 	return dataDisks
+}
+
+func createDataDisk(lun int32, caching armcompute.CachingTypes, deleteOption *armcompute.DiskDeleteOptionTypes, diskSize int32, storageAccountType armcompute.StorageAccountTypes, diskName string) *armcompute.DataDisk {
+	return &armcompute.DataDisk{
+		CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),
+		Lun:          to.Ptr(lun),
+		Caching:      to.Ptr(caching),
+		DeleteOption: deleteOption,
+		DiskSizeGB:   pointer.Int32(diskSize),
+		ManagedDisk: &armcompute.ManagedDiskParameters{
+			StorageAccountType: to.Ptr(storageAccountType),
+		},
+		Name: to.Ptr(diskName),
+	}
 }
