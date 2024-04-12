@@ -151,6 +151,7 @@ func (m *MachineResources) UpdateDataDisksDeleteOpt(deleteOpt *armcompute.DiskDe
 	}
 }
 
+// AttachDataDisk attaches a data disk to the VM
 func (m *MachineResources) AttachDataDisk(spec api.AzureProviderSpec, diskName string, lun int32, deleteOption armcompute.DiskDeleteOptionTypes) {
 	dataDisk := createDataDisk(lun, "None", &deleteOption, 20, testhelp.StorageAccountType, diskName)
 	d := createDiskResource(spec, diskName, m.VM.ID, nil)

@@ -126,15 +126,13 @@ func GetDiskNames(providerSpec api.AzureProviderSpec, vmName string) []string {
 // getDataDiskNames creates disk names for all configured DataDisks in the provider spec.
 func getDataDiskNames(providerSpec api.AzureProviderSpec, vmName string) []string {
 	dataDisks := providerSpec.Properties.StorageProfile.DataDisks
-	if len(dataDisks) == 0 {
+	if utils.IsSliceNilOrEmpty(dataDisks) {
 		return nil
 	}
 	diskNames := make([]string, 0, len(dataDisks)+1)
-	if !utils.IsSliceNilOrEmpty(dataDisks) {
-		for _, disk := range dataDisks {
-			diskName := utils.CreateDataDiskName(vmName, disk)
-			diskNames = append(diskNames, diskName)
-		}
+	for _, disk := range dataDisks {
+		diskName := utils.CreateDataDiskName(vmName, disk)
+		diskNames = append(diskNames, diskName)
 	}
 	return diskNames
 }
@@ -265,7 +263,7 @@ func getNetworkInterfaceReferencesToUpdate(networkProfile *armcompute.NetworkPro
 	updatedNicRefs := make([]*armcompute.NetworkInterfaceReference, 0, len(networkProfile.NetworkInterfaces))
 	for _, nicRef := range networkProfile.NetworkInterfaces {
 		updatedNicRef := &armcompute.NetworkInterfaceReference{ID: nicRef.ID}
-		if *nicRef.ID == nicToUpdate && isNicCascadeDeleteSet(nicRef) {
+		if *nicRef.ID == nicToUpdate && !isNicCascadeDeleteSet(nicRef) {
 			if updatedNicRef.Properties == nil {
 				updatedNicRef.Properties = &armcompute.NetworkInterfaceReferenceProperties{}
 			}
@@ -310,7 +308,7 @@ func getDataDisksToUpdate(storageProfile *armcompute.StorageProfile, dataDisksTo
 	if storageProfile != nil && !utils.IsSliceNilOrEmpty(storageProfile.DataDisks) {
 		updatedDataDisks = make([]*armcompute.DataDisk, 0, len(storageProfile.DataDisks))
 		for _, dataDisk := range storageProfile.DataDisks {
-			if slices.Contains(dataDisksToUpdate, *dataDisk.Name) && (dataDisk.DeleteOption == nil || *dataDisk.DeleteOption != armcompute.DiskDeleteOptionTypesDelete) {
+			if (dataDisksToUpdate != nil && slices.Contains(dataDisksToUpdate, *dataDisk.Name)) && (dataDisk.DeleteOption == nil || *dataDisk.DeleteOption != armcompute.DiskDeleteOptionTypesDelete) {
 				updatedDataDisk := &armcompute.DataDisk{
 					Lun:          dataDisk.Lun,
 					DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
