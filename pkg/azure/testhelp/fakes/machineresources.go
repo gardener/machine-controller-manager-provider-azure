@@ -5,6 +5,7 @@
 package fakes
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
@@ -152,11 +153,15 @@ func (m *MachineResources) UpdateDataDisksDeleteOpt(deleteOpt *armcompute.DiskDe
 }
 
 // AttachDataDisk attaches a data disk to the VM
-func (m *MachineResources) AttachDataDisk(spec api.AzureProviderSpec, diskName string, lun int32, deleteOption armcompute.DiskDeleteOptionTypes) {
-	dataDisk := createDataDisk(lun, "None", &deleteOption, 20, testhelp.StorageAccountType, diskName)
+func (m *MachineResources) AttachDataDisk(spec api.AzureProviderSpec, diskName string, deleteOption armcompute.DiskDeleteOptionTypes) error {
+	if _, ok := m.DataDisks[diskName]; ok {
+		return fmt.Errorf("disk %s already exists, cannot create a new disk with the same name", diskName)
+	}
+	dataDisk := createDataDisk(int32(len(m.DataDisks)+1), "None", &deleteOption, 20, testhelp.StorageAccountType, diskName)
 	d := createDiskResource(spec, diskName, m.VM.ID, nil)
 	m.DataDisks[diskName] = d
 	m.VM.Properties.StorageProfile.DataDisks = append(m.VM.Properties.StorageProfile.DataDisks, dataDisk)
+	return nil
 }
 
 func isCascadeDeleteSetForAllDataDisks(dataDiskDeleteOptsMap map[string]*armcompute.DiskDeleteOptionTypes) bool {

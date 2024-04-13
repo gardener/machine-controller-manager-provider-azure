@@ -161,13 +161,13 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 
 func TestDeleteMachineWhenDataDiskIsAttachedAfterVMCreation(t *testing.T) {
 	const (
-		vmName   = "vm-0"
-		diskName = "sample-disk"
+		vmName                       = "vm-0"
+		diskNameToAttachOnExistingVM = "sample-disk"
 	)
 
 	checkClusterStateFn := func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
 		checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, dataDiskNames, false, true)
-		checkAndGetDataDisks(g, ctx, factory, []string{diskName}, true, false)
+		checkAndGetDataDisks(g, ctx, factory, []string{diskNameToAttachOnExistingVM}, true, false)
 	}
 
 	g := NewWithT(t)
@@ -185,7 +185,9 @@ func TestDeleteMachineWhenDataDiskIsAttachedAfterVMCreation(t *testing.T) {
 	clusterState := fakes.NewClusterState(providerSpec)
 	m := fakes.NewMachineResourcesBuilder(providerSpec, vmName).WithCascadeDeleteOptions(fakes.CascadeDeleteAllResources).BuildAllResources()
 
-	m.AttachDataDisk(providerSpec, diskName, 2, armcompute.DiskDeleteOptionTypesDetach)
+	// Attach a new data disk to the VM
+	err := m.AttachDataDisk(providerSpec, diskNameToAttachOnExistingVM, armcompute.DiskDeleteOptionTypesDetach)
+	g.Expect(err).To(BeNil())
 	clusterState.AddMachineResources(m)
 
 	// create fake factory

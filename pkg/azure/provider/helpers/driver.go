@@ -116,20 +116,15 @@ func GetDiskNames(providerSpec api.AzureProviderSpec, vmName string) []string {
 	dataDisks := providerSpec.Properties.StorageProfile.DataDisks
 	diskNames := make([]string, 0, len(dataDisks)+1)
 	diskNames = append(diskNames, utils.CreateOSDiskName(vmName))
-	dataDiskNames := getDataDiskNames(providerSpec, vmName)
-	if dataDiskNames != nil {
-		diskNames = append(diskNames, dataDiskNames...)
-	}
+	dataDiskNames := createDataDiskNames(providerSpec, vmName)
+	diskNames = append(diskNames, dataDiskNames...)
 	return diskNames
 }
 
-// getDataDiskNames creates disk names for all configured DataDisks in the provider spec.
-func getDataDiskNames(providerSpec api.AzureProviderSpec, vmName string) []string {
+// createDataDiskNames creates disk names for all configured DataDisks in the provider spec.
+func createDataDiskNames(providerSpec api.AzureProviderSpec, vmName string) []string {
 	dataDisks := providerSpec.Properties.StorageProfile.DataDisks
-	if utils.IsSliceNilOrEmpty(dataDisks) {
-		return nil
-	}
-	diskNames := make([]string, 0, len(dataDisks)+1)
+	diskNames := make([]string, 0, len(dataDisks))
 	for _, disk := range dataDisks {
 		diskName := utils.CreateDataDiskName(vmName, disk)
 		diskNames = append(diskNames, diskName)
@@ -219,7 +214,7 @@ func computeDeleteOptionUpdatesForNICsAndDisksIfRequired(resourceGroup string, v
 		return vmUpdateParams
 	}
 
-	dataDisksToUpdate := getDataDiskNames(providerSpec, vmName)
+	dataDisksToUpdate := createDataDiskNames(providerSpec, vmName)
 	nicToUpdate := utils.CreateNICName(vmName)
 
 	updatedNicReferences = getNetworkInterfaceReferencesToUpdate(vm.Properties.NetworkProfile, nicToUpdate)
@@ -305,10 +300,13 @@ func getOSDiskToUpdate(storageProfile *armcompute.StorageProfile) *armcompute.OS
 // DataDisks else it will return nil
 func getDataDisksToUpdate(storageProfile *armcompute.StorageProfile, dataDisksToUpdate []string) []*armcompute.DataDisk {
 	var updatedDataDisks []*armcompute.DataDisk
+	if utils.IsSliceNilOrEmpty(dataDisksToUpdate) {
+		return updatedDataDisks
+	}
 	if storageProfile != nil && !utils.IsSliceNilOrEmpty(storageProfile.DataDisks) {
 		updatedDataDisks = make([]*armcompute.DataDisk, 0, len(storageProfile.DataDisks))
 		for _, dataDisk := range storageProfile.DataDisks {
-			if (dataDisksToUpdate != nil && slices.Contains(dataDisksToUpdate, *dataDisk.Name)) && (dataDisk.DeleteOption == nil || *dataDisk.DeleteOption != armcompute.DiskDeleteOptionTypesDelete) {
+			if slices.Contains(dataDisksToUpdate, *dataDisk.Name) && (dataDisk.DeleteOption == nil || *dataDisk.DeleteOption != armcompute.DiskDeleteOptionTypesDelete) {
 				updatedDataDisk := &armcompute.DataDisk{
 					Lun:          dataDisk.Lun,
 					DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
