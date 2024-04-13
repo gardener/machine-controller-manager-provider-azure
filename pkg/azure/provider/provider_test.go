@@ -159,6 +159,71 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 	}
 }
 
+func TestDeleteMachineWhenDataDiskIsAttachedAfterVMCreation(t *testing.T) {
+	const (
+		vmName                       = "vm-0"
+		diskNameToAttachOnExistingVM = "sample-disk"
+	)
+
+	checkClusterStateFn := func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
+		checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, dataDiskNames, false, true)
+		checkAndGetDataDisks(g, ctx, factory, []string{diskNameToAttachOnExistingVM}, true, false)
+	}
+
+	g := NewWithT(t)
+	ctx := context.Background()
+
+	// initialize cluster state
+	//----------------------------------------------------------------------------
+	// create provider spec
+	providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
+	//Add one data disk
+	providerSpecBuilder.WithDataDisks(testDataDiskName, 1)
+	providerSpec := providerSpecBuilder.Build()
+
+	// create cluster state
+	clusterState := fakes.NewClusterState(providerSpec)
+	m := fakes.NewMachineResourcesBuilder(providerSpec, vmName).WithCascadeDeleteOptions(fakes.CascadeDeleteAllResources).BuildAllResources()
+
+	// Attach a new data disk to the VM
+	err := m.AttachDataDisk(providerSpec, diskNameToAttachOnExistingVM, armcompute.DiskDeleteOptionTypesDetach)
+	g.Expect(err).To(BeNil())
+	clusterState.AddMachineResources(m)
+
+	// create fake factory
+	fakeFactory := createDefaultFakeFactoryForDeleteMachine(g, providerSpec.ResourceGroup, clusterState)
+
+	// Create machine and machine class to be used to create DeleteMachineRequest
+	machineClass, err := fakes.CreateMachineClass(providerSpec, nil)
+	g.Expect(err).To(BeNil())
+	machine := &v1alpha1.Machine{
+		ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
+	}
+
+	// Test environment before running actual test
+	//----------------------------------------------------------------------------
+	_, err = fakeFactory.VMAccess.Get(ctx, providerSpec.ResourceGroup, vmName, nil)
+	g.Expect(err).To(BeNil())
+
+	// Test
+	//----------------------------------------------------------------------------
+	testDriver := NewDefaultDriver(fakeFactory)
+	_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
+		Machine:      machine,
+		MachineClass: machineClass,
+		Secret:       fakes.CreateProviderSecret(),
+	})
+	g.Expect(err == nil).To(Equal(true))
+
+	var dataDiskNames []string
+	if !utils.IsSliceNilOrEmpty(providerSpec.Properties.StorageProfile.DataDisks) {
+		dataDiskNames = make([]string, 0, len(providerSpec.Properties.StorageProfile.DataDisks))
+		dataDiskNames = testhelp.CreateDataDiskNames(vmName, providerSpec)
+	}
+	// evaluate cluster state post delete machine operation
+	checkClusterStateFn(g, ctx, *fakeFactory, vmName, dataDiskNames)
+}
+
 func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 	const vmName = "test-vm-0"
 	testVMID := fakes.CreateVirtualMachineID(testhelp.SubscriptionID, testResourceGroupName, vmName)
