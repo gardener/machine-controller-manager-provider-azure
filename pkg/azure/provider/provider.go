@@ -143,7 +143,7 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 		}
 	} else {
 		if helpers.CanUpdateVirtualMachine(vm) {
-			if err = helpers.UpdateCascadeDeleteOptions(ctx, vmAccess, resourceGroup, vm); err != nil {
+			if err = helpers.UpdateCascadeDeleteOptions(ctx, providerSpec, vmAccess, resourceGroup, vm); err != nil {
 				return
 			}
 			if err = helpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName); err != nil {
