@@ -109,11 +109,14 @@ type AzureVirtualMachineProperties struct {
 	DiagnosticsProfile *AzureDiagnosticsProfile `json:"diagnosticsProfile,omitempty"`
 	// Deprecated: Use either AvailabilitySet or VirtualMachineScaleSet instead
 	MachineSet *AzureMachineSetConfig `json:"machineSet,omitempty"`
-	// SecurityProfile specifies foo
+	// SecurityProfile specifies the security profile to be used for the virtual machine.
 	SecurityProfile *AzureSecurityProfile `json:"securityProfile,omitempty"`
 }
 
+// AzureSecurityProfile specifies the security profile to be used for the virtual machine.
 type AzureSecurityProfile struct {
+	// SecurityType specifies the SecurityType attribute of the virtual machine.
+	// Only "ConfidentialVM" is supported for now.
 	SecurityType string `json:"securityType,omitempty"`
 }
 

@@ -428,24 +428,33 @@ func createNICTags(tags map[string]string) map[string]*string {
 // 4. If the agreement has not been accepted yet then it will accept the agreement and update the agreement. If that fails then it will return an error.
 func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
 	imgRef = getImageReference(providerSpec)
+
 	isMarketPlaceImage := providerSpec.Properties.StorageProfile.ImageReference.URN != nil
-	if isMarketPlaceImage && !providerSpec.Properties.StorageProfile.ImageReference.PrivatePlan {
-		var vmImage *armcompute.VirtualMachineImage
-		vmImage, err = getVirtualMachineImage(ctx, factory, connectConfig, providerSpec.Location, imgRef)
+
+	// skip checking agreement if this is not a Marketplace image.
+	if !isMarketPlaceImage {
+		return
+	}
+	// We can't check images included in private plans for license agreement. Hence, we will skip the checks.
+	if providerSpec.Properties.StorageProfile.ImageReference.PrivatePlan {
+		return
+	}
+
+	var vmImage *armcompute.VirtualMachineImage
+	vmImage, err = getVirtualMachineImage(ctx, factory, connectConfig, providerSpec.Location, imgRef)
+	if err != nil {
+		return
+	}
+	klog.Infof("Retrieved VM Image: [VMName: %s, ID: %s]", vmName, *vmImage.ID)
+	if vmImage.Properties != nil && vmImage.Properties.Plan != nil {
+		err = checkAndAcceptAgreementIfNotAccepted(ctx, factory, connectConfig, vmName, *vmImage)
 		if err != nil {
 			return
 		}
-		klog.Infof("Retrieved VM Image: [VMName: %s, ID: %s]", vmName, *vmImage.ID)
-		if vmImage.Properties != nil && vmImage.Properties.Plan != nil {
-			err = checkAndAcceptAgreementIfNotAccepted(ctx, factory, connectConfig, vmName, *vmImage)
-			if err != nil {
-				return
-			}
-			plan = &armcompute.Plan{
-				Name:      vmImage.Properties.Plan.Name,
-				Product:   vmImage.Properties.Plan.Product,
-				Publisher: vmImage.Properties.Plan.Publisher,
-			}
+		plan = &armcompute.Plan{
+			Name:      vmImage.Properties.Plan.Name,
+			Product:   vmImage.Properties.Plan.Product,
+			Publisher: vmImage.Properties.Plan.Publisher,
 		}
 	}
 	return imgRef, plan, nil
