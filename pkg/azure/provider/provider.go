@@ -98,7 +98,7 @@ func (d *defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMac
 	return
 }
 
-func (d *defaultDriver) InitializeMachine(ctx context.Context, request *driver.InitializeMachineRequest) (*driver.InitializeMachineResponse, error) {
+func (d *defaultDriver) InitializeMachine(ctx context.Context, _ *driver.InitializeMachineRequest) (*driver.InitializeMachineResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Azure Provider does not yet implement InitializeMachine")
 }
 
