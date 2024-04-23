@@ -46,12 +46,12 @@ type defaultDriver struct {
 
 // NewDefaultDriver creates a new instance of an implementation of provider.Driver. This can be mostly used by tests where we also wish to have our own polling intervals.
 func NewDefaultDriver(accessFactory access.Factory) driver.Driver {
-	return defaultDriver{
+	return &defaultDriver{
 		factory: accessFactory,
 	}
 }
 
-func (d defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachinesRequest) (resp *driver.ListMachinesResponse, err error) {
+func (d *defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachinesRequest) (resp *driver.ListMachinesResponse, err error) {
 	defer instrument.DriverAPIMetricRecorderFn(listMachinesOperationLabel, &err)()
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
 	if err != nil {
@@ -65,7 +65,7 @@ func (d defaultDriver) ListMachines(ctx context.Context, req *driver.ListMachine
 	return
 }
 
-func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (resp *driver.CreateMachineResponse, err error) {
+func (d *defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMachineRequest) (resp *driver.CreateMachineResponse, err error) {
 	defer instrument.DriverAPIMetricRecorderFn(createMachineOperationLabel, &err)()
 
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
@@ -98,7 +98,11 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 	return
 }
 
-func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (resp *driver.DeleteMachineResponse, err error) {
+func (d *defaultDriver) InitializeMachine(ctx context.Context, request *driver.InitializeMachineRequest) (*driver.InitializeMachineResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "Azure Provider does not yet implement InitializeMachine")
+}
+
+func (d *defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMachineRequest) (resp *driver.DeleteMachineResponse, err error) {
 	defer instrument.DriverAPIMetricRecorderFn(deleteMachineOperationLabel, &err)()
 
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
@@ -164,7 +168,7 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 	return
 }
 
-func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (resp *driver.GetMachineStatusResponse, err error) {
+func (d *defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMachineStatusRequest) (resp *driver.GetMachineStatusResponse, err error) {
 	defer instrument.DriverAPIMetricRecorderFn(getMachineStatusOperationLabel, &err)()
 
 	providerSpec, connectConfig, err := helpers.ExtractProviderSpecAndConnectConfig(req.MachineClass, req.Secret)
@@ -196,7 +200,7 @@ func (d defaultDriver) GetMachineStatus(ctx context.Context, req *driver.GetMach
 	return
 }
 
-func (d defaultDriver) GetVolumeIDs(_ context.Context, request *driver.GetVolumeIDsRequest) (resp *driver.GetVolumeIDsResponse, err error) {
+func (d *defaultDriver) GetVolumeIDs(_ context.Context, request *driver.GetVolumeIDsRequest) (resp *driver.GetVolumeIDsResponse, err error) {
 	defer instrument.DriverAPIMetricRecorderFn(getVolumeIDsOperationLabel, &err)()
 
 	var volumeIDs []string
