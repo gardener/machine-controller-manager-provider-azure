@@ -98,6 +98,7 @@ func (d *defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMac
 	return
 }
 
+// InitializeMachine handles VM initialization for Azure VM's. Currently, un-implemented.
 func (d *defaultDriver) InitializeMachine(ctx context.Context, _ *driver.InitializeMachineRequest) (*driver.InitializeMachineResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "Azure Provider does not yet implement InitializeMachine")
 }
