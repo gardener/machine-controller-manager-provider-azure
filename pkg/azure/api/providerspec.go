@@ -54,6 +54,8 @@ const (
 	// MachineSetKindVMO is the machine set kind for VirtualMachineScaleSet Orchestration Mode VM (VMO).
 	// Deprecated: Use AzureVirtualMachineProperties.VirtualMachineScaleSet instead.
 	MachineSetKindVMO string = "vmo"
+
+	SkipMarketplaceAgreementAnnotation = "beta.azure.machine.sapcloud.io/skip-marketplace-agreement"
 )
 
 // AzureProviderSpec is the spec to be used while parsing the calls.
@@ -160,9 +162,6 @@ type AzureImageReference struct {
 	CommunityGalleryImageID *string `json:"communityGalleryImageID,omitempty"`
 	// SharedGalleryImageID is the id of the OS image to be used, hosted within an Azure Shared Image Gallery.
 	SharedGalleryImageID *string `json:"sharedGalleryImageID,omitempty"`
-	// PrivatePlan refers to images that are not available to be checked for marketplace agreement. When PrivatePlan is enabled,
-	// the marketplace agreement should be skipped
-	PrivatePlan bool `json:"privatePlan,omitempty"`
 }
 
 // AzureOSDisk specifies information about the operating system disk used by the virtual machine.
@@ -289,4 +288,10 @@ type AzureDiagnosticsProfile struct {
 	// StorageURI is the URI of the storage account to use for storing console output and screenshot.
 	// If not specified azure managed storage will be used.
 	StorageURI *string `json:"storageURI,omitempty"`
+}
+
+type AzureBetaFeatures struct {
+	// SkipMarketplaceAgreement refers to images that are not available to be checked for marketplace agreement. When enabled,
+	// the marketplace agreement should be skipped.
+	SkipMarketplaceAgreement bool `json:"skipMarketplaceAgreement,omitempty"`
 }

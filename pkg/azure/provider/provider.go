@@ -65,7 +65,9 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 	vmName := req.Machine.Name
 	nicName := utils.CreateNICName(vmName)
 
-	imageReference, plan, err := helpers.ProcessVMImageConfiguration(ctx, d.factory, connectConfig, providerSpec, vmName)
+	betaFeatures := helpers.ExtractBetaFeatures(req.MachineClass)
+
+	imageReference, plan, err := helpers.ProcessVMImageConfiguration(ctx, d.factory, connectConfig, providerSpec, vmName, betaFeatures)
 	if err != nil {
 		return
 	}

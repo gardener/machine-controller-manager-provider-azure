@@ -58,6 +58,18 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 	return providerSpec, connectConfig, nil
 }
 
+func ExtractBetaFeatures(mcc *v1alpha1.MachineClass) (abf api.AzureBetaFeatures) {
+	if mcc.Annotations == nil {
+		return
+	}
+
+	if v, ok := mcc.Annotations[api.SkipMarketplaceAgreementAnnotation]; ok && strings.EqualFold(v, "true") {
+		abf.SkipMarketplaceAgreement = true
+	}
+
+	return
+}
+
 // ConstructMachineListResponse constructs response for driver.ListMachines method.
 func ConstructMachineListResponse(location string, vmNames []string) *driver.ListMachinesResponse {
 	listMachineRes := driver.ListMachinesResponse{}
@@ -426,7 +438,7 @@ func createNICTags(tags map[string]string) map[string]*string {
 // 2. From the VM Image it checks if there is a plan.
 // 3. If there is a plan then it will check if there is an existing agreement for this plan. If an agreement does not exist then it will return an error.
 // 4. If the agreement has not been accepted yet then it will accept the agreement and update the agreement. If that fails then it will return an error.
-func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
+func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string, betaFeatures api.AzureBetaFeatures) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
 	imgRef = getImageReference(providerSpec)
 
 	isMarketPlaceImage := providerSpec.Properties.StorageProfile.ImageReference.URN != nil
@@ -435,8 +447,9 @@ func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, co
 	if !isMarketPlaceImage {
 		return
 	}
+
 	// We can't check images included in private plans for license agreement. Hence, we will skip the checks.
-	if providerSpec.Properties.StorageProfile.ImageReference.PrivatePlan {
+	if betaFeatures.SkipMarketplaceAgreement {
 		return
 	}
 
