@@ -55,6 +55,8 @@ const (
 	// Deprecated: Use AzureVirtualMachineProperties.VirtualMachineScaleSet instead.
 	MachineSetKindVMO string = "vmo"
 
+	// SkipMarketplaceAgreementAnnotation is an annotation for the machineclass. When this is found on a MC, the controller will skip
+	// checking for the marketplace license agreement.
 	SkipMarketplaceAgreementAnnotation = "beta.azure.machine.sapcloud.io/skip-marketplace-agreement"
 )
 
@@ -290,6 +292,7 @@ type AzureDiagnosticsProfile struct {
 	StorageURI *string `json:"storageURI,omitempty"`
 }
 
+// AzureBetaFeatures is storing information about beta features.
 type AzureBetaFeatures struct {
 	// SkipMarketplaceAgreement refers to images that are not available to be checked for marketplace agreement. When enabled,
 	// the marketplace agreement should be skipped.

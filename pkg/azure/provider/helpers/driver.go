@@ -58,6 +58,7 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 	return providerSpec, connectConfig, nil
 }
 
+// ExtractBetaFeatures extracts beta features for a machineclass based on its annotations.
 func ExtractBetaFeatures(mcc *v1alpha1.MachineClass) (abf api.AzureBetaFeatures) {
 	if mcc.Annotations == nil {
 		return
