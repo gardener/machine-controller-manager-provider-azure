@@ -54,10 +54,6 @@ const (
 	// MachineSetKindVMO is the machine set kind for VirtualMachineScaleSet Orchestration Mode VM (VMO).
 	// Deprecated: Use AzureVirtualMachineProperties.VirtualMachineScaleSet instead.
 	MachineSetKindVMO string = "vmo"
-
-	// SkipMarketplaceAgreementAnnotation is an annotation for the machineclass. When this is found on a MC, the controller will skip
-	// checking for the marketplace license agreement.
-	SkipMarketplaceAgreementAnnotation = "beta.azure.machine.sapcloud.io/skip-marketplace-agreement"
 )
 
 // AzureProviderSpec is the spec to be used while parsing the calls.
@@ -120,8 +116,18 @@ type AzureVirtualMachineProperties struct {
 // AzureSecurityProfile specifies the security profile to be used for the virtual machine.
 type AzureSecurityProfile struct {
 	// SecurityType specifies the SecurityType attribute of the virtual machine.
-	// Only "ConfidentialVM" is supported for now.
-	SecurityType string `json:"securityType,omitempty"`
+	SecurityType *string `json:"securityType,omitempty"`
+	// UefiSettings controls the UEFI parameters for the virtual machine.
+	UefiSettings *AzureUefiSettings `json:"uefiSettings,omitempty"`
+}
+
+// AzureUefiSettings controls the UEFI parameters for the virtual machine.
+type AzureUefiSettings struct {
+	// VTpmEnabled enables vTPM for the virtual machine.
+	// See https://learn.microsoft.com/en-us/azure/virtual-machines/trusted-launch#vtpm
+	VTpmEnabled *bool `json:"vtpmEnabled,omitempty"`
+	// SecureBootEnabled enables the use of Secure Boot for the virtual machine.
+	SecureBootEnabled *bool `json:"secureBootEnabled,omitempty"`
 }
 
 // AzureHardwareProfile specifies the hardware settings for the virtual machine.
@@ -160,6 +166,8 @@ type AzureImageReference struct {
 	// URN Uniform Resource Name of the OS image to be used, it has the format 'publisher:offer:sku:version'
 	// This is a marketplace image. For marketplace images there needs to be a purchase plan and an agreement. The agreement needs to be accepted.
 	URN *string `json:"urn,omitempty"`
+	// SkipMarketplaceAgreement will prevent the extension from checking the license agreement for marketplace images.
+	SkipMarketplaceAgreement bool `json:"skipMarketplaceAgreement,omitempty"`
 	// CommunityGalleryImageID is the id of the OS image to be used, hosted within an Azure Community Image Gallery.
 	CommunityGalleryImageID *string `json:"communityGalleryImageID,omitempty"`
 	// SharedGalleryImageID is the id of the OS image to be used, hosted within an Azure Shared Image Gallery.
@@ -204,6 +212,16 @@ type AzureManagedDiskParameters struct {
 	ID string `json:"id,omitempty"`
 	// StorageAccountType is the storage account type for a managed disk.
 	StorageAccountType string `json:"storageAccountType,omitempty"`
+	// SecurityProfile are the parameters of the encryption of the OS disk.
+	SecurityProfile *AzureDiskSecurityProfile `json:"securityProfile,omitempty"`
+}
+
+// AzureDiskSecurityProfile are the parameters of the encryption of the OS disk.
+type AzureDiskSecurityProfile struct {
+	// Specifies the EncryptionType of the managed disk. It is set to DiskWithVMGuestState for encryption of the managed disk
+	// along with VMGuestState blob, and VMGuestStateOnly for encryption of just the
+	// VMGuestState blob. Note: It can be set only Confidential VMs.
+	SecurityEncryptionType *string `json:"securityEncryptionType,omitempty"`
 }
 
 // AzureOSProfile specifies the operating system settings for the virtual machine.
@@ -290,11 +308,4 @@ type AzureDiagnosticsProfile struct {
 	// StorageURI is the URI of the storage account to use for storing console output and screenshot.
 	// If not specified azure managed storage will be used.
 	StorageURI *string `json:"storageURI,omitempty"`
-}
-
-// AzureBetaFeatures is storing information about beta features.
-type AzureBetaFeatures struct {
-	// SkipMarketplaceAgreement refers to images that are not available to be checked for marketplace agreement. When enabled,
-	// the marketplace agreement should be skipped.
-	SkipMarketplaceAgreement bool `json:"skipMarketplaceAgreement,omitempty"`
 }

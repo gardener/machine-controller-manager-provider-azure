@@ -58,19 +58,6 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 	return providerSpec, connectConfig, nil
 }
 
-// ExtractBetaFeatures extracts beta features for a machineclass based on its annotations.
-func ExtractBetaFeatures(mcc *v1alpha1.MachineClass) (abf api.AzureBetaFeatures) {
-	if mcc.Annotations == nil {
-		return
-	}
-
-	if v, ok := mcc.Annotations[api.SkipMarketplaceAgreementAnnotation]; ok && strings.EqualFold(v, "true") {
-		abf.SkipMarketplaceAgreement = true
-	}
-
-	return
-}
-
 // ConstructMachineListResponse constructs response for driver.ListMachines method.
 func ConstructMachineListResponse(location string, vmNames []string) *driver.ListMachinesResponse {
 	listMachineRes := driver.ListMachinesResponse{}
@@ -439,18 +426,13 @@ func createNICTags(tags map[string]string) map[string]*string {
 // 2. From the VM Image it checks if there is a plan.
 // 3. If there is a plan then it will check if there is an existing agreement for this plan. If an agreement does not exist then it will return an error.
 // 4. If the agreement has not been accepted yet then it will accept the agreement and update the agreement. If that fails then it will return an error.
-func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string, betaFeatures api.AzureBetaFeatures) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
+func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
 	imgRef = getImageReference(providerSpec)
 
-	isMarketPlaceImage := providerSpec.Properties.StorageProfile.ImageReference.URN != nil
+	shouldCheckMarketplaceImage := providerSpec.Properties.StorageProfile.ImageReference.URN != nil && !providerSpec.Properties.StorageProfile.ImageReference.SkipMarketplaceAgreement
 
-	// skip checking agreement if this is not a Marketplace image.
-	if !isMarketPlaceImage {
-		return
-	}
-
-	// We can't check images included in private plans for license agreement. Hence, we will skip the checks.
-	if betaFeatures.SkipMarketplaceAgreement {
+	// skip checking agreement if this is not a Marketplace image or if we explicitly opt out from checking.
+	if !shouldCheckMarketplaceImage {
 		return
 	}
 
@@ -654,15 +636,27 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 		Identity: getVMIdentity(providerSpec.Properties.IdentityID),
 	}
 
-	if prop := providerSpec.Properties.SecurityProfile; prop != nil {
-		vm.Properties.SecurityProfile = &armcompute.SecurityProfile{
-			SecurityType: to.Ptr(armcompute.SecurityTypes(prop.SecurityType)),
-			UefiSettings: &armcompute.UefiSettings{
-				VTpmEnabled: to.Ptr(true),
-			},
+	// Processing for CVMs
+	if securityProfile := providerSpec.Properties.SecurityProfile; securityProfile != nil {
+		vm.Properties.SecurityProfile = &armcompute.SecurityProfile{}
+		if securityProfile.SecurityType != nil {
+			securityType := armcompute.SecurityTypes(*securityProfile.SecurityType)
+			vm.Properties.SecurityProfile.SecurityType = &securityType
 		}
-		vm.Properties.StorageProfile.OSDisk.ManagedDisk.SecurityProfile = &armcompute.VMDiskSecurityProfile{
-			SecurityEncryptionType: to.Ptr(armcompute.SecurityEncryptionTypesVMGuestStateOnly),
+
+		if uefiSettingsConf := securityProfile.UefiSettings; uefiSettingsConf != nil {
+			vm.Properties.SecurityProfile.UefiSettings = &armcompute.UefiSettings{
+				SecureBootEnabled: uefiSettingsConf.SecureBootEnabled,
+				VTpmEnabled:       uefiSettingsConf.VTpmEnabled,
+			}
+		}
+	}
+	if diskSecurityProfile := providerSpec.Properties.StorageProfile.OsDisk.ManagedDisk.SecurityProfile; diskSecurityProfile != nil {
+		if diskSecurityProfile.SecurityEncryptionType != nil {
+			securityEncryptionType := armcompute.SecurityEncryptionTypes(*diskSecurityProfile.SecurityEncryptionType)
+			vm.Properties.StorageProfile.OSDisk.ManagedDisk.SecurityProfile = &armcompute.VMDiskSecurityProfile{
+				SecurityEncryptionType: &securityEncryptionType,
+			}
 		}
 	}
 

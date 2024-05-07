@@ -4,7 +4,9 @@
 
 package utils
 
-import "strings"
+import (
+	"strings"
+)
 
 // IsEmptyString trims the spaces around the string and checks its length.
 // If it is 0 then it will return true else it will return false
