@@ -128,8 +128,8 @@ func validateSecurityProfile(securityProfile *api.AzureSecurityProfile, fldPath 
 	}
 
 	if st := securityProfile.SecurityType; !utils.IsNilOrEmptyStringPtr(st) {
-		validValues := stringTypesToString([]armcompute.SecurityTypes{armcompute.SecurityTypesConfidentialVM, armcompute.SecurityTypesTrustedLaunch})
-		if ok := validateEnumString(*st, validValues); !ok {
+		validValues := stringTypesToString(armcompute.PossibleSecurityTypesValues())
+		if ok := isValidEnumString(*st, validValues); !ok {
 			allErrs = append(allErrs, field.NotSupported(fldPath.Child("securityType"), st, validValues))
 		}
 	}
@@ -192,9 +192,9 @@ func validateOSDisk(osDisk api.AzureOSDisk, fldPath *field.Path) field.ErrorList
 	}
 
 	if securityProfile := osDisk.ManagedDisk.SecurityProfile; securityProfile != nil {
-		if encryptionType := securityProfile.SecurityEncryptionType; !utils.IsNilOrEmptyStringPtr(securityProfile.SecurityEncryptionType) {
-			validValues := stringTypesToString([]armcompute.SecurityEncryptionTypes{armcompute.SecurityEncryptionTypesVMGuestStateOnly, armcompute.SecurityEncryptionTypesDiskWithVMGuestState})
-			if ok := validateEnumString(*encryptionType, validValues); !ok {
+		if encryptionType := securityProfile.SecurityEncryptionType; !utils.IsNilOrEmptyStringPtr(encryptionType) {
+			validValues := stringTypesToString(armcompute.PossibleSecurityEncryptionTypesValues())
+			if ok := isValidEnumString(*encryptionType, validValues); !ok {
 				allErrs = append(allErrs, field.NotSupported(fldPath.Child("securityEncryptionType"), encryptionType, validValues))
 			}
 		}
@@ -337,10 +337,10 @@ func stringTypesToString[T ~string](validValues []T) []string {
 	return res
 }
 
-func validateEnumString(value string, validValues []string) bool {
+func isValidEnumString(value string, validValues []string) bool {
 	for _, validValue := range validValues {
 		toStr := validValue
-		if strings.EqualFold(value, toStr) {
+		if value == toStr {
 			return true
 		}
 	}
