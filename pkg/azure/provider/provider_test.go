@@ -7,6 +7,7 @@ package provider
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -14,17 +15,18 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
-	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/provider/helpers"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp/fakes"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+
+	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/provider/helpers"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp/fakes"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 const (
@@ -109,11 +111,11 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 	for _, entry := range table {
 		t.Run(entry.description, func(t *testing.T) {
 			// initialize cluster state
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			// create provider spec
 			providerSpecBuilder := testhelp.NewProviderSpecBuilder(entry.resourceGroup, testShootNs, testWorkerPool0Name).WithDefaultValues()
 			if entry.numDataDisks > 0 {
-				//Add data disks
+				// Add data disks
 				providerSpecBuilder.WithDataDisks(testDataDiskName, entry.numDataDisks)
 			}
 			providerSpec := providerSpecBuilder.Build()
@@ -134,12 +136,12 @@ func TestDeleteMachineWhenVMExists(t *testing.T) {
 			}
 
 			// Test environment before running actual test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			_, err = fakeFactory.VMAccess.Get(ctx, providerSpec.ResourceGroup, entry.targetVMNameToDelete, nil)
 			g.Expect(err).To(BeNil())
 
 			// Test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			testDriver := NewDefaultDriver(fakeFactory)
 			_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 				Machine:      machine,
@@ -174,10 +176,10 @@ func TestDeleteMachineWhenDataDiskIsAttachedAfterVMCreation(t *testing.T) {
 	ctx := context.Background()
 
 	// initialize cluster state
-	//----------------------------------------------------------------------------
+	// ----------------------------------------------------------------------------
 	// create provider spec
 	providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
-	//Add one data disk
+	// Add one data disk
 	providerSpecBuilder.WithDataDisks(testDataDiskName, 1)
 	providerSpec := providerSpecBuilder.Build()
 
@@ -201,12 +203,12 @@ func TestDeleteMachineWhenDataDiskIsAttachedAfterVMCreation(t *testing.T) {
 	}
 
 	// Test environment before running actual test
-	//----------------------------------------------------------------------------
+	// ----------------------------------------------------------------------------
 	_, err = fakeFactory.VMAccess.Get(ctx, providerSpec.ResourceGroup, vmName, nil)
 	g.Expect(err).To(BeNil())
 
 	// Test
-	//----------------------------------------------------------------------------
+	// ----------------------------------------------------------------------------
 	testDriver := NewDefaultDriver(fakeFactory)
 	_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 		Machine:      machine,
@@ -271,11 +273,11 @@ func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 	for _, entry := range table {
 		t.Run(entry.description, func(t *testing.T) {
 			// initialize cluster state
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			// create provider spec
 			providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
 			if entry.numDataDisks > 0 {
-				//Add data disks
+				// Add data disks
 				providerSpecBuilder.WithDataDisks(testDataDiskName, entry.numDataDisks)
 			}
 			providerSpec := providerSpecBuilder.Build()
@@ -295,7 +297,7 @@ func TestDeleteMachineWhenVMDoesNotExist(t *testing.T) {
 			}
 
 			// Test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			testDriver := NewDefaultDriver(fakeFactory)
 			_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 				Machine:      machine,
@@ -342,7 +344,7 @@ func TestDeleteVMInTerminalState(t *testing.T) {
 			// create provider spec
 			providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
 			if entry.numDataDisks > 0 {
-				//Add data disks
+				// Add data disks
 				providerSpecBuilder.WithDataDisks(testDataDiskName, entry.numDataDisks)
 			}
 			providerSpec := providerSpecBuilder.Build()
@@ -362,7 +364,7 @@ func TestDeleteVMInTerminalState(t *testing.T) {
 			}
 
 			// Test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			testDriver := NewDefaultDriver(fakeFactory)
 			_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 				Machine:      machine,
@@ -397,7 +399,7 @@ func TestDeleteExistingVMWithDataDisksInDetachment(t *testing.T) {
 		ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
 	}
 	// Test
-	//----------------------------------------------------------------------------
+	// ----------------------------------------------------------------------------
 	testDriver := NewDefaultDriver(fakeFactory)
 	_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 		Machine:      machine,
@@ -497,7 +499,7 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 	for _, entry := range table {
 		t.Run(entry.description, func(t *testing.T) {
 			// initialize cluster state
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			// create cluster state
 			clusterState := fakes.NewClusterState(providerSpec)
 			clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).WithCascadeDeleteOptions(entry.cascadeDeleteOpts).BuildWith(entry.vmExists, true, true, false, nil))
@@ -512,7 +514,7 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 				ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
 			}
 			// Test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			testDriver := NewDefaultDriver(fakeFactory)
 			_, err = testDriver.DeleteMachine(ctx, &driver.DeleteMachineRequest{
 				Machine:      machine,
@@ -538,7 +540,7 @@ func TestDeleteMachineWhenProviderIsNotAzure(t *testing.T) {
 	providerSpec := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().Build()
 	machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
 	g.Expect(err).To(BeNil())
-	machineClass.Provider = "aws" //set an incorrect provider
+	machineClass.Provider = "aws" // set an incorrect provider
 	machine := &v1alpha1.Machine{
 		ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
 	}
@@ -596,7 +598,7 @@ func TestGetMachineStatus(t *testing.T) {
 	for _, entry := range table {
 		t.Run(entry.description, func(t *testing.T) {
 			// initialize cluster state
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			// create cluster state
 			clusterState := fakes.NewClusterState(providerSpec)
 			for _, vmName := range entry.existingVMNames {
@@ -616,7 +618,7 @@ func TestGetMachineStatus(t *testing.T) {
 			}
 
 			// Test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			testDriver := NewDefaultDriver(fakeFactory)
 			getMachineStatusResp, err := testDriver.GetMachineStatus(ctx, &driver.GetMachineStatusRequest{
 				Machine:      machine,
@@ -713,12 +715,12 @@ func TestListMachines(t *testing.T) {
 			// create provider spec
 			providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
 			if entry.numDataDisks > 0 {
-				//Add data disks
+				// Add data disks
 				providerSpecBuilder.WithDataDisks(testDataDiskName, entry.numDataDisks)
 			}
 			providerSpec := providerSpecBuilder.Build()
 			// initialize cluster state
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			// create cluster state
 			clusterState := fakes.NewClusterState(providerSpec)
 			if entry.mrTestSpecs != nil {
@@ -754,7 +756,7 @@ func TestListMachines(t *testing.T) {
 			g.Expect(err).To(BeNil())
 
 			// Test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			testDriver := NewDefaultDriver(fakeFactory)
 			listMachinesResp, err := testDriver.ListMachines(ctx, &driver.ListMachinesRequest{
 				MachineClass: machineClass,
@@ -809,7 +811,7 @@ func TestListMachineWithInducedErrors(t *testing.T) {
 			g.Expect(err).To(BeNil())
 
 			// Test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			testDriver := NewDefaultDriver(fakeFactory)
 			_, err = testDriver.ListMachines(ctx, &driver.ListMachinesRequest{
 				MachineClass: machineClass,
@@ -1028,7 +1030,7 @@ func TestCreateMachineWhenPrerequisitesFail(t *testing.T) {
 			providerSpec := providerSpecBuilder.Build()
 
 			// initialize cluster state
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			// create cluster state
 			clusterState := fakes.NewClusterState(providerSpec)
 			if entry.vmImageExists {
@@ -1054,7 +1056,7 @@ func TestCreateMachineWhenPrerequisitesFail(t *testing.T) {
 				ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
 			}
 			// Test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			testDriver := NewDefaultDriver(fakeFactory)
 			_, err = testDriver.CreateMachine(ctx, &driver.CreateMachineRequest{
 				Machine:      machine,
@@ -1140,7 +1142,7 @@ func TestCreateMachineWhenNICOrVMCreationFails(t *testing.T) {
 	for _, entry := range table {
 		t.Run(entry.description, func(t *testing.T) {
 			// initialize cluster state
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			// create cluster state
 			clusterState := fakes.NewClusterState(providerSpec)
 			if entry.nicExists {
@@ -1157,7 +1159,7 @@ func TestCreateMachineWhenNICOrVMCreationFails(t *testing.T) {
 				ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
 			}
 			// Test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			testDriver := NewDefaultDriver(fakeFactory)
 			_, err = testDriver.CreateMachine(ctx, &driver.CreateMachineRequest{
 				Machine:      machine,
@@ -1184,16 +1186,17 @@ func TestSuccessfulCreationOfMachine(t *testing.T) {
 		description      string
 		withPurchasePlan bool
 	}{
-		{"should create machine successfully if purchase plan is present", true},
-		{"should create machine successfully if purchase plan is not present", false},
+		{description: "should create machine successfully if purchase plan is present", withPurchasePlan: true},
+		{description: "should create machine successfully if purchase plan is not present", withPurchasePlan: false},
 	}
 
 	g := NewWithT(t)
 	for _, entry := range table {
 		t.Run(entry.description, func(t *testing.T) {
 			// initialize cluster state
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			// create cluster state
+
 			clusterState := fakes.NewClusterState(providerSpec)
 			publisher, offer, sku, version := fakes.GetDefaultVMImageParts()
 			vmImageSpec := fakes.VMImageSpec{
@@ -1217,7 +1220,7 @@ func TestSuccessfulCreationOfMachine(t *testing.T) {
 			dataDiskNames := testhelp.CreateDataDiskNames(vmName, providerSpec)
 
 			// Test
-			//----------------------------------------------------------------------------
+			// ----------------------------------------------------------------------------
 			testDriver := NewDefaultDriver(fakeFactory)
 			resp, err := testDriver.CreateMachine(ctx, &driver.CreateMachineRequest{
 				Machine:      machine,
@@ -1233,8 +1236,53 @@ func TestSuccessfulCreationOfMachine(t *testing.T) {
 	}
 }
 
+func TestCreationOfMachineWitSkipMarketplaceAgreement(t *testing.T) {
+	providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().WithStorageProfile(true)
+	providerSpec := providerSpecBuilder.Build()
+
+	g := NewWithT(t)
+
+	// initialize cluster state
+	// ----------------------------------------------------------------------------
+	// create cluster state
+	clusterState := fakes.NewClusterState(providerSpec)
+	publisher, offer, sku, version := fakes.GetDefaultVMImageParts()
+	vmImageSpec := fakes.VMImageSpec{
+		Publisher: publisher,
+		Offer:     offer,
+		SKU:       sku,
+		Version:   version,
+	}
+	clusterState.WithVMImageSpec(vmImageSpec).WithAgreementTerms(true).WithSubnet(providerSpec.ResourceGroup, fakes.CreateSubnetName(testShootNs), testShootNs)
+	// create fake factory
+	fakeFactory := createFakeFactoryForCreateMachineWithAPIBehaviorSpecs(g, providerSpec.ResourceGroup, clusterState, nil, nil, nil, fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(utils.VMImageResourceType, testhelp.AccessMethodGet, fmt.Errorf("not found")), nil)
+	// Create machine and machine class to be used to create DeleteMachineRequest
+	machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
+	const vmName = "vm-0"
+	g.Expect(err).To(BeNil())
+	ctx := context.Background()
+	machine := &v1alpha1.Machine{
+		ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
+	}
+	dataDiskNames := testhelp.CreateDataDiskNames(vmName, providerSpec)
+
+	// Test
+	// ----------------------------------------------------------------------------
+	testDriver := NewDefaultDriver(fakeFactory)
+	resp, err := testDriver.CreateMachine(ctx, &driver.CreateMachineRequest{
+		Machine:      machine,
+		MachineClass: machineClass,
+		Secret:       fakes.CreateProviderSecret(),
+	})
+	g.Expect(err).To(BeNil())
+	checkClusterStateAndGetMachineResources(g, ctx, *fakeFactory, vmName, true, true, true, dataDiskNames, true, true)
+	g.Expect(resp.NodeName).To(Equal(vmName))
+	expectedProviderID := helpers.DeriveInstanceID(providerSpec.Location, vmName)
+	g.Expect(resp.ProviderID).To(Equal(expectedProviderID))
+}
+
 // unit test helper functions
-//------------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------------
 
 func checkError(g *WithT, err error, underlineCause error) {
 	var statusErr *status.Status

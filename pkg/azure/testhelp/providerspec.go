@@ -9,9 +9,10 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"k8s.io/utils/pointer"
+
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
-	"k8s.io/utils/pointer"
 )
 
 // ProviderSpecBuilder is a builder for ProviderSpec. Only used for unit tests.
@@ -83,6 +84,23 @@ func (b *ProviderSpecBuilder) WithDefaultNetworkProfile() *ProviderSpecBuilder {
 // WithDefaultHardwareProfile sets a default hardware profile in the provider spec.
 func (b *ProviderSpecBuilder) WithDefaultHardwareProfile() *ProviderSpecBuilder {
 	b.spec.Properties.HardwareProfile.VMSize = VMSize
+	return b
+}
+
+// WithStorageProfile sets a default storage profile in the provider spec.
+func (b *ProviderSpecBuilder) WithStorageProfile(skipMarketplaceAgreement bool) *ProviderSpecBuilder {
+	b.spec.Properties.StorageProfile.ImageReference = api.AzureImageReference{
+		URN:                      to.Ptr(DefaultImageRefURN),
+		SkipMarketplaceAgreement: skipMarketplaceAgreement,
+	}
+	b.spec.Properties.StorageProfile.OsDisk = api.AzureOSDisk{
+		Caching: "None",
+		ManagedDisk: api.AzureManagedDiskParameters{
+			StorageAccountType: StorageAccountType,
+		},
+		DiskSizeGB:   50,
+		CreateOption: "FromImage",
+	}
 	return b
 }
 
