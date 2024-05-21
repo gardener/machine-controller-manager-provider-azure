@@ -109,6 +109,25 @@ type AzureVirtualMachineProperties struct {
 	DiagnosticsProfile *AzureDiagnosticsProfile `json:"diagnosticsProfile,omitempty"`
 	// Deprecated: Use either AvailabilitySet or VirtualMachineScaleSet instead
 	MachineSet *AzureMachineSetConfig `json:"machineSet,omitempty"`
+	// SecurityProfile specifies the security profile to be used for the virtual machine.
+	SecurityProfile *AzureSecurityProfile `json:"securityProfile,omitempty"`
+}
+
+// AzureSecurityProfile specifies the security profile to be used for the virtual machine.
+type AzureSecurityProfile struct {
+	// SecurityType specifies the SecurityType attribute of the virtual machine.
+	SecurityType *string `json:"securityType,omitempty"`
+	// UefiSettings controls the UEFI parameters for the virtual machine.
+	UefiSettings *AzureUefiSettings `json:"uefiSettings,omitempty"`
+}
+
+// AzureUefiSettings controls the UEFI parameters for the virtual machine.
+type AzureUefiSettings struct {
+	// VTpmEnabled enables vTPM for the virtual machine.
+	// See https://learn.microsoft.com/en-us/azure/virtual-machines/trusted-launch#vtpm
+	VTpmEnabled *bool `json:"vtpmEnabled,omitempty"`
+	// SecureBootEnabled enables the use of Secure Boot for the virtual machine.
+	SecureBootEnabled *bool `json:"secureBootEnabled,omitempty"`
 }
 
 // AzureHardwareProfile specifies the hardware settings for the virtual machine.
@@ -147,6 +166,8 @@ type AzureImageReference struct {
 	// URN Uniform Resource Name of the OS image to be used, it has the format 'publisher:offer:sku:version'
 	// This is a marketplace image. For marketplace images there needs to be a purchase plan and an agreement. The agreement needs to be accepted.
 	URN *string `json:"urn,omitempty"`
+	// SkipMarketplaceAgreement will prevent the extension from checking the license agreement for marketplace images.
+	SkipMarketplaceAgreement bool `json:"skipMarketplaceAgreement,omitempty"`
 	// CommunityGalleryImageID is the id of the OS image to be used, hosted within an Azure Community Image Gallery.
 	CommunityGalleryImageID *string `json:"communityGalleryImageID,omitempty"`
 	// SharedGalleryImageID is the id of the OS image to be used, hosted within an Azure Shared Image Gallery.
@@ -191,6 +212,16 @@ type AzureManagedDiskParameters struct {
 	ID string `json:"id,omitempty"`
 	// StorageAccountType is the storage account type for a managed disk.
 	StorageAccountType string `json:"storageAccountType,omitempty"`
+	// SecurityProfile are the parameters of the encryption of the OS disk.
+	SecurityProfile *AzureDiskSecurityProfile `json:"securityProfile,omitempty"`
+}
+
+// AzureDiskSecurityProfile are the parameters of the encryption of the OS disk.
+type AzureDiskSecurityProfile struct {
+	// Specifies the EncryptionType of the managed disk. It is set to DiskWithVMGuestState for encryption of the managed disk
+	// along with VMGuestState blob, and VMGuestStateOnly for encryption of just the
+	// VMGuestState blob. Note: It can be set only Confidential VMs.
+	SecurityEncryptionType *string `json:"securityEncryptionType,omitempty"`
 }
 
 // AzureOSProfile specifies the operating system settings for the virtual machine.

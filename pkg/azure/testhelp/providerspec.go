@@ -9,9 +9,10 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"k8s.io/utils/pointer"
+
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
-	"k8s.io/utils/pointer"
 )
 
 // ProviderSpecBuilder is a builder for ProviderSpec. Only used for unit tests.
@@ -86,6 +87,26 @@ func (b *ProviderSpecBuilder) WithDefaultHardwareProfile() *ProviderSpecBuilder 
 	return b
 }
 
+// WithStorageProfile sets a default storage profile in the provider spec.
+func (b *ProviderSpecBuilder) WithStorageProfile(skipMarketplaceAgreement bool, securityEncryption *string) *ProviderSpecBuilder {
+	b.spec.Properties.StorageProfile.ImageReference = api.AzureImageReference{
+		URN:                      to.Ptr(DefaultImageRefURN),
+		SkipMarketplaceAgreement: skipMarketplaceAgreement,
+	}
+	b.spec.Properties.StorageProfile.OsDisk = api.AzureOSDisk{
+		Caching: "None",
+		ManagedDisk: api.AzureManagedDiskParameters{
+			StorageAccountType: StorageAccountType,
+			SecurityProfile: &api.AzureDiskSecurityProfile{
+				SecurityEncryptionType: securityEncryption,
+			},
+		},
+		DiskSizeGB:   50,
+		CreateOption: "FromImage",
+	}
+	return b
+}
+
 // WithDefaultStorageProfile sets a default storage profile in the provider spec.
 func (b *ProviderSpecBuilder) WithDefaultStorageProfile() *ProviderSpecBuilder {
 	b.spec.Properties.StorageProfile.ImageReference = api.AzureImageReference{
@@ -116,6 +137,12 @@ func (b *ProviderSpecBuilder) WithDataDisks(diskName string, numDisks int) *Prov
 		dataDisks = append(dataDisks, d)
 	}
 	b.spec.Properties.StorageProfile.DataDisks = dataDisks
+	return b
+}
+
+// WithSecurityProfile configures the security profile for the VM.
+func (b *ProviderSpecBuilder) WithSecurityProfile(sec *api.AzureSecurityProfile) *ProviderSpecBuilder {
+	b.spec.Properties.SecurityProfile = sec
 	return b
 }
 

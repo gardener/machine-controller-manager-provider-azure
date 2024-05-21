@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
@@ -116,6 +117,23 @@ func validateProperties(properties api.AzureVirtualMachineProperties, fldPath *f
 	allErrs = append(allErrs, validateOSProfile(properties.OsProfile, fldPath.Child("osProfile"))...)
 	// validate availability set and vmss
 	allErrs = append(allErrs, validateAvailabilityAndScalingConfig(properties, fldPath)...)
+	allErrs = append(allErrs, validateSecurityProfile(properties.SecurityProfile, fldPath.Child("securityProfile"))...)
+	return allErrs
+}
+
+func validateSecurityProfile(securityProfile *api.AzureSecurityProfile, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	if securityProfile == nil {
+		return allErrs
+	}
+
+	if st := securityProfile.SecurityType; !utils.IsNilOrEmptyStringPtr(st) {
+		validValues := stringTypesToString(armcompute.PossibleSecurityTypesValues())
+		if ok := isValidEnumString(*st, validValues); !ok {
+			allErrs = append(allErrs, field.NotSupported(fldPath.Child("securityType"), st, validValues))
+		}
+	}
+
 	return allErrs
 }
 
@@ -172,6 +190,16 @@ func validateOSDisk(osDisk api.AzureOSDisk, fldPath *field.Path) field.ErrorList
 	if osDisk.DiskSizeGB <= 0 {
 		allErrs = append(allErrs, field.Invalid(fldPath.Child("diskSizeGB"), osDisk.DiskSizeGB, "OSDisk size must be positive and greater than 0"))
 	}
+
+	if securityProfile := osDisk.ManagedDisk.SecurityProfile; securityProfile != nil {
+		if encryptionType := securityProfile.SecurityEncryptionType; !utils.IsNilOrEmptyStringPtr(encryptionType) {
+			validValues := stringTypesToString(armcompute.PossibleSecurityEncryptionTypesValues())
+			if ok := isValidEnumString(*encryptionType, validValues); !ok {
+				allErrs = append(allErrs, field.NotSupported(fldPath.Child("securityEncryptionType"), encryptionType, validValues))
+			}
+		}
+	}
+
 	return allErrs
 }
 
@@ -299,4 +327,22 @@ func exactlyOneShouldBeTrue(conditions ...bool) bool {
 		prevCondition = c || prevCondition
 	}
 	return prevCondition
+}
+
+func stringTypesToString[T ~string](validValues []T) []string {
+	res := make([]string, 0, len(validValues))
+	for _, validValue := range validValues {
+		res = append(res, string(validValue))
+	}
+	return res
+}
+
+func isValidEnumString(value string, validValues []string) bool {
+	for _, validValue := range validValues {
+		toStr := validValue
+		if value == toStr {
+			return true
+		}
+	}
+	return false
 }

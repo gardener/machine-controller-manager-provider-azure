@@ -16,24 +16,24 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
-	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api/validation"
-	"golang.org/x/crypto/ssh"
-	"k8s.io/utils/pointer"
-
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
-	accesshelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/driver"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
+
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
+	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
+	accesshelpers "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/helpers"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api/validation"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 // ExtractProviderSpecAndConnectConfig extracts api.AzureProviderSpec from mcc and access.ConnectConfig from secret.
@@ -428,24 +428,29 @@ func createNICTags(tags map[string]string) map[string]*string {
 // 4. If the agreement has not been accepted yet then it will accept the agreement and update the agreement. If that fails then it will return an error.
 func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
 	imgRef = getImageReference(providerSpec)
-	isMarketPlaceImage := providerSpec.Properties.StorageProfile.ImageReference.URN != nil
-	if isMarketPlaceImage {
-		var vmImage *armcompute.VirtualMachineImage
-		vmImage, err = getVirtualMachineImage(ctx, factory, connectConfig, providerSpec.Location, imgRef)
+
+	shouldCheckMarketplaceImage := providerSpec.Properties.StorageProfile.ImageReference.URN != nil && !providerSpec.Properties.StorageProfile.ImageReference.SkipMarketplaceAgreement
+
+	// skip checking agreement if this is not a Marketplace image or if we explicitly opt out from checking.
+	if !shouldCheckMarketplaceImage {
+		return
+	}
+
+	var vmImage *armcompute.VirtualMachineImage
+	vmImage, err = getVirtualMachineImage(ctx, factory, connectConfig, providerSpec.Location, imgRef)
+	if err != nil {
+		return
+	}
+	klog.Infof("Retrieved VM Image: [VMName: %s, ID: %s]", vmName, *vmImage.ID)
+	if vmImage.Properties != nil && vmImage.Properties.Plan != nil {
+		err = checkAndAcceptAgreementIfNotAccepted(ctx, factory, connectConfig, vmName, *vmImage)
 		if err != nil {
 			return
 		}
-		klog.Infof("Retrieved VM Image: [VMName: %s, ID: %s]", vmName, *vmImage.ID)
-		if vmImage.Properties != nil && vmImage.Properties.Plan != nil {
-			err = checkAndAcceptAgreementIfNotAccepted(ctx, factory, connectConfig, vmName, *vmImage)
-			if err != nil {
-				return
-			}
-			plan = &armcompute.Plan{
-				Name:      vmImage.Properties.Plan.Name,
-				Product:   vmImage.Properties.Plan.Product,
-				Publisher: vmImage.Properties.Plan.Publisher,
-			}
+		plan = &armcompute.Plan{
+			Name:      vmImage.Properties.Plan.Name,
+			Product:   vmImage.Properties.Plan.Product,
+			Publisher: vmImage.Properties.Plan.Publisher,
 		}
 	}
 	return imgRef, plan, nil
@@ -580,7 +585,7 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 		return armcompute.VirtualMachine{}, err
 	}
 
-	return armcompute.VirtualMachine{
+	vm := armcompute.VirtualMachine{
 		Location: to.Ptr(providerSpec.Location),
 		Plan:     plan,
 		Properties: &armcompute.VirtualMachineProperties{
@@ -629,7 +634,33 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 		Zones:    getZonesFromProviderSpec(providerSpec),
 		Name:     &vmName,
 		Identity: getVMIdentity(providerSpec.Properties.IdentityID),
-	}, nil
+	}
+
+	// Processing for CVMs
+	if securityProfile := providerSpec.Properties.SecurityProfile; securityProfile != nil {
+		vm.Properties.SecurityProfile = &armcompute.SecurityProfile{}
+		if securityProfile.SecurityType != nil {
+			securityType := armcompute.SecurityTypes(*securityProfile.SecurityType)
+			vm.Properties.SecurityProfile.SecurityType = &securityType
+		}
+
+		if uefiSettingsConf := securityProfile.UefiSettings; uefiSettingsConf != nil {
+			vm.Properties.SecurityProfile.UefiSettings = &armcompute.UefiSettings{
+				SecureBootEnabled: uefiSettingsConf.SecureBootEnabled,
+				VTpmEnabled:       uefiSettingsConf.VTpmEnabled,
+			}
+		}
+	}
+	if diskSecurityProfile := providerSpec.Properties.StorageProfile.OsDisk.ManagedDisk.SecurityProfile; diskSecurityProfile != nil {
+		if diskSecurityProfile.SecurityEncryptionType != nil {
+			securityEncryptionType := armcompute.SecurityEncryptionTypes(*diskSecurityProfile.SecurityEncryptionType)
+			vm.Properties.StorageProfile.OSDisk.ManagedDisk.SecurityProfile = &armcompute.VMDiskSecurityProfile{
+				SecurityEncryptionType: &securityEncryptionType,
+			}
+		}
+	}
+
+	return vm, nil
 }
 
 func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcompute.DataDisk {
@@ -644,6 +675,7 @@ func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcomput
 			caching = armcompute.CachingTypes(specDataDisk.Caching)
 		}
 		dataDisk := &armcompute.DataDisk{
+
 			CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),
 			Lun:          specDataDisk.Lun,
 			Caching:      to.Ptr(caching),

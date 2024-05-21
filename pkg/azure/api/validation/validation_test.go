@@ -8,8 +8,8 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
 	gomegatypes "github.com/onsi/gomega/types"
@@ -17,6 +17,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
 func TestValidateProviderSecret(t *testing.T) {
@@ -184,6 +188,34 @@ func TestValidateOSDisk(t *testing.T) {
 			api.AzureOSDisk{Name: "osdisk-0", DiskSizeGB: -10, CreateOption: "Create"}, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeInvalid), "Field": Equal("providerSpec.properties.storageProfile.osDisk.diskSizeGB")}))),
 		},
+		{
+			"should allow osDisk with security profile",
+			api.AzureOSDisk{
+				Name: "osdisk-0",
+				ManagedDisk: api.AzureManagedDiskParameters{
+					SecurityProfile: &api.AzureDiskSecurityProfile{
+						SecurityEncryptionType: ptr.To(string(armcompute.SecurityEncryptionTypesDiskWithVMGuestState)),
+					},
+				},
+				DiskSizeGB:   20,
+				CreateOption: "Create",
+			}, 0,
+			nil,
+		},
+		{
+			"should forbid osDisk with false security profile",
+			api.AzureOSDisk{
+				Name: "osdisk-0",
+				ManagedDisk: api.AzureManagedDiskParameters{
+					SecurityProfile: &api.AzureDiskSecurityProfile{
+						SecurityEncryptionType: ptr.To("foo"),
+					},
+				},
+				DiskSizeGB:   20,
+				CreateOption: "Create",
+			}, 1,
+			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeNotSupported), "Field": Equal("providerSpec.properties.storageProfile.osDisk.securityEncryptionType")}))),
+		},
 	}
 
 	g := NewWithT(t)
@@ -200,7 +232,7 @@ func TestValidateOSDisk(t *testing.T) {
 
 func TestValidateOSProfile(t *testing.T) {
 	fldPath := field.NewPath("providerSpec.properties.osProfile")
-	//AdminUserName is the only mandatory field and tests are only written to assert that.
+	// AdminUserName is the only mandatory field and tests are only written to assert that.
 	table := []struct {
 		description    string
 		adminUserName  string
@@ -441,6 +473,40 @@ func TestValidateStorageImageRef(t *testing.T) {
 				g.Expect(errList).To(entry.matcher)
 			}
 		})
+	}
+}
+
+func TestValidateSecurityProfile(t *testing.T) {
+	fldPath := field.NewPath("providerSpec.properties.securityProfile")
+	table := []struct {
+		secProf        *api.AzureSecurityProfile
+		expectedErrors int
+		matcher        gomegatypes.GomegaMatcher
+	}{
+		{
+			secProf: nil,
+		},
+		{
+			secProf: &api.AzureSecurityProfile{
+				SecurityType: ptr.To("foo"),
+			},
+			expectedErrors: 1,
+			matcher:        ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeNotSupported), "Field": Equal("providerSpec.properties.securityProfile.securityType")}))),
+		},
+		{
+			secProf: &api.AzureSecurityProfile{
+				SecurityType: to.Ptr(string(armcompute.SecurityTypesConfidentialVM)),
+			},
+		},
+	}
+
+	g := NewWithT(t)
+	for _, entry := range table {
+		errList := validateSecurityProfile(entry.secProf, fldPath)
+		g.Expect(errList).To(HaveLen(entry.expectedErrors))
+		if entry.matcher != nil {
+			g.Expect(errList).To(entry.matcher)
+		}
 	}
 }
 
