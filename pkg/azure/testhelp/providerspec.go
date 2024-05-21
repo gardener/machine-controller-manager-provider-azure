@@ -88,7 +88,7 @@ func (b *ProviderSpecBuilder) WithDefaultHardwareProfile() *ProviderSpecBuilder 
 }
 
 // WithStorageProfile sets a default storage profile in the provider spec.
-func (b *ProviderSpecBuilder) WithStorageProfile(skipMarketplaceAgreement bool) *ProviderSpecBuilder {
+func (b *ProviderSpecBuilder) WithStorageProfile(skipMarketplaceAgreement bool, securityEncryption *string) *ProviderSpecBuilder {
 	b.spec.Properties.StorageProfile.ImageReference = api.AzureImageReference{
 		URN:                      to.Ptr(DefaultImageRefURN),
 		SkipMarketplaceAgreement: skipMarketplaceAgreement,
@@ -97,6 +97,9 @@ func (b *ProviderSpecBuilder) WithStorageProfile(skipMarketplaceAgreement bool) 
 		Caching: "None",
 		ManagedDisk: api.AzureManagedDiskParameters{
 			StorageAccountType: StorageAccountType,
+			SecurityProfile: &api.AzureDiskSecurityProfile{
+				SecurityEncryptionType: securityEncryption,
+			},
 		},
 		DiskSizeGB:   50,
 		CreateOption: "FromImage",
@@ -134,6 +137,12 @@ func (b *ProviderSpecBuilder) WithDataDisks(diskName string, numDisks int) *Prov
 		dataDisks = append(dataDisks, d)
 	}
 	b.spec.Properties.StorageProfile.DataDisks = dataDisks
+	return b
+}
+
+// WithSecurityProfile configures the security profile for the VM.
+func (b *ProviderSpecBuilder) WithSecurityProfile(sec *api.AzureSecurityProfile) *ProviderSpecBuilder {
+	b.spec.Properties.SecurityProfile = sec
 	return b
 }
 

@@ -21,8 +21,10 @@ import (
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/provider/helpers"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp/fakes"
@@ -1177,25 +1179,46 @@ func TestCreateMachineWhenNICOrVMCreationFails(t *testing.T) {
 }
 
 func TestSuccessfulCreationOfMachine(t *testing.T) {
-	providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).
-		WithDefaultValues().
-		WithDataDisks(testDataDiskName, 2)
-	providerSpec := providerSpecBuilder.Build()
 
 	table := []struct {
 		description      string
 		withPurchasePlan bool
+		builder          *testhelp.ProviderSpecBuilder
+
+		vmImageAccess *fakes.APIBehaviorSpec
 	}{
 		{description: "should create machine successfully if purchase plan is present", withPurchasePlan: true},
 		{description: "should create machine successfully if purchase plan is not present", withPurchasePlan: false},
+		{description: "should create machine successfully with security profile", withPurchasePlan: false,
+			builder: testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).
+				WithDefaultValues().
+				WithSecurityProfile(
+					&api.AzureSecurityProfile{
+						SecurityType: ptr.To(string(armcompute.SecurityTypesConfidentialVM)),
+					}).
+				WithStorageProfile(false, ptr.To(string(armcompute.SecurityEncryptionTypesDiskWithVMGuestState))),
+		},
+		{description: "should create machine successfully with skipMarketplaceAgreement", withPurchasePlan: false,
+			builder: testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).
+				WithDefaultValues().
+				WithStorageProfile(true, nil),
+			vmImageAccess: fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(utils.VMImageResourceType, testhelp.AccessMethodGet, fmt.Errorf("not found")),
+		},
 	}
 
 	g := NewWithT(t)
 	for _, entry := range table {
+		providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).
+			WithDefaultValues().
+			WithDataDisks(testDataDiskName, 2)
 		t.Run(entry.description, func(t *testing.T) {
 			// initialize cluster state
 			// ----------------------------------------------------------------------------
 			// create cluster state
+			if entry.builder != nil {
+				providerSpecBuilder = entry.builder
+			}
+			providerSpec := providerSpecBuilder.Build()
 
 			clusterState := fakes.NewClusterState(providerSpec)
 			publisher, offer, sku, version := fakes.GetDefaultVMImageParts()
@@ -1208,7 +1231,7 @@ func TestSuccessfulCreationOfMachine(t *testing.T) {
 			}
 			clusterState.WithVMImageSpec(vmImageSpec).WithAgreementTerms(true).WithSubnet(providerSpec.ResourceGroup, fakes.CreateSubnetName(testShootNs), testShootNs)
 			// create fake factory
-			fakeFactory := createFakeFactoryForCreateMachineWithAPIBehaviorSpecs(g, providerSpec.ResourceGroup, clusterState, nil, nil, nil, nil, nil)
+			fakeFactory := createFakeFactoryForCreateMachineWithAPIBehaviorSpecs(g, providerSpec.ResourceGroup, clusterState, nil, nil, nil, entry.vmImageAccess, nil)
 			// Create machine and machine class to be used to create DeleteMachineRequest
 			machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
 			const vmName = "vm-0"
@@ -1234,51 +1257,6 @@ func TestSuccessfulCreationOfMachine(t *testing.T) {
 			g.Expect(resp.ProviderID).To(Equal(expectedProviderID))
 		})
 	}
-}
-
-func TestCreationOfMachineWitSkipMarketplaceAgreement(t *testing.T) {
-	providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().WithStorageProfile(true)
-	providerSpec := providerSpecBuilder.Build()
-
-	g := NewWithT(t)
-
-	// initialize cluster state
-	// ----------------------------------------------------------------------------
-	// create cluster state
-	clusterState := fakes.NewClusterState(providerSpec)
-	publisher, offer, sku, version := fakes.GetDefaultVMImageParts()
-	vmImageSpec := fakes.VMImageSpec{
-		Publisher: publisher,
-		Offer:     offer,
-		SKU:       sku,
-		Version:   version,
-	}
-	clusterState.WithVMImageSpec(vmImageSpec).WithAgreementTerms(true).WithSubnet(providerSpec.ResourceGroup, fakes.CreateSubnetName(testShootNs), testShootNs)
-	// create fake factory
-	fakeFactory := createFakeFactoryForCreateMachineWithAPIBehaviorSpecs(g, providerSpec.ResourceGroup, clusterState, nil, nil, nil, fakes.NewAPIBehaviorSpec().AddErrorResourceTypeReaction(utils.VMImageResourceType, testhelp.AccessMethodGet, fmt.Errorf("not found")), nil)
-	// Create machine and machine class to be used to create DeleteMachineRequest
-	machineClass, err := fakes.CreateMachineClass(providerSpec, to.Ptr(testResourceGroupName))
-	const vmName = "vm-0"
-	g.Expect(err).To(BeNil())
-	ctx := context.Background()
-	machine := &v1alpha1.Machine{
-		ObjectMeta: fakes.NewMachineObjectMeta(testShootNs, vmName),
-	}
-	dataDiskNames := testhelp.CreateDataDiskNames(vmName, providerSpec)
-
-	// Test
-	// ----------------------------------------------------------------------------
-	testDriver := NewDefaultDriver(fakeFactory)
-	resp, err := testDriver.CreateMachine(ctx, &driver.CreateMachineRequest{
-		Machine:      machine,
-		MachineClass: machineClass,
-		Secret:       fakes.CreateProviderSecret(),
-	})
-	g.Expect(err).To(BeNil())
-	checkClusterStateAndGetMachineResources(g, ctx, *fakeFactory, vmName, true, true, true, dataDiskNames, true, true)
-	g.Expect(resp.NodeName).To(Equal(vmName))
-	expectedProviderID := helpers.DeriveInstanceID(providerSpec.Location, vmName)
-	g.Expect(resp.ProviderID).To(Equal(expectedProviderID))
 }
 
 // unit test helper functions
