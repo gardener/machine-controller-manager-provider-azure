@@ -188,6 +188,34 @@ func TestValidateOSDisk(t *testing.T) {
 			api.AzureOSDisk{Name: "osdisk-0", DiskSizeGB: -10, CreateOption: "Create"}, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeInvalid), "Field": Equal("providerSpec.properties.storageProfile.osDisk.diskSizeGB")}))),
 		},
+		{
+			"should allow osDisk with security profile",
+			api.AzureOSDisk{
+				Name: "osdisk-0",
+				ManagedDisk: api.AzureManagedDiskParameters{
+					SecurityProfile: &api.AzureDiskSecurityProfile{
+						SecurityEncryptionType: ptr.To(string(armcompute.SecurityEncryptionTypesDiskWithVMGuestState)),
+					},
+				},
+				DiskSizeGB:   20,
+				CreateOption: "Create",
+			}, 0,
+			nil,
+		},
+		{
+			"should forbid osDisk with false security profile",
+			api.AzureOSDisk{
+				Name: "osdisk-0",
+				ManagedDisk: api.AzureManagedDiskParameters{
+					SecurityProfile: &api.AzureDiskSecurityProfile{
+						SecurityEncryptionType: ptr.To("foo"),
+					},
+				},
+				DiskSizeGB:   20,
+				CreateOption: "Create",
+			}, 1,
+			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeNotSupported), "Field": Equal("providerSpec.properties.storageProfile.osDisk.securityEncryptionType")}))),
+		},
 	}
 
 	g := NewWithT(t)
