@@ -69,6 +69,8 @@ type AzureProviderSpec struct {
 	ResourceGroup string `json:"resourceGroup,omitempty"`
 	// SubnetInfo contains the configuration for an existing subnet.
 	SubnetInfo AzureSubnetInfo `json:"subnetInfo,omitempty"`
+	// CloudConfiguration contains config that controls which cloud to connect to
+	CloudConfiguration *CloudConfiguration `json:"cloudConfiguration,omitempty"`
 }
 
 // AzureVirtualMachineProperties describes the properties of a Virtual Machine.
@@ -308,4 +310,11 @@ type AzureDiagnosticsProfile struct {
 	// StorageURI is the URI of the storage account to use for storing console output and screenshot.
 	// If not specified azure managed storage will be used.
 	StorageURI *string `json:"storageURI,omitempty"`
+}
+
+// CloudConfiguration contains detailed config for the cloud to connect to. Currently we only support selection of well-
+// known Azure-instances by name, but this could be extended in future to support private clouds.
+type CloudConfiguration struct {
+	// Name is the name of the cloud to connect to, e.g. "AzurePublic" or "AzureChina".
+	Name string `json:"name,omitempty"`
 }

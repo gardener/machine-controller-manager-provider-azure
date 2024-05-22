@@ -5,6 +5,7 @@
 package access
 
 import (
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/marketplaceordering/armmarketplaceordering"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
@@ -22,6 +23,8 @@ type ConnectConfig struct {
 	ClientID string
 	// ClientSecret is a certificate issues for the ClientID.
 	ClientSecret string
+	// ClientOptions are the options to use when connecting with clients.
+	ClientOptions policy.ClientOptions
 }
 
 // Factory is an access factory providing methods to get facade/access for different resources.
