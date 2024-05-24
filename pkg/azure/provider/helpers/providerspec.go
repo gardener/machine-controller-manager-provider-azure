@@ -22,11 +22,11 @@ func ExtractCloudConfiguration(spec *api.AzureProviderSpec) (cloud.Configuration
 
 	cloudConfigurationName := spec.CloudConfiguration.Name
 	switch {
-	case strings.EqualFold(cloudConfigurationName, "AzurePublic"):
+	case strings.EqualFold(cloudConfigurationName, api.AzurePublicCloudName):
 		return cloud.AzurePublic, nil
-	case strings.EqualFold(cloudConfigurationName, "AzureGovernment"):
+	case strings.EqualFold(cloudConfigurationName, api.AzureGovCloudName):
 		return cloud.AzureGovernment, nil
-	case strings.EqualFold(cloudConfigurationName, "AzureChina"):
+	case strings.EqualFold(cloudConfigurationName, api.AzureChinaCloudName):
 		return cloud.AzureChina, nil
 
 	default:

@@ -9,6 +9,7 @@ package validation
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
@@ -50,6 +51,10 @@ func ValidateProviderSpec(spec api.AzureProviderSpec) field.ErrorList {
 	allErrs = append(allErrs, validateSubnetInfo(spec.SubnetInfo, specPath.Child("subnetInfo"))...)
 	allErrs = append(allErrs, validateProperties(spec.Properties, specPath.Child("properties"))...)
 	allErrs = append(allErrs, validateTags(spec.Tags, specPath.Child("tags"))...)
+
+	if spec.CloudConfiguration != nil {
+		allErrs = append(allErrs, validateCloudConfiguration(*spec.CloudConfiguration, specPath.Child("cloudConfiguration"))...)
+	}
 
 	return allErrs
 }
@@ -118,6 +123,17 @@ func validateProperties(properties api.AzureVirtualMachineProperties, fldPath *f
 	// validate availability set and vmss
 	allErrs = append(allErrs, validateAvailabilityAndScalingConfig(properties, fldPath)...)
 	allErrs = append(allErrs, validateSecurityProfile(properties.SecurityProfile, fldPath.Child("securityProfile"))...)
+	return allErrs
+}
+
+func validateCloudConfiguration(cloudConfiguration api.CloudConfiguration, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+	knownCloudInstances := []string{api.AzurePublicCloudName, api.AzureChinaCloudName, api.AzureGovCloudName}
+
+	if cloudName := cloudConfiguration.Name; !slices.Contains(knownCloudInstances, cloudName) {
+		allErrs = append(allErrs, field.NotSupported(fldPath.Child("name"), cloudName, knownCloudInstances))
+	}
+
 	return allErrs
 }
 

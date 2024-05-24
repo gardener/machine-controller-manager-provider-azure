@@ -312,6 +312,13 @@ type AzureDiagnosticsProfile struct {
 	StorageURI *string `json:"storageURI,omitempty"`
 }
 
+// The (currently) supported values for the names of clouds to use in the CloudConfiguration.
+const (
+	AzureChinaCloudName  string = "AzureChina"
+	AzureGovCloudName    string = "AzureGovernment"
+	AzurePublicCloudName string = "AzurePublic"
+)
+
 // CloudConfiguration contains detailed config for the cloud to connect to. Currently we only support selection of well-
 // known Azure-instances by name, but this could be extended in future to support private clouds.
 type CloudConfiguration struct {
