@@ -671,7 +671,7 @@ func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcomput
 	for _, specDataDisk := range specDataDisks {
 		dataDiskName := utils.CreateDataDiskName(vmName, specDataDisk)
 		caching := armcompute.CachingTypesNone
-		if utils.IsEmptyString(specDataDisk.Caching) {
+		if !utils.IsEmptyString(specDataDisk.Caching) {
 			caching = armcompute.CachingTypes(specDataDisk.Caching)
 		}
 		dataDisk := &armcompute.DataDisk{
