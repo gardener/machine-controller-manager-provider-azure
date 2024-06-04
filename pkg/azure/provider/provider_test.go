@@ -169,8 +169,8 @@ func TestDeleteMachineWhenDataDiskIsAttachedAfterVMCreation(t *testing.T) {
 	)
 
 	checkClusterStateFn := func(g *WithT, ctx context.Context, factory fakes.Factory, vmName string, dataDiskNames []string) {
-		checkClusterStateAndGetMachineResources(g, ctx, factory, vmName, false, false, false, dataDiskNames, false, true)
-		checkAndGetDataDisks(g, ctx, factory, []string{diskNameToAttachOnExistingVM}, true, false)
+		checkClusterStateAndGetMachineResources(ctx, g, factory, vmName, false, false, false, dataDiskNames, false, true)
+		checkAndGetDataDisks(ctx, g, factory, []string{diskNameToAttachOnExistingVM}, true, false)
 	}
 
 	g := NewWithT(t)
@@ -220,7 +220,6 @@ func TestDeleteMachineWhenDataDiskIsAttachedAfterVMCreation(t *testing.T) {
 
 	var dataDiskNames []string
 	if !utils.IsSliceNilOrEmpty(providerSpec.Properties.StorageProfile.DataDisks) {
-		dataDiskNames = make([]string, 0, len(providerSpec.Properties.StorageProfile.DataDisks))
 		dataDiskNames = testhelp.CreateDataDiskNames(vmName, providerSpec)
 	}
 	// evaluate cluster state post delete machine operation
