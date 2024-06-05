@@ -574,7 +574,7 @@ func CreateDisksWithImageRef(ctx context.Context, factory access.Factory, connec
 	}
 
 	for _, specDataDisk := range specDataDisks {
-		if isDataDiskWithImageRef(specDataDisk) {
+		if !isDataDiskWithImageRef(specDataDisk) {
 			continue
 		}
 		diskCreationParams := createDiskCreationParams(specDataDisk, providerSpec)
