@@ -6,6 +6,8 @@ package helpers
 
 import (
 	"context"
+	"time"
+
 	"k8s.io/klog/v2"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
@@ -17,6 +19,10 @@ import (
 
 const (
 	diskDeleteServiceLabel = "disk_delete"
+	diskCreateServiceLabel = "disk_create"
+	diskAttachServiceLabel = "disk_attach"
+
+	defaultDiskOperationTimeout = 10 * time.Minute
 )
 
 // DeleteDisk deletes disk for passed in resourceGroup and diskName.
@@ -36,5 +42,47 @@ func DeleteDisk(ctx context.Context, client *armcompute.DisksClient, resourceGro
 		errors.LogAzAPIError(err, "Polling failed while waiting for Deleting for [resourceGroup: %s, Name: %s]", diskName, resourceGroup)
 	}
 	klog.Infof("Successfully deleted Disk: %s, for ResourceGroup: %s", diskName, resourceGroup)
+	return
+}
+
+// CreateImageRefDisk creates a Disk given a resourceGroup and disk creation parameters.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
+func CreateImageRefDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string, diskCreationParams armcompute.Disk) (disk *armcompute.Disk, err error) {
+	defer instrument.AZAPIMetricRecorderFn(diskCreateServiceLabel, &err)()
+
+	createCtx, cancelFn := context.WithTimeout(ctx, defaultDiskOperationTimeout)
+	defer cancelFn()
+	poller, err := client.BeginCreateOrUpdate(createCtx, resourceGroup, diskName, diskCreationParams, nil)
+	if err != nil {
+		errors.LogAzAPIError(err, "Failed to trigger create of Disk [Name: %s, ResourceGroup: %s]", resourceGroup, diskName)
+		return
+	}
+	createResp, err := poller.PollUntilDone(createCtx, nil)
+	if err != nil {
+		errors.LogAzAPIError(err, "Polling failed while waiting for create of Disk: %s for ResourceGroup: %s", diskName, resourceGroup)
+		return
+	}
+	disk = &createResp.Disk
+	return
+}
+
+// AttachDataDisks attaches a Disk given a resourceGroup and virtual machine creation parameters.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
+func AttachDataDisks(ctx context.Context, client *armcompute.VirtualMachinesClient, attachParameters armcompute.AttachDetachDataDisksRequest, resourceGroup, vmName string) (disks []*armcompute.DataDisk, err error) {
+	defer instrument.AZAPIMetricRecorderFn(diskAttachServiceLabel, &err)()
+
+	attachCtx, cancelFn := context.WithTimeout(ctx, defaultDiskOperationTimeout)
+	defer cancelFn()
+	poller, err := client.BeginAttachDetachDataDisks(attachCtx, resourceGroup, vmName, attachParameters, nil)
+	if err != nil {
+		errors.LogAzAPIError(err, "Failed to attach Disks [ResourceGroup: %s, VM: %s]", resourceGroup, vmName)
+		return
+	}
+	createResp, err := poller.PollUntilDone(attachCtx, nil)
+	if err != nil {
+		errors.LogAzAPIError(err, "Polling failed while waiting for attaching of Disks to VM: %s for ResourceGroup: %s ", vmName, resourceGroup)
+		return
+	}
+	disks = createResp.DataDisks
 	return
 }

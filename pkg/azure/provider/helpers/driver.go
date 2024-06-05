@@ -126,7 +126,7 @@ func createDataDiskNames(providerSpec api.AzureProviderSpec, vmName string) []st
 	dataDisks := providerSpec.Properties.StorageProfile.DataDisks
 	diskNames := make([]string, 0, len(dataDisks))
 	for _, disk := range dataDisks {
-		diskName := utils.CreateDataDiskName(vmName, disk)
+		diskName := utils.CreateDataDiskName(vmName, disk.Name, *disk.Lun)
 		diskNames = append(diskNames, diskName)
 	}
 	return diskNames
@@ -552,6 +552,112 @@ func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.
 	return vm, nil
 }
 
+type ImageRefDisk struct {
+	Disk         *armcompute.Disk
+	Lun          *int32
+	Caching      *armcompute.CachingTypes
+	DeleteOption *armcompute.DiskDeleteOptionTypes
+}
+
+// CreateDisksWithImageRef creates a disk with CreationData (e.g. ImageReference or GalleryImageReference)
+func CreateDisksWithImageRef(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) ([]*ImageRefDisk, error) {
+	disksAccess, err := factory.GetDisksAccess(connectConfig)
+	if err != nil {
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create disk access for VM: [ResourceGroup: %s], Err: %v", providerSpec.ResourceGroup, err), err)
+	}
+
+	var disks []*ImageRefDisk
+	specDataDisks := providerSpec.Properties.StorageProfile.DataDisks
+	if utils.IsSliceNilOrEmpty(specDataDisks) {
+		return disks, nil
+	}
+
+	for _, specDataDisk := range specDataDisks {
+		if isDataDiskWithImageRef(specDataDisk) {
+			continue
+		}
+		diskCreationParams := createDiskCreationParams(specDataDisk, providerSpec)
+		diskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, *specDataDisk.Lun)
+		disk, err := accesshelpers.CreateImageRefDisk(ctx, disksAccess, providerSpec.ResourceGroup, diskName, diskCreationParams)
+		if err != nil {
+			errCode := accesserrors.GetMatchingErrorCode(err)
+			return nil, status.WrapError(errCode, fmt.Sprintf("Failed to create Disk: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, diskName, err), err)
+		}
+		caching := armcompute.CachingTypesNone
+		if !utils.IsEmptyString(specDataDisk.Caching) {
+			caching = armcompute.CachingTypes(specDataDisk.Caching)
+		}
+		imageRefDisk := &ImageRefDisk{
+			Disk:         disk,
+			Lun:          specDataDisk.Lun,
+			Caching:      to.Ptr(caching),
+			DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
+		}
+		disks = append(disks, imageRefDisk)
+		klog.Infof("Successfully created Disk: [ResourceGroup: %s, Name: %s]", providerSpec.ResourceGroup, specDataDisk.Name)
+	}
+
+	return disks, nil
+}
+
+func isDataDiskWithImageRef(dataDisk api.AzureDataDisk) bool {
+	if dataDisk.ImageRef == nil {
+		return false
+	}
+	return true
+}
+
+func createDiskCreationParams(specDataDisk api.AzureDataDisk, providerSpec api.AzureProviderSpec) armcompute.Disk {
+	diskCreationParams := armcompute.Disk{
+		Location: to.Ptr(providerSpec.Location),
+		Properties: &armcompute.DiskProperties{
+			CreationData: &armcompute.CreationData{
+				CreateOption: to.Ptr(armcompute.DiskCreateOptionFromImage),
+				GalleryImageReference: &armcompute.ImageDiskReference{
+					CommunityGalleryImageID: specDataDisk.ImageRef.CommunityGalleryImageID,
+					SharedGalleryImageID:    specDataDisk.ImageRef.SharedGalleryImageID,
+				},
+				ImageReference: &armcompute.ImageDiskReference{
+					// ID: specDataDisk.ImageRef.URN // TODO calculate from URN
+				},
+			},
+			DiskSizeGB: to.Ptr[int32](specDataDisk.DiskSizeGB),
+			OSType:     to.Ptr(armcompute.OperatingSystemTypesLinux),
+		},
+		SKU: &armcompute.DiskSKU{
+			Name: to.Ptr(armcompute.DiskStorageAccountTypes(specDataDisk.StorageAccountType)),
+		},
+		Tags:  utils.CreateResourceTags(providerSpec.Tags),
+		Zones: getZonesFromProviderSpec(providerSpec),
+		Name:  to.Ptr(specDataDisk.Name),
+	}
+	return diskCreationParams
+}
+
+func AttachDataDisks(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, resourceGroup, vmName string, disks []*ImageRefDisk) ([]*armcompute.DataDisk, error) {
+	vmAccess, err := factory.GetVirtualMachinesAccess(connectConfig)
+	if err != nil {
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create vm access to attach disk: [Vm: %s, ResourceGroup: %s], Err: %v", vmName, resourceGroup, err), err)
+	}
+
+	var attachParams armcompute.AttachDetachDataDisksRequest
+	for _, disk := range disks {
+		toAttach := &armcompute.DataDisksToAttach{
+			DiskID:       disk.Disk.ID,
+			Caching:      disk.Caching,
+			DeleteOption: disk.DeleteOption,
+			Lun:          disk.Lun,
+		}
+		attachParams.DataDisksToAttach = append(attachParams.DataDisksToAttach, toAttach)
+	}
+	attachedDataDisks, err := accesshelpers.AttachDataDisks(ctx, vmAccess, attachParams, resourceGroup, vmName)
+	if err != nil {
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to attach disks for VM: [VmName: %s, ResourceGroup: %s], Err: %v", vmName, resourceGroup, err), err)
+	}
+
+	return attachedDataDisks, nil
+}
+
 // LogVMCreation is a convenience method which helps to extract relevant details from the created virtual machine and logs it.
 // Today the azure create VM call is atomic only w.r.t creation of VM, OSDisk, DataDisk(s). NIC still has to be created prior to creation of the VM.
 // Therefore, this method produces a log which also prints the OSDisk, DataDisks that are created (which helps in traceability). For completeness it
@@ -669,13 +775,15 @@ func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcomput
 		return dataDisks
 	}
 	for _, specDataDisk := range specDataDisks {
-		dataDiskName := utils.CreateDataDiskName(vmName, specDataDisk)
+		if isDataDiskWithImageRef(specDataDisk) {
+			continue
+		}
+		dataDiskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, *specDataDisk.Lun)
 		caching := armcompute.CachingTypesNone
 		if !utils.IsEmptyString(specDataDisk.Caching) {
 			caching = armcompute.CachingTypes(specDataDisk.Caching)
 		}
 		dataDisk := &armcompute.DataDisk{
-
 			CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),
 			Lun:          specDataDisk.Lun,
 			Caching:      to.Ptr(caching),

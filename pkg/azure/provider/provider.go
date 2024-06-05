@@ -69,6 +69,7 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 	if err != nil {
 		return
 	}
+
 	subnet, err := helpers.GetSubnet(ctx, d.factory, connectConfig, providerSpec)
 	if err != nil {
 		return
@@ -79,10 +80,24 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 		return
 	}
 
+	// create disks with image ref since they can not be created as vm data disk
+	// TODO parallelize creation?
+	imageRefDisks, err := helpers.CreateDisksWithImageRef(ctx, d.factory, connectConfig, providerSpec, vmName)
+	if err != nil {
+		return
+	}
+
 	vm, err := helpers.CreateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, plan, req.Secret, nicID, vmName)
 	if err != nil {
 		return
 	}
+
+	// attach imageRefDisks to vm
+	_, err = helpers.AttachDataDisks(ctx, d.factory, connectConfig, providerSpec.ResourceGroup, vmName, imageRefDisks)
+	if err != nil {
+		return
+	}
+
 	resp = helpers.ConstructCreateMachineResponse(providerSpec.Location, vmName)
 	helpers.LogVMCreation(providerSpec.Location, providerSpec.ResourceGroup, vm)
 	return
@@ -140,17 +155,15 @@ func (d defaultDriver) DeleteMachine(ctx context.Context, req *driver.DeleteMach
 			if err = helpers.UpdateCascadeDeleteOptions(ctx, providerSpec, vmAccess, resourceGroup, vm); err != nil {
 				return
 			}
-			if err = helpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName); err != nil {
-				return
-			}
 		} else {
 			klog.Infof("Cannot update VM: [ResourceGroup: %s, Name: %s]. Either the VM has provisionState set to Failed or there are one or more data disks that are marked for detachment, update call to this VM will fail and therefore skipped. Will now delete the VM and all its associated resources.", resourceGroup, vmName)
-			if err = helpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName); err != nil {
-				return
-			}
-			if err = helpers.CheckAndDeleteLeftoverNICsAndDisks(ctx, d.factory, vmName, connectConfig, providerSpec); err != nil {
-				return
-			}
+		}
+		if err = helpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName); err != nil {
+			return
+		}
+		// We always need to check for leftover disks in case disk attach failed
+		if err = helpers.CheckAndDeleteLeftoverNICsAndDisks(ctx, d.factory, vmName, connectConfig, providerSpec); err != nil {
+			return
 		}
 		klog.Infof("Successfully deleted all Machine resources[VM, NIC, Disks] for [ResourceGroup: %s, VMName: %s]", providerSpec.ResourceGroup, vmName)
 	}
