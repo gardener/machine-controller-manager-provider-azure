@@ -9,8 +9,6 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
-	"k8s.io/utils/pointer"
-
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
@@ -129,7 +127,7 @@ func (b *ProviderSpecBuilder) WithDataDisks(diskName string, numDisks int) *Prov
 	for i := 0; i < numDisks; i++ {
 		d := api.AzureDataDisk{
 			Name:               diskName,
-			Lun:                pointer.Int32(int32(i)),
+			Lun:                int32(i),
 			Caching:            "None",
 			StorageAccountType: StorageAccountType,
 			DiskSizeGB:         20,
@@ -193,7 +191,7 @@ func (b *ProviderSpecBuilder) Build() api.AzureProviderSpec {
 func CreateDataDiskNames(vmName string, spec api.AzureProviderSpec) []string {
 	var diskNames []string
 	for _, specDataDisk := range spec.Properties.StorageProfile.DataDisks {
-		diskNames = append(diskNames, utils.CreateDataDiskName(vmName, specDataDisk.Name, *specDataDisk.Lun))
+		diskNames = append(diskNames, utils.CreateDataDiskName(vmName, specDataDisk.Name, specDataDisk.Lun))
 	}
 	return diskNames
 }

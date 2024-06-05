@@ -10,7 +10,6 @@ import (
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	. "github.com/onsi/gomega"
-	"k8s.io/utils/pointer"
 )
 
 const vmName = "shoot--test-project-z1-4567c-xj5sq"
@@ -45,10 +44,10 @@ func TestCreateDataDiskName(t *testing.T) {
 		t.Run(entry.description, func(t *testing.T) {
 			dataDisk := api.AzureDataDisk{
 				Name:       entry.dataDiskName,
-				Lun:        pointer.Int32(entry.lun),
+				Lun:        entry.lun,
 				DiskSizeGB: 10,
 			}
-			g.Expect(CreateDataDiskName(vmName, dataDisk.Name, *dataDisk.Lun)).To(Equal(entry.expectedDataDiskName))
+			g.Expect(CreateDataDiskName(vmName, dataDisk.Name, dataDisk.Lun)).To(Equal(entry.expectedDataDiskName))
 		})
 	}
 }

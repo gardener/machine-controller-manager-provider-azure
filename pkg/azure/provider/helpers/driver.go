@@ -126,7 +126,7 @@ func createDataDiskNames(providerSpec api.AzureProviderSpec, vmName string) []st
 	dataDisks := providerSpec.Properties.StorageProfile.DataDisks
 	diskNames := make([]string, 0, len(dataDisks))
 	for _, disk := range dataDisks {
-		diskName := utils.CreateDataDiskName(vmName, disk.Name, *disk.Lun)
+		diskName := utils.CreateDataDiskName(vmName, disk.Name, disk.Lun)
 		diskNames = append(diskNames, diskName)
 	}
 	return diskNames
@@ -578,7 +578,7 @@ func CreateDisksWithImageRef(ctx context.Context, factory access.Factory, connec
 			continue
 		}
 		diskCreationParams := createDiskCreationParams(specDataDisk, providerSpec)
-		diskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, *specDataDisk.Lun)
+		diskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, specDataDisk.Lun)
 		disk, err := accesshelpers.CreateDisk(ctx, disksAccess, providerSpec.ResourceGroup, diskName, diskCreationParams)
 		if err != nil {
 			errCode := accesserrors.GetMatchingErrorCode(err)
@@ -590,7 +590,7 @@ func CreateDisksWithImageRef(ctx context.Context, factory access.Factory, connec
 		}
 		imageRefDisk := &ImageRefDisk{
 			Disk:         disk,
-			Lun:          specDataDisk.Lun,
+			Lun:          to.Ptr(specDataDisk.Lun),
 			Caching:      to.Ptr(caching),
 			DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
 		}
@@ -780,14 +780,14 @@ func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcomput
 		if isDataDiskWithImageRef(specDataDisk) {
 			continue
 		}
-		dataDiskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, *specDataDisk.Lun)
+		dataDiskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, specDataDisk.Lun)
 		caching := armcompute.CachingTypesNone
 		if !utils.IsEmptyString(specDataDisk.Caching) {
 			caching = armcompute.CachingTypes(specDataDisk.Caching)
 		}
 		dataDisk := &armcompute.DataDisk{
 			CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),
-			Lun:          specDataDisk.Lun,
+			Lun:          to.Ptr(specDataDisk.Lun),
 			Caching:      to.Ptr(caching),
 			DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
 			DiskSizeGB:   pointer.Int32(specDataDisk.DiskSizeGB),
