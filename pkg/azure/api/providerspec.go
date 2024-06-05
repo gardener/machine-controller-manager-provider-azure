@@ -319,6 +319,12 @@ const (
 	AzurePublicCloudName string = "AzurePublic"
 )
 
+// The known prefixes in of region names for the various instances.
+var (
+	AzureGovRegionPrefixes   = []string{"usgov", "usdod", "ussec"}
+	AzureChinaRegionPrefixes = []string{"china"}
+)
+
 // CloudConfiguration contains detailed config for the cloud to connect to. Currently we only support selection of well-
 // known Azure-instances by name, but this could be extended in future to support private clouds.
 type CloudConfiguration struct {

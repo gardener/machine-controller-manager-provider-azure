@@ -13,23 +13,49 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 )
 
-// ExtractCloudConfiguration retrieves the name of the cloud instance to connect to from the AzureProviderSpec
-// and returns the corresponding azure cloud Configuration.
-func ExtractCloudConfiguration(spec *api.AzureProviderSpec) (cloud.Configuration, error) {
-	if spec.CloudConfiguration == nil {
+// DetermineCloudConfiguration returns the Azure cloud.Configuration corresponding to the instance given by the provided input. If both cloudConfiguration and
+// region are provided, cloudConfiguration takes precedence.
+func DetermineCloudConfiguration(cloudConfiguration *api.CloudConfiguration, region *string) (cloud.Configuration, error) {
+
+	if cloudConfiguration != nil {
+		cloudConfigurationName := cloudConfiguration.Name
+		switch {
+		case strings.EqualFold(cloudConfigurationName, api.AzurePublicCloudName):
+			return cloud.AzurePublic, nil
+		case strings.EqualFold(cloudConfigurationName, api.AzureGovCloudName):
+			return cloud.AzureGovernment, nil
+		case strings.EqualFold(cloudConfigurationName, api.AzureChinaCloudName):
+			return cloud.AzureChina, nil
+
+		default:
+			return cloud.Configuration{}, fmt.Errorf("unknown cloud configuration name '%s'", cloudConfigurationName)
+		}
+	} else if region != nil {
+		return cloudConfigurationFromRegion(*region), nil
+	} else {
+		// Fallback, this case should only occur during testing as we expect the region to always be given in an actual live scenario.
 		return cloud.AzurePublic, nil
 	}
+}
 
-	cloudConfigurationName := spec.CloudConfiguration.Name
+// cloudConfigurationFromRegion returns a matching cloudConfiguration corresponding to a well known cloud instance for the given region
+func cloudConfigurationFromRegion(region string) cloud.Configuration {
 	switch {
-	case strings.EqualFold(cloudConfigurationName, api.AzurePublicCloudName):
-		return cloud.AzurePublic, nil
-	case strings.EqualFold(cloudConfigurationName, api.AzureGovCloudName):
-		return cloud.AzureGovernment, nil
-	case strings.EqualFold(cloudConfigurationName, api.AzureChinaCloudName):
-		return cloud.AzureChina, nil
-
+	case hasAnyPrefix(region, api.AzureGovRegionPrefixes...):
+		return cloud.AzureGovernment
+	case hasAnyPrefix(region, api.AzureChinaRegionPrefixes...):
+		return cloud.AzureChina
 	default:
-		return cloud.Configuration{}, fmt.Errorf("unknown cloud configuration name '%s'", cloudConfigurationName)
+		return cloud.AzurePublic
 	}
+}
+
+func hasAnyPrefix(s string, prefixes ...string) bool {
+	lString := strings.ToLower(s)
+	for _, p := range prefixes {
+		if strings.HasPrefix(lString, strings.ToLower(p)) {
+			return true
+		}
+	}
+	return false
 }

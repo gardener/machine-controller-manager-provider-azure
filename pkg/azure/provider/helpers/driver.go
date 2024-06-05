@@ -40,10 +40,12 @@ import (
 // ExtractProviderSpecAndConnectConfig extracts api.AzureProviderSpec from mcc and access.ConnectConfig from secret.
 func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *corev1.Secret) (api.AzureProviderSpec, access.ConnectConfig, error) {
 	var (
-		err                error
-		providerSpec       api.AzureProviderSpec
-		connectConfig      access.ConnectConfig
-		cloudConfiguration cloud.Configuration
+		err                  error
+		providerSpec         api.AzureProviderSpec
+		connectConfig        access.ConnectConfig
+		cloudConfiguration   *api.CloudConfiguration
+		azCloudConfiguration cloud.Configuration
+		region               *string
 	)
 	// validate provider Spec provider. Exit early if it is not azure.
 	if err = validation.ValidateMachineClassProvider(mcc); err != nil {
@@ -57,12 +59,18 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 	if connectConfig, err = ValidateSecretAndCreateConnectConfig(secret); err != nil {
 		return api.AzureProviderSpec{}, access.ConnectConfig{}, err
 	}
+
 	if providerSpec.CloudConfiguration != nil {
-		if cloudConfiguration, err = ExtractCloudConfiguration(&providerSpec); err != nil {
-			return api.AzureProviderSpec{}, access.ConnectConfig{}, err
-		}
-		connectConfig.ClientOptions.Cloud = cloudConfiguration
+		cloudConfiguration = providerSpec.CloudConfiguration
 	}
+	if mcc != nil && mcc.NodeTemplate != nil {
+		region = &mcc.NodeTemplate.Region
+	}
+	if azCloudConfiguration, err = DetermineCloudConfiguration(cloudConfiguration, region); err != nil {
+		return api.AzureProviderSpec{}, access.ConnectConfig{}, err
+	}
+
+	connectConfig.ClientOptions.Cloud = azCloudConfiguration
 	return providerSpec, connectConfig, nil
 }
 
