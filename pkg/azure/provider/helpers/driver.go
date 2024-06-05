@@ -677,7 +677,7 @@ func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcomput
 		dataDisk := &armcompute.DataDisk{
 
 			CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),
-			Lun:          specDataDisk.Lun,
+			Lun:          to.Ptr(specDataDisk.Lun),
 			Caching:      to.Ptr(caching),
 			DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
 			DiskSizeGB:   pointer.Int32(specDataDisk.DiskSizeGB),
