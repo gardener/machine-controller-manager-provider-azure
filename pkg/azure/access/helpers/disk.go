@@ -45,9 +45,9 @@ func DeleteDisk(ctx context.Context, client *armcompute.DisksClient, resourceGro
 	return
 }
 
-// CreateImageRefDisk creates a Disk given a resourceGroup and disk creation parameters.
+// CreateDisk creates a Disk given a resourceGroup and disk creation parameters.
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
-func CreateImageRefDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string, diskCreationParams armcompute.Disk) (disk *armcompute.Disk, err error) {
+func CreateDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string, diskCreationParams armcompute.Disk) (disk *armcompute.Disk, err error) {
 	defer instrument.AZAPIMetricRecorderFn(diskCreateServiceLabel, &err)()
 
 	createCtx, cancelFn := context.WithTimeout(ctx, defaultDiskOperationTimeout)

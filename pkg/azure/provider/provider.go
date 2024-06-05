@@ -92,8 +92,7 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 		return
 	}
 
-	// attach imageRefDisks to vm
-	_, err = helpers.AttachDataDisks(ctx, d.factory, connectConfig, providerSpec.ResourceGroup, vmName, imageRefDisks)
+	_, err = helpers.AttachImageRefDisks(ctx, d.factory, connectConfig, providerSpec.ResourceGroup, vmName, imageRefDisks)
 	if err != nil {
 		return
 	}

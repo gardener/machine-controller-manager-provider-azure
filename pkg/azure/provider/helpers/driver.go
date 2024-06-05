@@ -552,6 +552,7 @@ func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.
 	return vm, nil
 }
 
+// ImageRefDisk is a disk that will later be attached to a VM as dataDisk
 type ImageRefDisk struct {
 	Disk         *armcompute.Disk
 	Lun          *int32
@@ -578,7 +579,7 @@ func CreateDisksWithImageRef(ctx context.Context, factory access.Factory, connec
 		}
 		diskCreationParams := createDiskCreationParams(specDataDisk, providerSpec)
 		diskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, *specDataDisk.Lun)
-		disk, err := accesshelpers.CreateImageRefDisk(ctx, disksAccess, providerSpec.ResourceGroup, diskName, diskCreationParams)
+		disk, err := accesshelpers.CreateDisk(ctx, disksAccess, providerSpec.ResourceGroup, diskName, diskCreationParams)
 		if err != nil {
 			errCode := accesserrors.GetMatchingErrorCode(err)
 			return nil, status.WrapError(errCode, fmt.Sprintf("Failed to create Disk: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, diskName, err), err)
@@ -634,7 +635,8 @@ func createDiskCreationParams(specDataDisk api.AzureDataDisk, providerSpec api.A
 	return diskCreationParams
 }
 
-func AttachDataDisks(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, resourceGroup, vmName string, disks []*ImageRefDisk) ([]*armcompute.DataDisk, error) {
+// AttachImageRefDisks attaches all disks with imageRef
+func AttachImageRefDisks(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, resourceGroup, vmName string, disks []*ImageRefDisk) ([]*armcompute.DataDisk, error) {
 	vmAccess, err := factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
 		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create vm access to attach disk: [Vm: %s, ResourceGroup: %s], Err: %v", vmName, resourceGroup, err), err)
