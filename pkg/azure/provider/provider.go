@@ -87,12 +87,7 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 		return
 	}
 
-	vm, err := helpers.CreateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, plan, req.Secret, nicID, vmName)
-	if err != nil {
-		return
-	}
-
-	_, err = helpers.AttachImageRefDisks(ctx, d.factory, connectConfig, providerSpec.ResourceGroup, vmName, imageRefDisks)
+	vm, err := helpers.CreateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, plan, req.Secret, nicID, vmName, imageRefDisks)
 	if err != nil {
 		return
 	}

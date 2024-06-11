@@ -65,24 +65,3 @@ func CreateDisk(ctx context.Context, client *armcompute.DisksClient, resourceGro
 	disk = &createResp.Disk
 	return
 }
-
-// AttachDataDisks attaches a Disk given a resourceGroup and virtual machine creation parameters.
-// NOTE: All calls to this Azure API are instrumented as prometheus metric.
-func AttachDataDisks(ctx context.Context, client *armcompute.VirtualMachinesClient, attachParameters armcompute.AttachDetachDataDisksRequest, resourceGroup, vmName string) (disks []*armcompute.DataDisk, err error) {
-	defer instrument.AZAPIMetricRecorderFn(diskAttachServiceLabel, &err)()
-
-	attachCtx, cancelFn := context.WithTimeout(ctx, defaultDiskOperationTimeout)
-	defer cancelFn()
-	poller, err := client.BeginAttachDetachDataDisks(attachCtx, resourceGroup, vmName, attachParameters, nil)
-	if err != nil {
-		errors.LogAzAPIError(err, "Failed to attach Disks [ResourceGroup: %s, VM: %s]", resourceGroup, vmName)
-		return
-	}
-	createResp, err := poller.PollUntilDone(attachCtx, nil)
-	if err != nil {
-		errors.LogAzAPIError(err, "Polling failed while waiting for attaching of Disks to VM: %s for ResourceGroup: %s ", vmName, resourceGroup)
-		return
-	}
-	disks = createResp.DataDisks
-	return
-}
