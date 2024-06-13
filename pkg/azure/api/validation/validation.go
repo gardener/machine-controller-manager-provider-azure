@@ -51,10 +51,7 @@ func ValidateProviderSpec(spec api.AzureProviderSpec) field.ErrorList {
 	allErrs = append(allErrs, validateSubnetInfo(spec.SubnetInfo, specPath.Child("subnetInfo"))...)
 	allErrs = append(allErrs, validateProperties(spec.Properties, specPath.Child("properties"))...)
 	allErrs = append(allErrs, validateTags(spec.Tags, specPath.Child("tags"))...)
-
-	if spec.CloudConfiguration != nil {
-		allErrs = append(allErrs, validateCloudConfiguration(*spec.CloudConfiguration, specPath.Child("cloudConfiguration"))...)
-	}
+	allErrs = append(allErrs, validateCloudConfiguration(spec.CloudConfiguration, specPath.Child("cloudConfiguration"))...)
 
 	return allErrs
 }
@@ -126,9 +123,14 @@ func validateProperties(properties api.AzureVirtualMachineProperties, fldPath *f
 	return allErrs
 }
 
-func validateCloudConfiguration(cloudConfiguration api.CloudConfiguration, fldPath *field.Path) field.ErrorList {
+func validateCloudConfiguration(cloudConfiguration *api.CloudConfiguration, fldPath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
-	knownCloudInstances := []string{api.AzurePublicCloudName, api.AzureChinaCloudName, api.AzureGovCloudName}
+
+	if cloudConfiguration == nil {
+		return allErrs
+	}
+
+	knownCloudInstances := []string{api.CloudNamePublic, api.CloudNameChina, api.CloudNameGov}
 
 	if cloudName := cloudConfiguration.Name; !slices.Contains(knownCloudInstances, cloudName) {
 		allErrs = append(allErrs, field.NotSupported(fldPath.Child("name"), cloudName, knownCloudInstances))

@@ -314,20 +314,14 @@ type AzureDiagnosticsProfile struct {
 
 // The (currently) supported values for the names of clouds to use in the CloudConfiguration.
 const (
-	AzureChinaCloudName  string = "AzureChina"
-	AzureGovCloudName    string = "AzureGovernment"
-	AzurePublicCloudName string = "AzurePublic"
-)
-
-// The known prefixes in of region names for the various instances.
-var (
-	AzureGovRegionPrefixes   = []string{"usgov", "usdod", "ussec"}
-	AzureChinaRegionPrefixes = []string{"china"}
+	CloudNameChina  string = "AzureChina"
+	CloudNameGov    string = "AzureGovernment"
+	CloudNamePublic string = "AzurePublic"
 )
 
 // CloudConfiguration contains detailed config for the cloud to connect to. Currently we only support selection of well-
 // known Azure-instances by name, but this could be extended in future to support private clouds.
 type CloudConfiguration struct {
 	// Name is the name of the cloud to connect to, e.g. "AzurePublic" or "AzureChina".
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 }

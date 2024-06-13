@@ -10,101 +10,34 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 	. "github.com/onsi/gomega"
-	"k8s.io/utils/ptr"
 )
 
-func TestNilConfig(t *testing.T) {
+func TestCloudConfigurationDetermination(t *testing.T) {
 	g := NewWithT(t)
 
-	var (
-		testConfig *api.CloudConfiguration = nil
-		testRegion                         = ptr.To("Foo")
-	)
+	type testData struct {
+		testConfiguration *api.CloudConfiguration
+		expectedOutput    *cloud.Configuration
+		shouldFail        bool
+	}
 
-	configuration, err := DetermineCloudConfiguration(testConfig, testRegion)
+	tests := []testData{
+		{testConfiguration: &api.CloudConfiguration{Name: api.CloudNamePublic}, expectedOutput: &cloud.AzurePublic},
+		{testConfiguration: &api.CloudConfiguration{Name: api.CloudNameChina}, expectedOutput: &cloud.AzureChina},
+		{testConfiguration: &api.CloudConfiguration{Name: api.CloudNameGov}, expectedOutput: &cloud.AzureGovernment},
+		{testConfiguration: &api.CloudConfiguration{Name: "FooCloud"}, expectedOutput: nil, shouldFail: true},
+		{testConfiguration: nil, expectedOutput: &cloud.AzurePublic},
+	}
 
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(configuration).To(Equal(cloud.AzurePublic))
-}
+	for _, t := range tests {
+		cloudConfiguration, err := DetermineCloudConfiguration(t.testConfiguration)
+		if t.shouldFail {
+			g.Expect(err).To(HaveOccurred())
+		}
+		if t.expectedOutput != nil {
+			g.Expect(cloudConfiguration).To(Equal(*t.expectedOutput))
+		}
 
-func TestNilRegion(t *testing.T) {
-	g := NewWithT(t)
-
-	var (
-		testConfig         = &api.CloudConfiguration{Name: api.AzurePublicCloudName}
-		testRegion *string = nil
-	)
-
-	configuration, err := DetermineCloudConfiguration(testConfig, testRegion)
-
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(configuration).To(Equal(cloud.AzurePublic))
-}
-
-func TestNilConfigAndRegion(t *testing.T) {
-	g := NewWithT(t)
-
-	var (
-		testConfig *api.CloudConfiguration = nil
-		testRegion *string                 = nil
-	)
-
-	configuration, err := DetermineCloudConfiguration(testConfig, testRegion)
-
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(configuration).To(Equal(cloud.AzurePublic))
-}
-
-func TestInvalidConfigName(t *testing.T) {
-	g := NewWithT(t)
-
-	var (
-		testConfig         = &api.CloudConfiguration{Name: "Foo"}
-		testRegion *string = nil
-	)
-
-	_, err := DetermineCloudConfiguration(testConfig, testRegion)
-
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestPredefinedClouds(t *testing.T) {
-	g := NewWithT(t)
-
-	var (
-		testPublicConfiguration         = &api.CloudConfiguration{Name: api.AzurePublicCloudName}
-		testGovConfiguration            = &api.CloudConfiguration{Name: api.AzureGovCloudName}
-		testChinaConfigration           = &api.CloudConfiguration{Name: api.AzureChinaCloudName}
-		testRegion              *string = nil
-	)
-
-	configuration, err := DetermineCloudConfiguration(testPublicConfiguration, testRegion)
-
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(configuration).To(Equal(cloud.AzurePublic))
-
-	configuration, err = DetermineCloudConfiguration(testGovConfiguration, testRegion)
-
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(configuration).To(Equal(cloud.AzureGovernment))
-
-	configuration, err = DetermineCloudConfiguration(testChinaConfigration, testRegion)
-
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(configuration).To(Equal(cloud.AzureChina))
-}
-
-func TestRegionMatching(t *testing.T) {
-	g := NewWithT(t)
-
-	var (
-		testConfig *api.CloudConfiguration = nil
-		testRegion *string                 = ptr.To("ussecFoo")
-	)
-
-	configuration, err := DetermineCloudConfiguration(testConfig, testRegion)
-
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(configuration).To(Equal(cloud.AzureGovernment))
+	}
 
 }
