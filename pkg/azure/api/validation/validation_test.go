@@ -277,30 +277,23 @@ func TestValidateDataDisks(t *testing.T) {
 		matcher        gomegatypes.GomegaMatcher
 	}{
 		{"should forbid empty storageAccountType",
-			[]api.AzureDataDisk{{Name: "disk-1", Lun: pointer.Int32(0), StorageAccountType: "", DiskSizeGB: 10}}, 1,
+			[]api.AzureDataDisk{{Name: "disk-1", Lun: 0, StorageAccountType: "", DiskSizeGB: 10}}, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.storageProfile.dataDisks.storageAccountType")}))),
 		},
 		{"should forbid negative diskSize and empty storageAccountType",
-			[]api.AzureDataDisk{{Name: "disk-1", Lun: pointer.Int32(0), StorageAccountType: "", DiskSizeGB: -10}}, 2,
+			[]api.AzureDataDisk{{Name: "disk-1", Lun: 0, StorageAccountType: "", DiskSizeGB: -10}}, 2,
 			ConsistOf(
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.storageProfile.dataDisks.storageAccountType")})),
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeInvalid), "Field": Equal("providerSpec.properties.storageProfile.dataDisks.diskSizeGB")})),
 			),
 		},
-		{
-			"should forbid nil Lun",
-			[]api.AzureDataDisk{
-				{Name: "disk-1", Lun: nil, StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
-			}, 1,
-			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.storageProfile.dataDisks.lun")}))),
-		},
 		{"should forbid duplicate Lun",
 			[]api.AzureDataDisk{
-				{Name: "disk-1", Lun: pointer.Int32(0), StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
-				{Name: "disk-2", Lun: pointer.Int32(1), StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
-				{Name: "disk-3", Lun: pointer.Int32(0), StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
-				{Name: "disk-4", Lun: pointer.Int32(2), StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
-				{Name: "disk-5", Lun: pointer.Int32(1), StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
+				{Name: "disk-1", Lun: 0, StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
+				{Name: "disk-2", Lun: 1, StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
+				{Name: "disk-3", Lun: 0, StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
+				{Name: "disk-4", Lun: 2, StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
+				{Name: "disk-5", Lun: 1, StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
 			}, 2,
 			ConsistOf(
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeInvalid), "Field": Equal("providerSpec.properties.storageProfile.dataDisks.lun")})),
@@ -309,9 +302,9 @@ func TestValidateDataDisks(t *testing.T) {
 		},
 		{"should succeed with non-duplicate lun, valid diskSize and non-empty storageAccountType",
 			[]api.AzureDataDisk{
-				{Name: "disk-1", Lun: pointer.Int32(0), StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
-				{Name: "disk-2", Lun: pointer.Int32(1), StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 30},
-				{Name: "disk-3", Lun: pointer.Int32(2), StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 50},
+				{Name: "disk-1", Lun: 0, StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 10},
+				{Name: "disk-2", Lun: 1, StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 30},
+				{Name: "disk-3", Lun: 2, StorageAccountType: "StandardSSD_LRS", DiskSizeGB: 50},
 			}, 0, nil,
 		},
 	}

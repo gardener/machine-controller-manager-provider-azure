@@ -36,6 +36,12 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
+// DataDiskLun describes the dataDisk lun
+type DataDiskLun int32
+
+// DiskID describes the disk ID
+type DiskID *string
+
 // ExtractProviderSpecAndConnectConfig extracts api.AzureProviderSpec from mcc and access.ConnectConfig from secret.
 func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *corev1.Secret) (api.AzureProviderSpec, access.ConnectConfig, error) {
 	var (
@@ -126,7 +132,7 @@ func createDataDiskNames(providerSpec api.AzureProviderSpec, vmName string) []st
 	dataDisks := providerSpec.Properties.StorageProfile.DataDisks
 	diskNames := make([]string, 0, len(dataDisks))
 	for _, disk := range dataDisks {
-		diskName := utils.CreateDataDiskName(vmName, disk)
+		diskName := utils.CreateDataDiskName(vmName, disk.Name, disk.Lun)
 		diskNames = append(diskNames, diskName)
 	}
 	return diskNames
@@ -425,7 +431,7 @@ func createNICTags(tags map[string]string) map[string]*string {
 // 1. Gets the VM image. If the image does not exist then it will return an error.
 // 2. From the VM Image it checks if there is a plan.
 // 3. If there is a plan then it will check if there is an existing agreement for this plan. If an agreement does not exist then it will return an error.
-// 4. If the agreement has not been accepted yet then it will accept the agreement and update the agreement. If that fails then it will return an error.
+// 4. If the agreement has not been accepted, yet then it will accept the agreement and update the agreement. If that fails then it will return an error.
 func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
 	imgRef = getImageReference(providerSpec)
 
@@ -534,12 +540,12 @@ func checkAndAcceptAgreementIfNotAccepted(ctx context.Context, factory access.Fa
 }
 
 // CreateVM gathers the VM creation parameters and invokes a call to create or update the VM.
-func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID string, vmName string) (*armcompute.VirtualMachine, error) {
+func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmImageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID string, vmName string, imageRefDisks map[DataDiskLun]DiskID) (*armcompute.VirtualMachine, error) {
 	vmAccess, err := factory.GetVirtualMachinesAccess(connectConfig)
 	if err != nil {
 		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create virtual machine access to process request: [resourceGroup: %s, vmName: %s], Err: %v", providerSpec.ResourceGroup, vmName, err), err)
 	}
-	vmCreationParams, err := createVMCreationParams(providerSpec, imageRef, plan, secret, nicID, vmName)
+	vmCreationParams, err := createVMCreationParams(providerSpec, vmImageRef, plan, secret, nicID, vmName, imageRefDisks)
 	if err != nil {
 		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create virtual machine parameters to create VM: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err), err)
 	}
@@ -550,6 +556,105 @@ func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.
 	}
 	klog.Infof("Successfully created VM: [ResourceGroup: %s, Name: %s]", providerSpec.ResourceGroup, vmName)
 	return vm, nil
+}
+
+// CreateDisksWithImageRef creates a disk with CreationData (e.g. ImageReference or GalleryImageReference)
+func CreateDisksWithImageRef(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (map[DataDiskLun]DiskID, error) {
+	disksAccess, err := factory.GetDisksAccess(connectConfig)
+	if err != nil {
+		return nil, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create disk access for VM: [ResourceGroup: %s], Err: %v", providerSpec.ResourceGroup, err), err)
+	}
+
+	disks := make(map[DataDiskLun]DiskID)
+	specDataDisks := providerSpec.Properties.StorageProfile.DataDisks
+	if utils.IsSliceNilOrEmpty(specDataDisks) {
+		return disks, nil
+	}
+
+	for _, specDataDisk := range specDataDisks {
+		if !isDataDiskWithImageRef(specDataDisk) {
+			continue
+		}
+		diskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, specDataDisk.Lun)
+		diskCreationParams, err := createDiskCreationParams(ctx, specDataDisk, providerSpec, factory, connectConfig)
+		if err != nil {
+			errCode := accesserrors.GetMatchingErrorCode(err)
+			return nil, status.WrapError(errCode, fmt.Sprintf("Failed to create disk creation params: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, diskName, err), err)
+		}
+		disk, err := accesshelpers.CreateDisk(ctx, disksAccess, providerSpec.ResourceGroup, diskName, diskCreationParams)
+		if err != nil {
+			errCode := accesserrors.GetMatchingErrorCode(err)
+			return nil, status.WrapError(errCode, fmt.Sprintf("Failed to create Disk: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, diskName, err), err)
+		}
+		disks[DataDiskLun(specDataDisk.Lun)] = disk.ID
+		klog.Infof("Successfully created Disk: [ResourceGroup: %s, Name: %s]", providerSpec.ResourceGroup, diskName)
+	}
+
+	return disks, nil
+}
+
+func isDataDiskWithImageRef(dataDisk api.AzureDataDisk) bool {
+	if dataDisk.ImageRef != nil {
+		return true
+	}
+	return false
+}
+
+func createDiskCreationParams(ctx context.Context, specDataDisk api.AzureDataDisk, providerSpec api.AzureProviderSpec, factory access.Factory, connectConfig access.ConnectConfig) (params armcompute.Disk, err error) {
+	params = armcompute.Disk{
+		Location: to.Ptr(providerSpec.Location),
+		Properties: &armcompute.DiskProperties{
+			CreationData: &armcompute.CreationData{
+				CreateOption: to.Ptr(armcompute.DiskCreateOptionFromImage),
+			},
+			DiskSizeGB: to.Ptr[int32](specDataDisk.DiskSizeGB),
+			OSType:     to.Ptr(armcompute.OperatingSystemTypesLinux),
+		},
+		SKU: &armcompute.DiskSKU{
+			Name: to.Ptr(armcompute.DiskStorageAccountTypes(specDataDisk.StorageAccountType)),
+		},
+		Tags:  utils.CreateResourceTags(providerSpec.Tags),
+		Zones: getZonesFromProviderSpec(providerSpec),
+	}
+	err = setDiskImageReference(ctx, &params, specDataDisk, providerSpec.Location, factory, connectConfig)
+	return
+}
+
+func setDiskImageReference(ctx context.Context, disk *armcompute.Disk, specDataDisk api.AzureDataDisk, location string, factory access.Factory, connectConfig access.ConnectConfig) error {
+	if !utils.IsEmptyString(specDataDisk.ImageRef.ID) {
+		disk.Properties.CreationData.ImageReference = &armcompute.ImageDiskReference{
+			ID: &specDataDisk.ImageRef.ID,
+		}
+	} else if !utils.IsNilOrEmptyStringPtr(specDataDisk.ImageRef.SharedGalleryImageID) {
+		disk.Properties.CreationData.GalleryImageReference = &armcompute.ImageDiskReference{
+			SharedGalleryImageID: specDataDisk.ImageRef.SharedGalleryImageID,
+		}
+	} else if !utils.IsNilOrEmptyStringPtr(specDataDisk.ImageRef.CommunityGalleryImageID) {
+		disk.Properties.CreationData.GalleryImageReference = &armcompute.ImageDiskReference{
+			CommunityGalleryImageID: specDataDisk.ImageRef.CommunityGalleryImageID,
+		}
+	} else if !utils.IsNilOrEmptyStringPtr(specDataDisk.ImageRef.URN) {
+		urnParts := strings.Split(*specDataDisk.ImageRef.URN, ":")
+		imageRef := armcompute.ImageReference{
+			Publisher: to.Ptr(urnParts[0]),
+			Offer:     to.Ptr(urnParts[1]),
+			SKU:       to.Ptr(urnParts[2]),
+			Version:   to.Ptr(urnParts[3]),
+		}
+
+		vmImagesAccess, err := factory.GetVirtualMachineImagesAccess(connectConfig)
+		if err != nil {
+			return status.WrapError(codes.Internal, fmt.Sprintf("Failed to create image access, Err: %v", err), err)
+		}
+		image, err := accesshelpers.GetVMImage(ctx, vmImagesAccess, location, imageRef)
+		if err != nil {
+			return status.WrapError(codes.Internal, fmt.Sprintf("Failed to get image, Err: %v", err), err)
+		}
+		disk.Properties.CreationData.ImageReference = &armcompute.ImageDiskReference{
+			ID: image.ID,
+		}
+	}
+	return nil
 }
 
 // LogVMCreation is a convenience method which helps to extract relevant details from the created virtual machine and logs it.
@@ -578,11 +683,15 @@ func LogVMCreation(location, resourceGroup string, vm *armcompute.VirtualMachine
 	klog.Infof(msgBuilder.String())
 }
 
-func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID, vmName string) (armcompute.VirtualMachine, error) {
+func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID, vmName string, imageRefDisks map[DataDiskLun]DiskID) (armcompute.VirtualMachine, error) {
 	vmTags := utils.CreateResourceTags(providerSpec.Tags)
 	sshConfiguration, err := getSSHConfiguration(providerSpec.Properties.OsProfile.LinuxConfiguration.SSH)
 	if err != nil {
 		return armcompute.VirtualMachine{}, err
+	}
+	dataDisks, err := getDataDisks(providerSpec.Properties.StorageProfile.DataDisks, vmName, imageRefDisks)
+	if err != nil {
+		return armcompute.VirtualMachine{}, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create vm creation params, Err: %v", err), err)
 	}
 
 	vm := armcompute.VirtualMachine{
@@ -613,7 +722,7 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 				},
 			},
 			StorageProfile: &armcompute.StorageProfile{
-				DataDisks:      getDataDisks(providerSpec.Properties.StorageProfile.DataDisks, vmName),
+				DataDisks:      dataDisks,
 				ImageReference: &imageRef,
 				OSDisk: &armcompute.OSDisk{
 					CreateOption: to.Ptr(armcompute.DiskCreateOptionTypes(providerSpec.Properties.StorageProfile.OsDisk.CreateOption)),
@@ -663,21 +772,20 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 	return vm, nil
 }
 
-func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcompute.DataDisk {
+func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string, imageRefDisks map[DataDiskLun]DiskID) ([]*armcompute.DataDisk, error) {
 	var dataDisks []*armcompute.DataDisk
 	if utils.IsSliceNilOrEmpty(specDataDisks) {
-		return dataDisks
+		return dataDisks, nil
 	}
 	for _, specDataDisk := range specDataDisks {
-		dataDiskName := utils.CreateDataDiskName(vmName, specDataDisk)
+		dataDiskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, specDataDisk.Lun)
 		caching := armcompute.CachingTypesNone
 		if !utils.IsEmptyString(specDataDisk.Caching) {
 			caching = armcompute.CachingTypes(specDataDisk.Caching)
 		}
 		dataDisk := &armcompute.DataDisk{
-
 			CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),
-			Lun:          specDataDisk.Lun,
+			Lun:          to.Ptr(specDataDisk.Lun),
 			Caching:      to.Ptr(caching),
 			DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
 			DiskSizeGB:   pointer.Int32(specDataDisk.DiskSizeGB),
@@ -686,9 +794,18 @@ func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string) []*armcomput
 			},
 			Name: to.Ptr(dataDiskName),
 		}
+		if isDataDiskWithImageRef(specDataDisk) {
+			diskID := imageRefDisks[DataDiskLun(specDataDisk.Lun)]
+			if diskID == nil {
+				return nil, fmt.Errorf("could not find id of pre created disk %s with lun %d",
+					dataDiskName, specDataDisk.Lun)
+			}
+			dataDisk.CreateOption = to.Ptr(armcompute.DiskCreateOptionTypesAttach)
+			dataDisk.ManagedDisk.ID = diskID
+		}
 		dataDisks = append(dataDisks, dataDisk)
 	}
-	return dataDisks
+	return dataDisks, nil
 }
 
 func getVMIdentity(specVMIdentityID *string) *armcompute.VirtualMachineIdentity {

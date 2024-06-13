@@ -197,13 +197,15 @@ type AzureDataDisk struct {
 	Name string `json:"name,omitempty"`
 	// Lun specifies the logical unit number of the data disk. This value is used to identify data disks within the VM and
 	// therefore must be unique for each data disk attached to a VM.
-	Lun *int32 `json:"lun,omitempty"`
+	Lun int32 `json:"lun,omitempty"`
 	// Caching specifies the caching requirements. Possible values are: None, ReadOnly, ReadWrite.
 	Caching string `json:"caching,omitempty"`
 	// StorageAccountType is the storage account type for a managed disk.
 	StorageAccountType string `json:"storageAccountType,omitempty"`
 	// DiskSizeGB is the size of an empty disk in gigabytes.
 	DiskSizeGB int32 `json:"diskSizeGB,omitempty"`
+	// ImageRef optionally specifies an image source
+	ImageRef *AzureImageReference `json:"imageRef,omitempty"`
 }
 
 // AzureManagedDiskParameters is the parameters of a managed disk.

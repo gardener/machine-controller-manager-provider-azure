@@ -294,7 +294,7 @@ func createDataDiskResources(spec api.AzureProviderSpec, vmID *string, vmName st
 	dataDisks := make(map[string]*armcompute.Disk, len(specDataDisks))
 	if specDataDisks != nil {
 		for _, specDataDisk := range specDataDisks {
-			diskName := utils.CreateDataDiskName(vmName, specDataDisk)
+			diskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, specDataDisk.Lun)
 			dataDisks[diskName] = createDiskResource(spec, diskName, vmID, nil)
 		}
 	}
@@ -442,8 +442,8 @@ func createDataDisks(spec api.AzureProviderSpec, vmName string, deleteOption *ar
 	}
 	dataDisks := make([]*armcompute.DataDisk, 0, len(specDataDisks))
 	for _, disk := range specDataDisks {
-		diskName := utils.CreateDataDiskName(vmName, disk)
-		d := createDataDisk(*disk.Lun, armcompute.CachingTypes(disk.Caching), deleteOption, disk.DiskSizeGB, armcompute.StorageAccountTypes(disk.StorageAccountType), diskName)
+		diskName := utils.CreateDataDiskName(vmName, disk.Name, disk.Lun)
+		d := createDataDisk(disk.Lun, armcompute.CachingTypes(disk.Caching), deleteOption, disk.DiskSizeGB, armcompute.StorageAccountTypes(disk.StorageAccountType), diskName)
 		dataDisks = append(dataDisks, d)
 	}
 	return dataDisks
