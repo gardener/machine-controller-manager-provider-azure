@@ -80,9 +80,9 @@ func traceResponseHeaders(err error) map[string]string {
 
 // GetMatchingErrorCode gets a matching codes.Code for the given azure error code.
 func GetMatchingErrorCode(err error) codes.Code {
-	azHeaders := traceResponseHeaders(err)
-	azErrorCode, ok := azHeaders[ErrorCodeAzHeaderKey]
-	if ok {
+	var respErr *azcore.ResponseError
+	if errors.As(err, &respErr) {
+		azErrorCode := respErr.ErrorCode
 		switch azErrorCode {
 		case ZonalAllocationFailedAzErrorCode:
 			return codes.ResourceExhausted
