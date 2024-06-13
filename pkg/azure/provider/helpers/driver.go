@@ -686,6 +686,10 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 	if err != nil {
 		return armcompute.VirtualMachine{}, err
 	}
+	dataDisks, err := getDataDisks(providerSpec.Properties.StorageProfile.DataDisks, vmName, imageRefDisks)
+	if err != nil {
+		return armcompute.VirtualMachine{}, status.WrapError(codes.Internal, fmt.Sprintf("Failed to create vm creation params, Err: %v", err), err)
+	}
 
 	vm := armcompute.VirtualMachine{
 		Location: to.Ptr(providerSpec.Location),
@@ -715,7 +719,7 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 				},
 			},
 			StorageProfile: &armcompute.StorageProfile{
-				DataDisks:      getDataDisks(providerSpec.Properties.StorageProfile.DataDisks, vmName, imageRefDisks),
+				DataDisks:      dataDisks,
 				ImageReference: &imageRef,
 				OSDisk: &armcompute.OSDisk{
 					CreateOption: to.Ptr(armcompute.DiskCreateOptionTypes(providerSpec.Properties.StorageProfile.OsDisk.CreateOption)),
@@ -765,10 +769,10 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 	return vm, nil
 }
 
-func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string, imageRefDisks map[dataDiskLun]diskID) []*armcompute.DataDisk {
+func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string, imageRefDisks map[dataDiskLun]diskID) ([]*armcompute.DataDisk, error) {
 	var dataDisks []*armcompute.DataDisk
 	if utils.IsSliceNilOrEmpty(specDataDisks) {
-		return dataDisks
+		return dataDisks, nil
 	}
 	for _, specDataDisk := range specDataDisks {
 		dataDiskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, specDataDisk.Lun)
@@ -789,12 +793,15 @@ func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string, imageRefDisk
 		}
 		if isDataDiskWithImageRef(specDataDisk) {
 			imageRefDiskID := imageRefDisks[dataDiskLun(specDataDisk.Lun)]
+			if imageRefDiskID == nil {
+				return nil, fmt.Errorf("could not find disk with lun %d", specDataDisk.Lun)
+			}
 			dataDisk.CreateOption = to.Ptr(armcompute.DiskCreateOptionTypesAttach)
 			dataDisk.ManagedDisk.ID = imageRefDiskID
 		}
 		dataDisks = append(dataDisks, dataDisk)
 	}
-	return dataDisks
+	return dataDisks, nil
 }
 
 func getVMIdentity(specVMIdentityID *string) *armcompute.VirtualMachineIdentity {
