@@ -81,7 +81,7 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 	}
 
 	// create disks with image ref since they can not be created together with the vm
-	// TODO parallelize creation?
+	// TODO parallelize creation with nic?
 	imageRefDisks, err := helpers.CreateDisksWithImageRef(ctx, d.factory, connectConfig, providerSpec, vmName)
 	if err != nil {
 		return
