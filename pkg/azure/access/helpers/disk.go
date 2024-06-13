@@ -20,7 +20,6 @@ import (
 const (
 	diskDeleteServiceLabel = "disk_delete"
 	diskCreateServiceLabel = "disk_create"
-	diskAttachServiceLabel = "disk_attach"
 
 	defaultDiskOperationTimeout = 10 * time.Minute
 )
