@@ -20,17 +20,17 @@ import (
 )
 
 // ValidateSecretAndCreateConnectConfig validates the secret and creates an instance of azure.ConnectConfig out of it.
-func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret, providerSpec *api.AzureProviderSpec) (access.ConnectConfig, error) {
+func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret, cloudConfiguration *api.CloudConfiguration) (access.ConnectConfig, error) {
 	if err := validation.ValidateProviderSecret(secret); err != nil {
 		return access.ConnectConfig{}, status.Error(codes.InvalidArgument, fmt.Sprintf("error in validating secret: %v", err))
 	}
 
 	var (
-		subscriptionID     = ExtractCredentialsFromData(secret.Data, api.SubscriptionID, api.AzureSubscriptionID)
-		tenantID           = ExtractCredentialsFromData(secret.Data, api.TenantID, api.AzureTenantID)
-		clientID           = ExtractCredentialsFromData(secret.Data, api.ClientID, api.AzureClientID)
-		clientSecret       = ExtractCredentialsFromData(secret.Data, api.ClientSecret, api.AzureClientSecret)
-		cloudConfiguration = DetermineCloudConfiguration(providerSpec.CloudConfiguration)
+		subscriptionID       = ExtractCredentialsFromData(secret.Data, api.SubscriptionID, api.AzureSubscriptionID)
+		tenantID             = ExtractCredentialsFromData(secret.Data, api.TenantID, api.AzureTenantID)
+		clientID             = ExtractCredentialsFromData(secret.Data, api.ClientID, api.AzureClientID)
+		clientSecret         = ExtractCredentialsFromData(secret.Data, api.ClientSecret, api.AzureClientSecret)
+		azCloudConfiguration = DetermineAzureCloudConfiguration(cloudConfiguration)
 	)
 
 	return access.ConnectConfig{
@@ -38,7 +38,7 @@ func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret, providerSpec *a
 		TenantID:       tenantID,
 		ClientID:       clientID,
 		ClientSecret:   clientSecret,
-		ClientOptions:  azcore.ClientOptions{Cloud: cloudConfiguration},
+		ClientOptions:  azcore.ClientOptions{Cloud: azCloudConfiguration},
 	}, nil
 }
 
@@ -53,8 +53,8 @@ func ExtractCredentialsFromData(data map[string][]byte, keys ...string) string {
 	return ""
 }
 
-// DetermineCloudConfiguration returns the Azure cloud.Configuration corresponding to the instance given by the provided api.Configuration.
-func DetermineCloudConfiguration(cloudConfiguration *api.CloudConfiguration) cloud.Configuration {
+// DetermineAzureCloudConfiguration returns the Azure cloud.Configuration corresponding to the instance given by the provided api.Configuration.
+func DetermineAzureCloudConfiguration(cloudConfiguration *api.CloudConfiguration) cloud.Configuration {
 	if cloudConfiguration != nil {
 		cloudConfigurationName := cloudConfiguration.Name
 		switch {

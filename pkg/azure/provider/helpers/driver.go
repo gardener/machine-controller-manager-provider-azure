@@ -52,7 +52,7 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 		return api.AzureProviderSpec{}, access.ConnectConfig{}, err
 	}
 	// validate secret and extract connect config required to create clients.
-	if connectConfig, err = ValidateSecretAndCreateConnectConfig(secret, &providerSpec); err != nil {
+	if connectConfig, err = ValidateSecretAndCreateConnectConfig(secret, providerSpec.CloudConfiguration); err != nil {
 		return api.AzureProviderSpec{}, access.ConnectConfig{}, err
 	}
 

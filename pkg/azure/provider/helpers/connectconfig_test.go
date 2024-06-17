@@ -12,24 +12,25 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestCloudConfigurationDetermination(t *testing.T) {
-	g := NewWithT(t)
-
+func TestDetermineAzureCloudConfiguration(t *testing.T) {
 	type testData struct {
+		description       string
 		testConfiguration *api.CloudConfiguration
 		expectedOutput    *cloud.Configuration
 	}
 
 	tests := []testData{
-		{testConfiguration: &api.CloudConfiguration{Name: api.CloudNamePublic}, expectedOutput: &cloud.AzurePublic},
-		{testConfiguration: &api.CloudConfiguration{Name: api.CloudNameChina}, expectedOutput: &cloud.AzureChina},
-		{testConfiguration: &api.CloudConfiguration{Name: api.CloudNameGov}, expectedOutput: &cloud.AzureGovernment},
-		{testConfiguration: nil, expectedOutput: &cloud.AzurePublic},
+		{description: "cloud configuration name set to AzurePublic", testConfiguration: &api.CloudConfiguration{Name: api.CloudNamePublic}, expectedOutput: &cloud.AzurePublic},
+		{description: "cloud configuration name set to AzureChina", testConfiguration: &api.CloudConfiguration{Name: api.CloudNameChina}, expectedOutput: &cloud.AzureChina},
+		{description: "cloud configuration name set to AzureGov", testConfiguration: &api.CloudConfiguration{Name: api.CloudNameGov}, expectedOutput: &cloud.AzureGovernment},
+		{description: "cloud configuration not set", testConfiguration: nil, expectedOutput: &cloud.AzurePublic},
 	}
-
-	for _, t := range tests {
-		cloudConfiguration := DetermineCloudConfiguration(t.testConfiguration)
-		g.Expect(cloudConfiguration).To(Equal(*t.expectedOutput))
+	g := NewWithT(t)
+	t.Parallel()
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			cloudConfiguration := DetermineAzureCloudConfiguration(test.testConfiguration)
+			g.Expect(cloudConfiguration).To(Equal(*test.expectedOutput))
+		})
 	}
-
 }
