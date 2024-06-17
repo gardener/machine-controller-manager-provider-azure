@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
@@ -43,7 +42,6 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 		err                  error
 		providerSpec         api.AzureProviderSpec
 		connectConfig        access.ConnectConfig
-		azCloudConfiguration cloud.Configuration
 	)
 	// validate provider Spec provider. Exit early if it is not azure.
 	if err = validation.ValidateMachineClassProvider(mcc); err != nil {
@@ -54,15 +52,10 @@ func ExtractProviderSpecAndConnectConfig(mcc *v1alpha1.MachineClass, secret *cor
 		return api.AzureProviderSpec{}, access.ConnectConfig{}, err
 	}
 	// validate secret and extract connect config required to create clients.
-	if connectConfig, err = ValidateSecretAndCreateConnectConfig(secret); err != nil {
+	if connectConfig, err = ValidateSecretAndCreateConnectConfig(secret, &providerSpec); err != nil {
 		return api.AzureProviderSpec{}, access.ConnectConfig{}, err
 	}
 
-	if azCloudConfiguration, err = DetermineCloudConfiguration(providerSpec.CloudConfiguration); err != nil {
-		return api.AzureProviderSpec{}, access.ConnectConfig{}, err
-	}
-
-	connectConfig.ClientOptions.Cloud = azCloudConfiguration
 	return providerSpec, connectConfig, nil
 }
 

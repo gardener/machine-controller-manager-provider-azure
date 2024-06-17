@@ -6,6 +6,8 @@ package helpers
 
 import (
 	"fmt"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"strings"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api/validation"
@@ -18,22 +20,25 @@ import (
 )
 
 // ValidateSecretAndCreateConnectConfig validates the secret and creates an instance of azure.ConnectConfig out of it.
-func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret) (access.ConnectConfig, error) {
+func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret, providerSpec *api.AzureProviderSpec) (access.ConnectConfig, error) {
 	if err := validation.ValidateProviderSecret(secret); err != nil {
 		return access.ConnectConfig{}, status.Error(codes.InvalidArgument, fmt.Sprintf("error in validating secret: %v", err))
 	}
 
 	var (
-		subscriptionID = ExtractCredentialsFromData(secret.Data, api.SubscriptionID, api.AzureSubscriptionID)
-		tenantID       = ExtractCredentialsFromData(secret.Data, api.TenantID, api.AzureTenantID)
-		clientID       = ExtractCredentialsFromData(secret.Data, api.ClientID, api.AzureClientID)
-		clientSecret   = ExtractCredentialsFromData(secret.Data, api.ClientSecret, api.AzureClientSecret)
+		subscriptionID     = ExtractCredentialsFromData(secret.Data, api.SubscriptionID, api.AzureSubscriptionID)
+		tenantID           = ExtractCredentialsFromData(secret.Data, api.TenantID, api.AzureTenantID)
+		clientID           = ExtractCredentialsFromData(secret.Data, api.ClientID, api.AzureClientID)
+		clientSecret       = ExtractCredentialsFromData(secret.Data, api.ClientSecret, api.AzureClientSecret)
+		cloudConfiguration = DetermineCloudConfiguration(providerSpec.CloudConfiguration)
 	)
+
 	return access.ConnectConfig{
 		SubscriptionID: subscriptionID,
 		TenantID:       tenantID,
 		ClientID:       clientID,
 		ClientSecret:   clientSecret,
+		ClientOptions:  azcore.ClientOptions{Cloud: cloudConfiguration},
 	}, nil
 }
 
@@ -46,4 +51,23 @@ func ExtractCredentialsFromData(data map[string][]byte, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+// DetermineCloudConfiguration returns the Azure cloud.Configuration corresponding to the instance given by the provided api.Configuration.
+func DetermineCloudConfiguration(cloudConfiguration *api.CloudConfiguration) cloud.Configuration {
+	if cloudConfiguration != nil {
+		cloudConfigurationName := cloudConfiguration.Name
+		switch {
+		case strings.EqualFold(cloudConfigurationName, api.CloudNamePublic):
+			return cloud.AzurePublic
+		case strings.EqualFold(cloudConfigurationName, api.CloudNameGov):
+			return cloud.AzureGovernment
+		case strings.EqualFold(cloudConfigurationName, api.CloudNameChina):
+			return cloud.AzureChina
+		default:
+			return cloud.AzurePublic
+		}
+	}
+	// Fallback
+	return cloud.AzurePublic
 }

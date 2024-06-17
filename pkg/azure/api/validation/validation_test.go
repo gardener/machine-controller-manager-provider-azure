@@ -476,6 +476,32 @@ func TestValidateStorageImageRef(t *testing.T) {
 	}
 }
 
+func TestValidateCloudConfiguration(t *testing.T) {
+	fldPath := field.NewPath("providerSpec.properties.cloudConfiguration")
+	table := []struct {
+		cloudConfiguration *api.CloudConfiguration
+		matcher            gomegatypes.GomegaMatcher
+	}{
+		{},
+		{cloudConfiguration: &api.CloudConfiguration{Name: api.CloudNameGov}},
+		{cloudConfiguration: &api.CloudConfiguration{Name: api.CloudNameChina}},
+		{cloudConfiguration: &api.CloudConfiguration{Name: api.CloudNamePublic}},
+		{
+			cloudConfiguration: &api.CloudConfiguration{Name: "foo"},
+			matcher:            ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeNotSupported), "Field": Equal("providerSpec.properties.cloudConfiguration.name")}))),
+		},
+	}
+	g := NewWithT(t)
+	for _, entry := range table {
+		errList := validateCloudConfiguration(entry.cloudConfiguration, fldPath)
+		if entry.matcher != nil {
+			g.Expect(errList).To(entry.matcher)
+		} else {
+			g.Expect(len(errList)).To(BeZero())
+		}
+	}
+}
+
 func TestValidateSecurityProfile(t *testing.T) {
 	fldPath := field.NewPath("providerSpec.properties.securityProfile")
 	table := []struct {
