@@ -6,8 +6,6 @@ package utils
 
 import (
 	"fmt"
-
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api"
 )
 
 const (
@@ -42,22 +40,21 @@ func CreateOSDiskName(vmName string) string {
 }
 
 // CreateDataDiskName creates a name for a DataDisk using VM name and data disk name specified in the provider Spec
-func CreateDataDiskName(vmName string, dataDisk api.AzureDataDisk) string {
+func CreateDataDiskName(vmName, diskName string, lun int32) string {
 	prefix := vmName
-	suffix := GetDataDiskNameSuffix(dataDisk)
+	suffix := GetDataDiskNameSuffix(diskName, lun)
 	return fmt.Sprintf("%s%s", prefix, suffix)
 }
 
 // GetDataDiskNameSuffix creates the suffix based on an optional data disk name and required lun fields.
-func GetDataDiskNameSuffix(dataDisk api.AzureDataDisk) string {
-	infix := getDataDiskInfix(dataDisk)
+func GetDataDiskNameSuffix(diskName string, lun int32) string {
+	infix := getDataDiskInfix(diskName, lun)
 	return fmt.Sprintf("-%s%s", infix, DataDiskSuffix)
 }
 
-func getDataDiskInfix(dataDisk api.AzureDataDisk) string {
-	name := dataDisk.Name
-	if IsEmptyString(name) {
-		return fmt.Sprintf("%d", *dataDisk.Lun)
+func getDataDiskInfix(diskName string, lun int32) string {
+	if IsEmptyString(diskName) {
+		return fmt.Sprintf("%d", lun)
 	}
-	return fmt.Sprintf("%s-%d", name, *dataDisk.Lun)
+	return fmt.Sprintf("%s-%d", diskName, lun)
 }

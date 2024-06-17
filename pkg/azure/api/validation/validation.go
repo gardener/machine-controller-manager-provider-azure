@@ -229,17 +229,14 @@ func validateDataDisks(disks []api.AzureDataDisk, fldPath *field.Path) field.Err
 
 	luns := make(map[int32]int, len(disks))
 	for _, disk := range disks {
-		if disk.Lun == nil {
-			allErrs = append(allErrs, field.Required(fldPath.Child("lun"), "must provide lun"))
+		// Lun should always start from 0 and it cannot be negative. The max value of lun will depend upon the VM type to which the disks are associated.
+		// Therefore, we will avoid any max limit check for lun and delegate that responsibility to the provider as that mapping could change over time.
+		if disk.Lun < 0 {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("lun"), disk.Lun, "lun must be a positive number"))
 		} else {
-			// Lun should always start from 0 and it cannot be negative. The max value of lun will depend upon the VM type to which the disks are associated.
-			// Therefore, we will avoid any max limit check for lun and delegate that responsibility to the provider as that mapping could change over time.
-			if *disk.Lun < 0 {
-				allErrs = append(allErrs, field.Invalid(fldPath.Child("lun"), *disk.Lun, "lun must be a positive number"))
-			} else {
-				luns[*disk.Lun]++
-			}
+			luns[disk.Lun]++
 		}
+
 		if disk.DiskSizeGB <= 0 {
 			allErrs = append(allErrs, field.Invalid(fldPath.Child("diskSizeGB"), disk.DiskSizeGB, "DataDisk size must be positive and greater than 0"))
 		}

@@ -120,7 +120,7 @@ func getDataDiskNameSuffixes(providerSpec api.AzureProviderSpec) sets.Set[string
 	dataDisks := providerSpec.Properties.StorageProfile.DataDisks
 	if dataDisks != nil {
 		for _, dataDisk := range dataDisks {
-			dataDiskNameSuffixes.Insert(utils.GetDataDiskNameSuffix(dataDisk))
+			dataDiskNameSuffixes.Insert(utils.GetDataDiskNameSuffix(dataDisk.Name, dataDisk.Lun))
 		}
 	}
 	return dataDiskNameSuffixes
