@@ -476,6 +476,37 @@ func TestValidateStorageImageRef(t *testing.T) {
 	}
 }
 
+func TestValidateCloudConfiguration(t *testing.T) {
+	fldPath := field.NewPath("providerSpec.properties.cloudConfiguration")
+	table := []struct {
+		description        string
+		cloudConfiguration *api.CloudConfiguration
+		matcher            gomegatypes.GomegaMatcher
+	}{
+		{description: "No cloud configuration set"},
+		{description: "cloud configuration is set to AzureGov", cloudConfiguration: &api.CloudConfiguration{Name: api.CloudNameGov}},
+		{description: "cloud configuration is set to AzureChina", cloudConfiguration: &api.CloudConfiguration{Name: api.CloudNameChina}},
+		{description: "cloud configuration is set to AzurePublic", cloudConfiguration: &api.CloudConfiguration{Name: api.CloudNamePublic}},
+		{
+			description:        "cloud configuration is set to an unsupported name",
+			cloudConfiguration: &api.CloudConfiguration{Name: "foo"},
+			matcher:            ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeNotSupported), "Field": Equal("providerSpec.properties.cloudConfiguration.name")}))),
+		},
+	}
+	g := NewWithT(t)
+	t.Parallel()
+	for _, entry := range table {
+		t.Run(entry.description, func(t *testing.T) {
+			errList := validateCloudConfiguration(entry.cloudConfiguration, fldPath)
+			if entry.matcher != nil {
+				g.Expect(errList).To(entry.matcher)
+			} else {
+				g.Expect(len(errList)).To(BeZero())
+			}
+		})
+	}
+}
+
 func TestValidateSecurityProfile(t *testing.T) {
 	fldPath := field.NewPath("providerSpec.properties.securityProfile")
 	table := []struct {

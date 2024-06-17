@@ -41,7 +41,12 @@ func NewAccessFactoryWithOptions(clientOptions *arm.ClientOptions, tokenCredenti
 
 // GetDefaultTokenCredentials provides the azure token credentials using the ConnectConfig passed as an argument.
 func GetDefaultTokenCredentials(connectConfig ConnectConfig) (azcore.TokenCredential, error) {
-	return azidentity.NewClientSecretCredential(connectConfig.TenantID, connectConfig.ClientID, connectConfig.ClientSecret, nil)
+	return azidentity.NewClientSecretCredential(
+		connectConfig.TenantID,
+		connectConfig.ClientID,
+		connectConfig.ClientSecret,
+		&azidentity.ClientSecretCredentialOptions{ClientOptions: connectConfig.ClientOptions},
+	)
 }
 
 func (f defaultFactory) GetResourceGroupsAccess(connectConfig ConnectConfig) (*armresources.ResourceGroupsClient, error) {
