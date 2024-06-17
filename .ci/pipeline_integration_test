@@ -210,8 +210,6 @@ function setup_environment() {
       eval $cloneCmd
     fi
 
-    fetch_service_account_kubeconfig
-    fetch_oot_cluster_kubeconfig
     create_test_mc_secret
     echo "test-mc-secret created successfully"
     fetch_machine_class
@@ -284,6 +282,8 @@ function print_controller_logs {
 ############################################## <Main> ########################################################
 
 printf "\n\t\t\t----- Start of Test Script -----------\n"
+fetch_service_account_kubeconfig
+fetch_oot_cluster_kubeconfig
 #if cluster state is not clean then don't run the tests
 check_cluster_state
 setup_environment
