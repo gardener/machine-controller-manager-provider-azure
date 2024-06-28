@@ -21,21 +21,13 @@ type TokenCredentialProvider func(connectConfig ConnectConfig) (azcore.TokenCred
 
 // defaultFactory implements Factory interface.
 type defaultFactory struct {
-	clientOptions           *arm.ClientOptions
 	tokenCredentialProvider TokenCredentialProvider
 }
 
 // NewDefaultAccessFactory creates a new instance of Factory.
 func NewDefaultAccessFactory() Factory {
-	return NewAccessFactoryWithOptions(nil, GetDefaultTokenCredentials)
-}
-
-// NewAccessFactoryWithOptions creates an instance of Factory which uses a fixed tokenCredential
-// passed as an argument and also takes custom arm.ClientOptions.
-func NewAccessFactoryWithOptions(clientOptions *arm.ClientOptions, tokenCredentialProvider TokenCredentialProvider) Factory {
 	return defaultFactory{
-		clientOptions:           clientOptions,
-		tokenCredentialProvider: tokenCredentialProvider,
+		tokenCredentialProvider: GetDefaultTokenCredentials,
 	}
 }
 
@@ -54,7 +46,7 @@ func (f defaultFactory) GetResourceGroupsAccess(connectConfig ConnectConfig) (*a
 	if err != nil {
 		return nil, err
 	}
-	return armresources.NewResourceGroupsClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
+	return armresources.NewResourceGroupsClient(connectConfig.SubscriptionID, tokenCredential, &arm.ClientOptions{ClientOptions: connectConfig.ClientOptions})
 }
 
 func (f defaultFactory) GetVirtualMachinesAccess(connectConfig ConnectConfig) (*armcompute.VirtualMachinesClient, error) {
@@ -62,7 +54,7 @@ func (f defaultFactory) GetVirtualMachinesAccess(connectConfig ConnectConfig) (*
 	if err != nil {
 		return nil, err
 	}
-	return armcompute.NewVirtualMachinesClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
+	return armcompute.NewVirtualMachinesClient(connectConfig.SubscriptionID, tokenCredential, &arm.ClientOptions{ClientOptions: connectConfig.ClientOptions})
 }
 
 func (f defaultFactory) GetNetworkInterfacesAccess(connectConfig ConnectConfig) (*armnetwork.InterfacesClient, error) {
@@ -70,7 +62,7 @@ func (f defaultFactory) GetNetworkInterfacesAccess(connectConfig ConnectConfig) 
 	if err != nil {
 		return nil, err
 	}
-	return armnetwork.NewInterfacesClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
+	return armnetwork.NewInterfacesClient(connectConfig.SubscriptionID, tokenCredential, &arm.ClientOptions{ClientOptions: connectConfig.ClientOptions})
 }
 
 func (f defaultFactory) GetSubnetAccess(connectConfig ConnectConfig) (*armnetwork.SubnetsClient, error) {
@@ -78,7 +70,7 @@ func (f defaultFactory) GetSubnetAccess(connectConfig ConnectConfig) (*armnetwor
 	if err != nil {
 		return nil, err
 	}
-	return armnetwork.NewSubnetsClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
+	return armnetwork.NewSubnetsClient(connectConfig.SubscriptionID, tokenCredential, &arm.ClientOptions{ClientOptions: connectConfig.ClientOptions})
 }
 
 func (f defaultFactory) GetDisksAccess(connectConfig ConnectConfig) (*armcompute.DisksClient, error) {
@@ -86,7 +78,7 @@ func (f defaultFactory) GetDisksAccess(connectConfig ConnectConfig) (*armcompute
 	if err != nil {
 		return nil, err
 	}
-	return armcompute.NewDisksClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
+	return armcompute.NewDisksClient(connectConfig.SubscriptionID, tokenCredential, &arm.ClientOptions{ClientOptions: connectConfig.ClientOptions})
 }
 
 func (f defaultFactory) GetResourceGraphAccess(connectConfig ConnectConfig) (*armresourcegraph.Client, error) {
@@ -94,7 +86,7 @@ func (f defaultFactory) GetResourceGraphAccess(connectConfig ConnectConfig) (*ar
 	if err != nil {
 		return nil, err
 	}
-	return armresourcegraph.NewClient(tokenCredential, f.clientOptions)
+	return armresourcegraph.NewClient(tokenCredential, &arm.ClientOptions{ClientOptions: connectConfig.ClientOptions})
 }
 
 func (f defaultFactory) GetVirtualMachineImagesAccess(connectConfig ConnectConfig) (*armcompute.VirtualMachineImagesClient, error) {
@@ -102,7 +94,7 @@ func (f defaultFactory) GetVirtualMachineImagesAccess(connectConfig ConnectConfi
 	if err != nil {
 		return nil, err
 	}
-	return armcompute.NewVirtualMachineImagesClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
+	return armcompute.NewVirtualMachineImagesClient(connectConfig.SubscriptionID, tokenCredential, &arm.ClientOptions{ClientOptions: connectConfig.ClientOptions})
 }
 
 func (f defaultFactory) GetMarketPlaceAgreementsAccess(connectConfig ConnectConfig) (*armmarketplaceordering.MarketplaceAgreementsClient, error) {
@@ -110,5 +102,5 @@ func (f defaultFactory) GetMarketPlaceAgreementsAccess(connectConfig ConnectConf
 	if err != nil {
 		return nil, err
 	}
-	return armmarketplaceordering.NewMarketplaceAgreementsClient(connectConfig.SubscriptionID, tokenCredential, f.clientOptions)
+	return armmarketplaceordering.NewMarketplaceAgreementsClient(connectConfig.SubscriptionID, tokenCredential, &arm.ClientOptions{ClientOptions: connectConfig.ClientOptions})
 }
