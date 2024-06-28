@@ -21,21 +21,13 @@ type TokenCredentialProvider func(connectConfig ConnectConfig) (azcore.TokenCred
 
 // defaultFactory implements Factory interface.
 type defaultFactory struct {
-	clientOptions           *arm.ClientOptions
 	tokenCredentialProvider TokenCredentialProvider
 }
 
 // NewDefaultAccessFactory creates a new instance of Factory.
 func NewDefaultAccessFactory() Factory {
-	return NewAccessFactoryWithOptions(nil, GetDefaultTokenCredentials)
-}
-
-// NewAccessFactoryWithOptions creates an instance of Factory which uses a fixed tokenCredential
-// passed as an argument and also takes custom arm.ClientOptions.
-func NewAccessFactoryWithOptions(clientOptions *arm.ClientOptions, tokenCredentialProvider TokenCredentialProvider) Factory {
 	return defaultFactory{
-		clientOptions:           clientOptions,
-		tokenCredentialProvider: tokenCredentialProvider,
+		tokenCredentialProvider: GetDefaultTokenCredentials,
 	}
 }
 
