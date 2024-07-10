@@ -38,7 +38,7 @@ func (b *VMAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec) 
 
 // withGet implements the Get method of armcompute.VirtualMachinesClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *VMAccessBuilder) withGet() *VMAccessBuilder {
-	b.server.Get = func(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachinesClientGetResponse], errResp azfake.ErrorResponder) {
+	b.server.Get = func(ctx context.Context, resourceGroupName string, vmName string, _ *armcompute.VirtualMachinesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachinesClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, vmName, testhelp.AccessMethodGet)
 			if err != nil {
@@ -64,7 +64,7 @@ func (b *VMAccessBuilder) withGet() *VMAccessBuilder {
 
 // withBeginDelete implements the BeingDelete method of armcompute.VirtualMachinesClient and initializes the backing fake server's BeginDelete method with the anonymous function implementation.
 func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
-	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientDeleteResponse], errResp azfake.ErrorResponder) {
+	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, vmName string, _ *armcompute.VirtualMachinesClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, vmName, testhelp.AccessMethodBeginDelete)
 			if err != nil {
@@ -87,7 +87,7 @@ func (b *VMAccessBuilder) withBeginDelete() *VMAccessBuilder {
 
 // withBeginCreateOrUpdate implements the BeginCreateOrUpdate method of armcompute.VirtualMachinesClient and initializes the backing fake server's BeginCreateOrUpdate method with the anonymous function implementation.
 func (b *VMAccessBuilder) withBeginCreateOrUpdate() *VMAccessBuilder {
-	b.server.BeginCreateOrUpdate = func(ctx context.Context, resourceGroupName string, vmName string, parameters armcompute.VirtualMachine, options *armcompute.VirtualMachinesClientBeginCreateOrUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientCreateOrUpdateResponse], errResp azfake.ErrorResponder) {
+	b.server.BeginCreateOrUpdate = func(ctx context.Context, resourceGroupName string, vmName string, parameters armcompute.VirtualMachine, _ *armcompute.VirtualMachinesClientBeginCreateOrUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientCreateOrUpdateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, vmName, testhelp.AccessMethodBeginCreateOrUpdate)
 			if err != nil {
@@ -113,7 +113,7 @@ func (b *VMAccessBuilder) withBeginCreateOrUpdate() *VMAccessBuilder {
 
 // withBeginUpdate implements the BeingUpdate method of armcompute.VirtualMachinesClient and initializes the backing fake server's BeginUpdate method with the anonymous function implementation.
 func (b *VMAccessBuilder) withBeginUpdate() *VMAccessBuilder {
-	b.server.BeginUpdate = func(ctx context.Context, resourceGroupName string, vmName string, updateParams armcompute.VirtualMachineUpdate, options *armcompute.VirtualMachinesClientBeginUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientUpdateResponse], errResp azfake.ErrorResponder) {
+	b.server.BeginUpdate = func(ctx context.Context, resourceGroupName string, vmName string, updateParams armcompute.VirtualMachineUpdate, _ *armcompute.VirtualMachinesClientBeginUpdateOptions) (resp azfake.PollerResponder[armcompute.VirtualMachinesClientUpdateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, vmName, testhelp.AccessMethodBeginUpdate)
 			if err != nil {

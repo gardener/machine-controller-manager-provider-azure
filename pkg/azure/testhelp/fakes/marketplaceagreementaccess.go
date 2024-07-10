@@ -39,7 +39,7 @@ func (b *MarketPlaceAgreementAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec 
 
 // withGet implements the Get method of armmarketplaceordering.MarketplaceAgreementsClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *MarketPlaceAgreementAccessBuilder) withGet() *MarketPlaceAgreementAccessBuilder {
-	b.server.Get = func(ctx context.Context, offerType armmarketplaceordering.OfferType, publisherID string, offerID string, planID string, options *armmarketplaceordering.MarketplaceAgreementsClientGetOptions) (resp azfake.Responder[armmarketplaceordering.MarketplaceAgreementsClientGetResponse], errResp azfake.ErrorResponder) {
+	b.server.Get = func(ctx context.Context, offerType armmarketplaceordering.OfferType, publisherID string, offerID string, _ string, _ *armmarketplaceordering.MarketplaceAgreementsClientGetOptions) (resp azfake.Responder[armmarketplaceordering.MarketplaceAgreementsClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(utils.MarketPlaceOrderingOfferType), testhelp.AccessMethodGet)
 			if err != nil {
@@ -63,7 +63,7 @@ func (b *MarketPlaceAgreementAccessBuilder) withGet() *MarketPlaceAgreementAcces
 // withCreate creates a fake implementation of Create method on the underline fake server.
 // In MCM-Provider-Azure this method is used to only update and not to create. The fake is tailored towards Update use cases only - It assumes that an agreement is already existing.
 func (b *MarketPlaceAgreementAccessBuilder) withCreate() *MarketPlaceAgreementAccessBuilder {
-	b.server.Create = func(ctx context.Context, offerType armmarketplaceordering.OfferType, publisherID string, offerID string, planID string, parameters armmarketplaceordering.AgreementTerms, options *armmarketplaceordering.MarketplaceAgreementsClientCreateOptions) (resp azfake.Responder[armmarketplaceordering.MarketplaceAgreementsClientCreateResponse], errResp azfake.ErrorResponder) {
+	b.server.Create = func(ctx context.Context, offerType armmarketplaceordering.OfferType, publisherID string, offerID string, _ string, parameters armmarketplaceordering.AgreementTerms, _ *armmarketplaceordering.MarketplaceAgreementsClientCreateOptions) (resp azfake.Responder[armmarketplaceordering.MarketplaceAgreementsClientCreateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(utils.MarketPlaceOrderingOfferType), testhelp.AccessMethodCreate)
 			if err != nil {

@@ -39,7 +39,7 @@ func (b *SubnetAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSp
 
 // withGet implements the Get method of armnetwork.SubnetsClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *SubnetAccessBuilder) withGet() *SubnetAccessBuilder {
-	b.server.Get = func(ctx context.Context, resourceGroupName string, virtualNetworkName string, subnetName string, options *armnetwork.SubnetsClientGetOptions) (resp azfake.Responder[armnetwork.SubnetsClientGetResponse], errResp azfake.ErrorResponder) {
+	b.server.Get = func(ctx context.Context, resourceGroupName string, virtualNetworkName string, subnetName string, _ *armnetwork.SubnetsClientGetOptions) (resp azfake.Responder[armnetwork.SubnetsClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(utils.SubnetResourceType), testhelp.AccessMethodGet)
 			if err != nil {

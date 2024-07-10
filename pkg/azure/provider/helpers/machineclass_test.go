@@ -58,7 +58,7 @@ func TestDecodeMachineSetConfig(t *testing.T) {
 	providerSpec.Properties.Zone = nil
 
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			providerSpec.Properties.MachineSet = &entry.machineSetConfig
 			machineClass, err := fakes.CreateMachineClass(providerSpec, nil)
 			g.Expect(err).To(BeNil())

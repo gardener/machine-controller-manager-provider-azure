@@ -42,7 +42,7 @@ func (b *ResourceGraphAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBeh
 // withResources sets the implementation for `Resources` method. The implementation is not generic and currently only assumes that user will use this fake server method
 // to only test queries that are specified in `helpers.ExtractVMNamesFromVMsNICsDisks` function. If new queries are added then this implementation should be updated.
 func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder {
-	b.server.Resources = func(ctx context.Context, query armresourcegraph.QueryRequest, options *armresourcegraph.ClientResourcesOptions) (resp azfake.Responder[armresourcegraph.ClientResourcesResponse], errResp azfake.ErrorResponder) {
+	b.server.Resources = func(ctx context.Context, query armresourcegraph.QueryRequest, _ *armresourcegraph.ClientResourcesOptions) (resp azfake.Responder[armresourcegraph.ClientResourcesResponse], errResp azfake.ErrorResponder) {
 
 		foundResourceTypes := getResourceTypes(query)
 

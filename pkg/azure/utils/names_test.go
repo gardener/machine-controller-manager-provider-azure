@@ -42,7 +42,7 @@ func TestCreateDataDiskName(t *testing.T) {
 	}
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			dataDisk := api.AzureDataDisk{
 				Name:       entry.dataDiskName,
 				Lun:        pointer.Int32(entry.lun),

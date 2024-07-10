@@ -31,7 +31,7 @@ func (b *ResourceGroupsAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBe
 
 // withCheckExistence implements the CheckExistence method of armresources.ResourceGroupsClient and initializes the backing fake server's CheckExistence method with the anonymous function implementation.
 func (b *ResourceGroupsAccessBuilder) withCheckExistence() *ResourceGroupsAccessBuilder {
-	b.server.CheckExistence = func(ctx context.Context, resourceGroupName string, options *armresources.ResourceGroupsClientCheckExistenceOptions) (resp azfake.Responder[armresources.ResourceGroupsClientCheckExistenceResponse], errResp azfake.ErrorResponder) {
+	b.server.CheckExistence = func(ctx context.Context, resourceGroupName string, _ *armresources.ResourceGroupsClientCheckExistenceOptions) (resp azfake.Responder[armresources.ResourceGroupsClientCheckExistenceResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, resourceGroupName, testhelp.AccessMethodCheckExistence)
 			if err != nil {

@@ -497,7 +497,7 @@ func TestDeleteMachineWithInducedErrors(t *testing.T) {
 	providerSpec := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().Build()
 
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			// initialize cluster state
 			// ----------------------------------------------------------------------------
 			// create cluster state
@@ -596,7 +596,7 @@ func TestGetMachineStatus(t *testing.T) {
 	providerSpec := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().Build()
 
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			// initialize cluster state
 			// ----------------------------------------------------------------------------
 			// create cluster state
@@ -711,7 +711,7 @@ func TestListMachines(t *testing.T) {
 	ctx := context.Background()
 
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			// create provider spec
 			providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
 			if entry.numDataDisks > 0 {
@@ -799,7 +799,7 @@ func TestListMachineWithInducedErrors(t *testing.T) {
 	clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).BuildWith(true, true, true, false, nil))
 
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			// create fake factory
 			fakeFactory := createDefaultFakeFactoryForListMachines(g,
 				testResourceGroupName,
@@ -841,7 +841,7 @@ func TestGetVolumeIDs(t *testing.T) {
 	g := NewWithT(t)
 	ctx := context.Background()
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			var pvSpecs []*corev1.PersistentVolumeSpec
 			for _, diskVolSrcName := range entry.existingAzureDiskVolSourceNames {
 				pvSpec := &corev1.PersistentVolumeSpec{
@@ -1021,7 +1021,7 @@ func TestCreateMachineWhenPrerequisitesFail(t *testing.T) {
 	ctx := context.Background()
 
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			// create provider spec
 			providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues()
 			if entry.providerSpecVnetResourceGroup != nil {
@@ -1140,7 +1140,7 @@ func TestCreateMachineWhenNICOrVMCreationFails(t *testing.T) {
 	providerSpec := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().Build()
 
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			// initialize cluster state
 			// ----------------------------------------------------------------------------
 			// create cluster state
@@ -1209,7 +1209,7 @@ func TestSuccessfulCreationOfMachine(t *testing.T) {
 		providerSpecBuilder := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).
 			WithDefaultValues().
 			WithDataDisks(testDataDiskName, 2)
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			// initialize cluster state
 			// ----------------------------------------------------------------------------
 			// create cluster state
