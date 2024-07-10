@@ -38,7 +38,7 @@ func (b *NICAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec)
 
 // withGet implements the Get method of armnetwork.InterfacesClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *NICAccessBuilder) withGet() *NICAccessBuilder {
-	b.server.Get = func(ctx context.Context, resourceGroupName string, nicName string, options *armnetwork.InterfacesClientGetOptions) (resp azfake.Responder[armnetwork.InterfacesClientGetResponse], errResp azfake.ErrorResponder) {
+	b.server.Get = func(ctx context.Context, resourceGroupName string, nicName string, _ *armnetwork.InterfacesClientGetOptions) (resp azfake.Responder[armnetwork.InterfacesClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, nicName, testhelp.AccessMethodGet)
 			if err != nil {
@@ -64,7 +64,7 @@ func (b *NICAccessBuilder) withGet() *NICAccessBuilder {
 
 // withBeginDelete implements the BeingDelete method of armnetwork.InterfacesClient and initializes the backing fake server's BeginDelete method with the anonymous function implementation.
 func (b *NICAccessBuilder) withBeginDelete() *NICAccessBuilder {
-	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, nicName string, options *armnetwork.InterfacesClientBeginDeleteOptions) (resp azfake.PollerResponder[armnetwork.InterfacesClientDeleteResponse], errResp azfake.ErrorResponder) {
+	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, nicName string, _ *armnetwork.InterfacesClientBeginDeleteOptions) (resp azfake.PollerResponder[armnetwork.InterfacesClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, nicName, testhelp.AccessMethodBeginDelete)
 			if err != nil {
@@ -91,7 +91,7 @@ func (b *NICAccessBuilder) withBeginDelete() *NICAccessBuilder {
 
 // withBeginCreateOrUpdate implements the BeginCreateOrUpdate method of armnetwork.InterfacesClient and initializes the backing fake server's BeginCreateOrUpdate method with the anonymous function implementation.
 func (b *NICAccessBuilder) withBeginCreateOrUpdate() *NICAccessBuilder {
-	b.server.BeginCreateOrUpdate = func(ctx context.Context, resourceGroupName string, nicName string, parameters armnetwork.Interface, options *armnetwork.InterfacesClientBeginCreateOrUpdateOptions) (resp azfake.PollerResponder[armnetwork.InterfacesClientCreateOrUpdateResponse], errResp azfake.ErrorResponder) {
+	b.server.BeginCreateOrUpdate = func(ctx context.Context, resourceGroupName string, nicName string, parameters armnetwork.Interface, _ *armnetwork.InterfacesClientBeginCreateOrUpdateOptions) (resp azfake.PollerResponder[armnetwork.InterfacesClientCreateOrUpdateResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, nicName, testhelp.AccessMethodBeginCreateOrUpdate)
 			if err != nil {

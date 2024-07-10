@@ -96,7 +96,7 @@ func TestValidateProviderSecret(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			secret := createSecret(entry.clientID, entry.clientSecret, entry.subscriptionID, entry.tenantID, entry.testUserData)
 			errList := ValidateProviderSecret(secret)
 			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
@@ -141,7 +141,7 @@ func TestValidateSubnetInfo(t *testing.T) {
 	}
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			subnetInfo := api.AzureSubnetInfo{
 				VnetName:   entry.vnetName,
 				SubnetName: entry.subnetName,
@@ -220,7 +220,7 @@ func TestValidateOSDisk(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			errList := validateOSDisk(entry.osDisk, fldPath)
 			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
 			if entry.matcher != nil {
@@ -250,7 +250,7 @@ func TestValidateOSProfile(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			osProfile := api.AzureOSProfile{
 				ComputerName:  "bingo",
 				AdminUsername: entry.adminUserName,
@@ -311,7 +311,7 @@ func TestValidateDataDisks(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			errList := validateDataDisks(entry.disks, fldPath)
 			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
 			if entry.matcher != nil {
@@ -359,7 +359,7 @@ func TestValidateAvailabilityAndScalingConfig(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			vmProperties := api.AzureVirtualMachineProperties{
 				AvailabilitySet:        entry.availabilitySet,
 				Zone:                   entry.zone,
@@ -453,7 +453,7 @@ func TestValidateStorageImageRef(t *testing.T) {
 
 	g := NewWithT(t)
 	for _, entry := range table {
-		t.Run(entry.description, func(t *testing.T) {
+		t.Run(entry.description, func(_ *testing.T) {
 			storageImageRef := api.AzureImageReference{
 				ID:                      entry.id,
 				URN:                     entry.urn,

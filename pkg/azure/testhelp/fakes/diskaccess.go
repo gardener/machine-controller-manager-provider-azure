@@ -38,7 +38,7 @@ func (b *DiskAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpec
 
 // withGet implements the Get method of armcompute.DisksClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
-	b.server.Get = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientGetOptions) (resp azfake.Responder[armcompute.DisksClientGetResponse], errResp azfake.ErrorResponder) {
+	b.server.Get = func(ctx context.Context, resourceGroupName string, diskName string, _ *armcompute.DisksClientGetOptions) (resp azfake.Responder[armcompute.DisksClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, diskName, testhelp.AccessMethodGet)
 			if err != nil {
@@ -64,7 +64,7 @@ func (b *DiskAccessBuilder) withGet() *DiskAccessBuilder {
 
 // withBeginDelete implements the BeingDelete method of armcompute.DisksClient and initializes the backing fake server's BeginDelete method with the anonymous function implementation.
 func (b *DiskAccessBuilder) withBeginDelete() *DiskAccessBuilder {
-	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, diskName string, options *armcompute.DisksClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.DisksClientDeleteResponse], errResp azfake.ErrorResponder) {
+	b.server.BeginDelete = func(ctx context.Context, resourceGroupName string, diskName string, _ *armcompute.DisksClientBeginDeleteOptions) (resp azfake.PollerResponder[armcompute.DisksClientDeleteResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResource(ctx, resourceGroupName, diskName, testhelp.AccessMethodBeginDelete)
 			if err != nil {

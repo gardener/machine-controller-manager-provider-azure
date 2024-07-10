@@ -42,7 +42,7 @@ func (b *ResourceGraphAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBeh
 // withResources sets the implementation for `Resources` method. The implementation is not generic and currently only assumes that user will use this fake server method
 // to only test queries that are specified in `helpers.ExtractVMNamesFromVMsNICsDisks` function. If new queries are added then this implementation should be updated.
 func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder {
-	b.server.Resources = func(ctx context.Context, query armresourcegraph.QueryRequest, options *armresourcegraph.ClientResourcesOptions) (resp azfake.Responder[armresourcegraph.ClientResourcesResponse], errResp azfake.ErrorResponder) {
+	b.server.Resources = func(ctx context.Context, query armresourcegraph.QueryRequest, _ *armresourcegraph.ClientResourcesOptions) (resp azfake.Responder[armresourcegraph.ClientResourcesResponse], errResp azfake.ErrorResponder) {
 
 		foundResourceTypes := getResourceTypes(query)
 
@@ -62,24 +62,22 @@ func (b *ResourceGraphAccessBuilder) withResources() *ResourceGraphAccessBuilder
 		resTypeToVMNames := make(map[string][]string)
 		if query.Query != nil {
 			tagsToMatch := b.getProviderSpecTagKeysToMatch()
-			if foundResourceTypes != nil {
-				for _, resType := range foundResourceTypes {
-					switch resType {
-					case utils.VirtualMachinesResourceType:
-						vmNames := b.clusterState.GetVMsMatchingTagKeys(tagsToMatch)
-						if !utils.IsSliceNilOrEmpty(vmNames) {
-							resTypeToVMNames[string(resType)] = vmNames
-						}
-					case utils.NetworkInterfacesResourceType:
-						vmNames := b.clusterState.GetNICNamesMatchingTagKeys(tagsToMatch)
-						if !utils.IsSliceNilOrEmpty(vmNames) {
-							resTypeToVMNames[string(resType)] = vmNames
-						}
-					case utils.DiskResourceType:
-						vmNames := b.clusterState.GetDiskNamesMatchingTagKeys(tagsToMatch)
-						if !utils.IsSliceNilOrEmpty(vmNames) {
-							resTypeToVMNames[string(resType)] = vmNames
-						}
+			for _, resType := range foundResourceTypes {
+				switch resType {
+				case utils.VirtualMachinesResourceType:
+					vmNames := b.clusterState.GetVMsMatchingTagKeys(tagsToMatch)
+					if !utils.IsSliceNilOrEmpty(vmNames) {
+						resTypeToVMNames[string(resType)] = vmNames
+					}
+				case utils.NetworkInterfacesResourceType:
+					vmNames := b.clusterState.GetNICNamesMatchingTagKeys(tagsToMatch)
+					if !utils.IsSliceNilOrEmpty(vmNames) {
+						resTypeToVMNames[string(resType)] = vmNames
+					}
+				case utils.DiskResourceType:
+					vmNames := b.clusterState.GetDiskNamesMatchingTagKeys(tagsToMatch)
+					if !utils.IsSliceNilOrEmpty(vmNames) {
+						resTypeToVMNames[string(resType)] = vmNames
 					}
 				}
 			}
@@ -122,14 +120,12 @@ func (b *ResourceGraphAccessBuilder) getProviderSpecTagKeysToMatch() []string {
 
 func createResourcesResponse(resTypeToVMNames map[string][]string) armresourcegraph.ClientResourcesResponse {
 	body := make([]interface{}, 0, len(resTypeToVMNames))
-	if resTypeToVMNames != nil {
-		for resType, vmNames := range resTypeToVMNames {
-			for _, vmName := range vmNames {
-				entry := make(map[string]interface{})
-				entry["type"] = resType
-				entry["name"] = vmName
-				body = append(body, entry)
-			}
+	for resType, vmNames := range resTypeToVMNames {
+		for _, vmName := range vmNames {
+			entry := make(map[string]interface{})
+			entry["type"] = resType
+			entry["name"] = vmName
+			body = append(body, entry)
 		}
 	}
 	return armresourcegraph.ClientResourcesResponse{

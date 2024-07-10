@@ -39,7 +39,7 @@ func (b *ImageAccessBuilder) WithAPIBehaviorSpec(apiBehaviorSpec *APIBehaviorSpe
 
 // withGet implements the Get method of armcompute.VirtualMachineImagesClient and initializes the backing fake server's Get method with the anonymous function implementation.
 func (b *ImageAccessBuilder) withGet() *ImageAccessBuilder {
-	b.server.Get = func(ctx context.Context, location string, publisherName string, offer string, skus string, version string, options *armcompute.VirtualMachineImagesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachineImagesClientGetResponse], errResp azfake.ErrorResponder) {
+	b.server.Get = func(ctx context.Context, _ string, publisherName string, offer string, skus string, version string, _ *armcompute.VirtualMachineImagesClientGetOptions) (resp azfake.Responder[armcompute.VirtualMachineImagesClientGetResponse], errResp azfake.ErrorResponder) {
 		if b.apiBehaviorSpec != nil {
 			err := b.apiBehaviorSpec.SimulateForResourceType(ctx, b.clusterState.ProviderSpec.ResourceGroup, to.Ptr(utils.VMImageResourceType), testhelp.AccessMethodGet)
 			if err != nil {

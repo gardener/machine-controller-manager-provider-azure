@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	testErr          = errors.New("test-error")
+	errTest          = errors.New("test-error")
 	defaultErrorCode = strconv.Itoa(int(codes.Internal))
 	testStatusErr    = status.New(codes.InvalidArgument, "test-status-error")
 )
@@ -30,7 +30,7 @@ func TestAPIMetricRecorderFn(t *testing.T) {
 		name string
 		err  error
 	}{
-		{"assert that function captures failed API request count when the error is not nil", testErr},
+		{"assert that function captures failed API request count when the error is not nil", errTest},
 		{"assert that function captures successful API request count when the error is nil", nil},
 	}
 	g := NewWithT(t)
@@ -38,7 +38,7 @@ func TestAPIMetricRecorderFn(t *testing.T) {
 	g.Expect(reg.Register(metrics.APIRequestCount)).To(Succeed())
 	g.Expect(reg.Register(metrics.APIFailedRequestCount)).To(Succeed())
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(_ *testing.T) {
 			defer metrics.APIRequestCount.Reset()
 			defer metrics.APIFailedRequestCount.Reset()
 			defer metrics.APIRequestDuration.Reset()
@@ -61,7 +61,7 @@ func TestDriverAPIMetricRecorderFn(t *testing.T) {
 		name string
 		err  error
 	}{
-		{"assert that function captures failed driver API request with default error code for internal error when there is an error", testErr},
+		{"assert that function captures failed driver API request with default error code for internal error when there is an error", errTest},
 		{"assert that function captures failed driver API request with error code from status.Status on error", testStatusErr},
 		{"assert that function captures successful driver API request count when the error is nil", nil},
 	}
@@ -69,7 +69,7 @@ func TestDriverAPIMetricRecorderFn(t *testing.T) {
 	reg := prometheus.NewRegistry()
 	g.Expect(reg.Register(metrics.DriverFailedAPIRequests)).To(Succeed())
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(_ *testing.T) {
 			defer metrics.DriverFailedAPIRequests.Reset()
 			_ = deferredMetricsRecorderInvoker(tc.err != nil, isStatusErr(tc.err), DriverAPIMetricRecorderFn)
 			if tc.err != nil {
@@ -111,7 +111,7 @@ func deferredMetricsRecorderInvoker(shouldReturnErr bool, isStatusErr bool, fn r
 		if isStatusErr {
 			err = testStatusErr
 		} else {
-			err = testErr
+			err = errTest
 		}
 	}
 	return

@@ -60,7 +60,7 @@ func (m *MachineResources) ShouldCascadeDeleteAllAttachedResources() bool {
 
 		cascadeDeleteSetForNIC := nicDeleteOpt == nil || *nicDeleteOpt == armcompute.DeleteOptionsDelete
 		cascadeDeleteSetForOSDisk := osDiskDeleteOpt == nil || *osDiskDeleteOpt == armcompute.DiskDeleteOptionTypesDelete
-		cascadeDeleteSetForDataDisks := dataDisksDeleteOptsMap == nil || len(dataDisksDeleteOptsMap) == 0 || isCascadeDeleteSetForAllDataDisks(dataDisksDeleteOptsMap)
+		cascadeDeleteSetForDataDisks := len(dataDisksDeleteOptsMap) == 0 || isCascadeDeleteSetForAllDataDisks(dataDisksDeleteOptsMap)
 
 		return cascadeDeleteSetForNIC && cascadeDeleteSetForOSDisk && cascadeDeleteSetForDataDisks
 	}
@@ -292,11 +292,9 @@ func (b *MachineResourcesBuilder) createMachineResources(createVM, createNIC, cr
 func createDataDiskResources(spec api.AzureProviderSpec, vmID *string, vmName string) map[string]*armcompute.Disk {
 	specDataDisks := spec.Properties.StorageProfile.DataDisks
 	dataDisks := make(map[string]*armcompute.Disk, len(specDataDisks))
-	if specDataDisks != nil {
-		for _, specDataDisk := range specDataDisks {
-			diskName := utils.CreateDataDiskName(vmName, specDataDisk)
-			dataDisks[diskName] = createDiskResource(spec, diskName, vmID, nil)
-		}
+	for _, specDataDisk := range specDataDisks {
+		diskName := utils.CreateDataDiskName(vmName, specDataDisk)
+		dataDisks[diskName] = createDiskResource(spec, diskName, vmID, nil)
 	}
 	return dataDisks
 }
