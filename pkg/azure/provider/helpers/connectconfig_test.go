@@ -28,7 +28,7 @@ func TestDetermineAzureCloudConfiguration(t *testing.T) {
 	g := NewWithT(t)
 	t.Parallel()
 	for _, test := range tests {
-		t.Run(test.description, func(t *testing.T) {
+		t.Run(test.description, func(_ *testing.T) {
 			cloudConfiguration := DetermineAzureCloudConfiguration(test.testConfiguration)
 			g.Expect(cloudConfiguration).To(Equal(*test.expectedOutput))
 		})
