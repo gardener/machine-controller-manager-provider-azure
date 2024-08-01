@@ -6,6 +6,8 @@ package helpers
 
 import (
 	"context"
+	"time"
+
 	"k8s.io/klog/v2"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
@@ -17,6 +19,9 @@ import (
 
 const (
 	diskDeleteServiceLabel = "disk_delete"
+	diskCreateServiceLabel = "disk_create"
+
+	defaultDiskOperationTimeout = 10 * time.Minute
 )
 
 // DeleteDisk deletes disk for passed in resourceGroup and diskName.
@@ -36,5 +41,26 @@ func DeleteDisk(ctx context.Context, client *armcompute.DisksClient, resourceGro
 		errors.LogAzAPIError(err, "Polling failed while waiting for Deleting for [resourceGroup: %s, Name: %s]", diskName, resourceGroup)
 	}
 	klog.Infof("Successfully deleted Disk: %s, for ResourceGroup: %s", diskName, resourceGroup)
+	return
+}
+
+// CreateDisk creates a Disk given a resourceGroup and disk creation parameters.
+// NOTE: All calls to this Azure API are instrumented as prometheus metric.
+func CreateDisk(ctx context.Context, client *armcompute.DisksClient, resourceGroup, diskName string, diskCreationParams armcompute.Disk) (disk *armcompute.Disk, err error) {
+	defer instrument.AZAPIMetricRecorderFn(diskCreateServiceLabel, &err)()
+
+	createCtx, cancelFn := context.WithTimeout(ctx, defaultDiskOperationTimeout)
+	defer cancelFn()
+	poller, err := client.BeginCreateOrUpdate(createCtx, resourceGroup, diskName, diskCreationParams, nil)
+	if err != nil {
+		errors.LogAzAPIError(err, "Failed to trigger create of Disk [Name: %s, ResourceGroup: %s]", resourceGroup, diskName)
+		return
+	}
+	createResp, err := poller.PollUntilDone(createCtx, nil)
+	if err != nil {
+		errors.LogAzAPIError(err, "Polling failed while waiting for create of Disk: %s for ResourceGroup: %s", diskName, resourceGroup)
+		return
+	}
+	disk = &createResp.Disk
 	return
 }

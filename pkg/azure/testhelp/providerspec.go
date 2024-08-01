@@ -191,7 +191,7 @@ func (b *ProviderSpecBuilder) Build() api.AzureProviderSpec {
 func CreateDataDiskNames(vmName string, spec api.AzureProviderSpec) []string {
 	var diskNames []string
 	for _, specDataDisk := range spec.Properties.StorageProfile.DataDisks {
-		diskNames = append(diskNames, utils.CreateDataDiskName(vmName, specDataDisk))
+		diskNames = append(diskNames, utils.CreateDataDiskName(vmName, specDataDisk.Name, specDataDisk.Lun))
 	}
 	return diskNames
 }
