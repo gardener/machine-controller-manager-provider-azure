@@ -62,5 +62,6 @@ func CreateDisk(ctx context.Context, client *armcompute.DisksClient, resourceGro
 		return
 	}
 	disk = &createResp.Disk
+        klog.Infof("Successfully created Disk: %s, for ResourceGroup: %s", diskName, resourceGroup)
 	return
 }
