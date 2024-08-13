@@ -636,14 +636,11 @@ func setDiskImageReference(ctx context.Context, disk *armcompute.Disk, specDataD
 			Version:   to.Ptr(urnParts[3]),
 		}
 
-		vmImagesAccess, err := factory.GetVirtualMachineImagesAccess(connectConfig)
+		image, err := getVirtualMachineImage(ctx, factory, connectConfig, location, imageRef)
 		if err != nil {
-			return status.WrapError(codes.Internal, fmt.Sprintf("Failed to create image access, Err: %v", err), err)
+			return err
 		}
-		image, err := accesshelpers.GetVMImage(ctx, vmImagesAccess, location, imageRef)
-		if err != nil {
-			return status.WrapError(codes.Internal, fmt.Sprintf("Failed to get image, Err: %v", err), err)
-		}
+
 		disk.Properties.CreationData.ImageReference = &armcompute.ImageDiskReference{
 			ID: image.ID,
 		}
