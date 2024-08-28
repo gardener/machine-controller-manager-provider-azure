@@ -431,7 +431,7 @@ func createNICTags(tags map[string]string) map[string]*string {
 // 1. Gets the VM image. If the image does not exist then it will return an error.
 // 2. From the VM Image it checks if there is a plan.
 // 3. If there is a plan then it will check if there is an existing agreement for this plan. If an agreement does not exist then it will return an error.
-// 4. If the agreement has not been accepted, yet then it will accept the agreement and update the agreement. If that fails then it will return an error.
+// 4. If the agreement has not been accepted yet then it will accept the agreement and update the agreement. If that fails then it will return an error.
 func ProcessVMImageConfiguration(ctx context.Context, factory access.Factory, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec, vmName string) (imgRef armcompute.ImageReference, plan *armcompute.Plan, err error) {
 	imgRef = getImageReference(providerSpec)
 
