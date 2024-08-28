@@ -788,7 +788,8 @@ func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string, imageRefDisk
 		if specDataDisk.ImageRef != nil {
 			diskID := imageRefDiskIDs[DataDiskLun(specDataDisk.Lun)]
 			if diskID == nil {
-				return nil, fmt.Errorf("could not find id of pre created disk %s with lun %d",
+				return nil, fmt.Errorf("unexpected error, this cannot happen and points to a coding error: "+
+					"could not find id of pre created disk '%s' with lun '%d'",
 					dataDiskName, specDataDisk.Lun)
 			}
 			dataDisk.CreateOption = to.Ptr(armcompute.DiskCreateOptionTypesAttach)
