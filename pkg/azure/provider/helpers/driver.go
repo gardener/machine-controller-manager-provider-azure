@@ -36,7 +36,7 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
 )
 
-// DataDiskLun describes the dataDisk lun
+// DataDiskLun is a type alias for int32 which semantically represents a dataDisk lun
 type DataDiskLun int32
 
 // DiskID describes the disk ID
