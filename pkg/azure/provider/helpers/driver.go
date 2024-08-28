@@ -628,13 +628,7 @@ func setDiskImageReference(ctx context.Context, disk *armcompute.Disk, specDataD
 			CommunityGalleryImageID: specDataDisk.ImageRef.CommunityGalleryImageID,
 		}
 	} else if !utils.IsNilOrEmptyStringPtr(specDataDisk.ImageRef.URN) {
-		urnParts := strings.Split(*specDataDisk.ImageRef.URN, ":")
-		imageRef := armcompute.ImageReference{
-			Publisher: to.Ptr(urnParts[0]),
-			Offer:     to.Ptr(urnParts[1]),
-			SKU:       to.Ptr(urnParts[2]),
-			Version:   to.Ptr(urnParts[3]),
-		}
+		imageRef := utils.ToImageReference(*specDataDisk.ImageRef.URN)
 
 		image, err := getVirtualMachineImage(ctx, factory, connectConfig, location, imageRef)
 		if err != nil {
