@@ -39,7 +39,7 @@ import (
 // DataDiskLun is a type alias for int32 which semantically represents a dataDisk lun
 type DataDiskLun int32
 
-// DiskID describes the disk ID
+// DiskID is a type alias for *string which semantically represents a Disk ID
 type DiskID *string
 
 // ExtractProviderSpecAndConnectConfig extracts api.AzureProviderSpec from mcc and access.ConnectConfig from secret.
