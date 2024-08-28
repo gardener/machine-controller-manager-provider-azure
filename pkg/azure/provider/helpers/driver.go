@@ -566,12 +566,12 @@ func CreateDisksWithImageRef(ctx context.Context, factory access.Factory, connec
 	}
 
 	disks := make(map[DataDiskLun]DiskID)
-	specDataDisks := providerSpec.Properties.StorageProfile.DataDisks
-	if utils.IsSliceNilOrEmpty(specDataDisks) {
+	dataDiskSpecs := providerSpec.Properties.StorageProfile.DataDisks
+	if utils.IsSliceNilOrEmpty(dataDiskSpecs) {
 		return disks, nil
 	}
 
-	for _, specDataDisk := range specDataDisks {
+	for _, specDataDisk := range dataDiskSpecs {
 		// skip if dataDisk does not have imageRef property
 		if specDataDisk.ImageRef == nil {
 			continue
@@ -595,14 +595,16 @@ func CreateDisksWithImageRef(ctx context.Context, factory access.Factory, connec
 }
 
 func createDiskCreationParams(ctx context.Context, specDataDisk api.AzureDataDisk, providerSpec api.AzureProviderSpec, factory access.Factory, connectConfig access.ConnectConfig) (params armcompute.Disk, err error) {
+	creationData, err := createDiskCreationData(ctx, specDataDisk, providerSpec.Location, factory, connectConfig)
+	if err != nil {
+		return armcompute.Disk{}, err
+	}
 	params = armcompute.Disk{
 		Location: to.Ptr(providerSpec.Location),
 		Properties: &armcompute.DiskProperties{
-			CreationData: &armcompute.CreationData{
-				CreateOption: to.Ptr(armcompute.DiskCreateOptionFromImage),
-			},
-			DiskSizeGB: to.Ptr[int32](specDataDisk.DiskSizeGB),
-			OSType:     to.Ptr(armcompute.OperatingSystemTypesLinux),
+			CreationData: creationData,
+			DiskSizeGB:   to.Ptr[int32](specDataDisk.DiskSizeGB),
+			OSType:       to.Ptr(armcompute.OperatingSystemTypesLinux),
 		},
 		SKU: &armcompute.DiskSKU{
 			Name: to.Ptr(armcompute.DiskStorageAccountTypes(specDataDisk.StorageAccountType)),
@@ -610,21 +612,23 @@ func createDiskCreationParams(ctx context.Context, specDataDisk api.AzureDataDis
 		Tags:  utils.CreateResourceTags(providerSpec.Tags),
 		Zones: getZonesFromProviderSpec(providerSpec),
 	}
-	err = setDiskImageReference(ctx, &params, specDataDisk, providerSpec.Location, factory, connectConfig)
 	return
 }
 
-func setDiskImageReference(ctx context.Context, disk *armcompute.Disk, specDataDisk api.AzureDataDisk, location string, factory access.Factory, connectConfig access.ConnectConfig) error {
+func createDiskCreationData(ctx context.Context, specDataDisk api.AzureDataDisk, location string, factory access.Factory, connectConfig access.ConnectConfig) (*armcompute.CreationData, error) {
+	creationData := &armcompute.CreationData{
+		CreateOption: to.Ptr(armcompute.DiskCreateOptionFromImage),
+	}
 	if !utils.IsEmptyString(specDataDisk.ImageRef.ID) {
-		disk.Properties.CreationData.ImageReference = &armcompute.ImageDiskReference{
+		creationData.ImageReference = &armcompute.ImageDiskReference{
 			ID: &specDataDisk.ImageRef.ID,
 		}
 	} else if !utils.IsNilOrEmptyStringPtr(specDataDisk.ImageRef.SharedGalleryImageID) {
-		disk.Properties.CreationData.GalleryImageReference = &armcompute.ImageDiskReference{
+		creationData.GalleryImageReference = &armcompute.ImageDiskReference{
 			SharedGalleryImageID: specDataDisk.ImageRef.SharedGalleryImageID,
 		}
 	} else if !utils.IsNilOrEmptyStringPtr(specDataDisk.ImageRef.CommunityGalleryImageID) {
-		disk.Properties.CreationData.GalleryImageReference = &armcompute.ImageDiskReference{
+		creationData.GalleryImageReference = &armcompute.ImageDiskReference{
 			CommunityGalleryImageID: specDataDisk.ImageRef.CommunityGalleryImageID,
 		}
 	} else if !utils.IsNilOrEmptyStringPtr(specDataDisk.ImageRef.URN) {
@@ -632,14 +636,14 @@ func setDiskImageReference(ctx context.Context, disk *armcompute.Disk, specDataD
 
 		image, err := getVirtualMachineImage(ctx, factory, connectConfig, location, imageRef)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		disk.Properties.CreationData.ImageReference = &armcompute.ImageDiskReference{
+		creationData.ImageReference = &armcompute.ImageDiskReference{
 			ID: image.ID,
 		}
 	}
-	return nil
+	return creationData, nil
 }
 
 // LogVMCreation is a convenience method which helps to extract relevant details from the created virtual machine and logs it.
@@ -757,12 +761,12 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 	return vm, nil
 }
 
-func getDataDisks(specDataDisks []api.AzureDataDisk, vmName string, imageRefDiskIDs map[DataDiskLun]DiskID) ([]*armcompute.DataDisk, error) {
+func getDataDisks(dataDiskSpecs []api.AzureDataDisk, vmName string, imageRefDiskIDs map[DataDiskLun]DiskID) ([]*armcompute.DataDisk, error) {
 	var dataDisks []*armcompute.DataDisk
-	if utils.IsSliceNilOrEmpty(specDataDisks) {
+	if utils.IsSliceNilOrEmpty(dataDiskSpecs) {
 		return dataDisks, nil
 	}
-	for _, specDataDisk := range specDataDisks {
+	for _, specDataDisk := range dataDiskSpecs {
 		dataDiskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, specDataDisk.Lun)
 		caching := armcompute.CachingTypesNone
 		if !utils.IsEmptyString(specDataDisk.Caching) {
