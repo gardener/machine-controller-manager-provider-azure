@@ -489,7 +489,8 @@ func TestValidateCloudConfiguration(t *testing.T) {
 	g := NewWithT(t)
 	t.Parallel()
 	for _, entry := range table {
-		t.Run(entry.description, func(_ *testing.T) {
+		t.Run(entry.description, func(t *testing.T) {
+			t.Parallel()
 			errList := validateCloudConfiguration(entry.cloudConfiguration, fldPath)
 			if entry.matcher != nil {
 				g.Expect(errList).To(entry.matcher)
