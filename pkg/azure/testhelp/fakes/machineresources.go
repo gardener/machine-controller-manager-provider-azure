@@ -6,7 +6,6 @@ package fakes
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
@@ -293,7 +292,7 @@ func createDataDiskResources(spec api.AzureProviderSpec, vmID *string, vmName st
 	specDataDisks := spec.Properties.StorageProfile.DataDisks
 	dataDisks := make(map[string]*armcompute.Disk, len(specDataDisks))
 	for _, specDataDisk := range specDataDisks {
-		diskName := utils.CreateDataDiskName(vmName, specDataDisk)
+		diskName := utils.CreateDataDiskName(vmName, specDataDisk.Name, specDataDisk.Lun)
 		dataDisks[diskName] = createDiskResource(spec, diskName, vmID, nil)
 	}
 	return dataDisks
@@ -374,31 +373,18 @@ func createVMResource(spec api.AzureProviderSpec, vmName string, plan *armcomput
 }
 
 func createImageReference(imageRef api.AzureImageReference) *armcompute.ImageReference {
-	var (
-		id        *string
-		publisher *string
-		sku       *string
-		offer     *string
-		version   *string
-	)
 	if !utils.IsEmptyString(imageRef.ID) {
-		id = to.Ptr(imageRef.ID)
+		return &armcompute.ImageReference{
+			ID: to.Ptr(imageRef.ID),
+		}
 	}
 	if !utils.IsNilOrEmptyStringPtr(imageRef.URN) {
-		urnParts := strings.Split(*imageRef.URN, ":")
-		publisher = to.Ptr(urnParts[0])
-		offer = to.Ptr(urnParts[1])
-		sku = to.Ptr(urnParts[2])
-		version = to.Ptr(urnParts[3])
+		urnImageRef := utils.ToImageReference(*imageRef.URN)
+		return &urnImageRef
 	}
 	return &armcompute.ImageReference{
 		CommunityGalleryImageID: imageRef.CommunityGalleryImageID,
-		ID:                      id,
-		Offer:                   offer,
-		Publisher:               publisher,
-		SKU:                     sku,
 		SharedGalleryImageID:    imageRef.SharedGalleryImageID,
-		Version:                 version,
 	}
 }
 
@@ -440,7 +426,7 @@ func createDataDisks(spec api.AzureProviderSpec, vmName string, deleteOption *ar
 	}
 	dataDisks := make([]*armcompute.DataDisk, 0, len(specDataDisks))
 	for _, disk := range specDataDisks {
-		diskName := utils.CreateDataDiskName(vmName, disk)
+		diskName := utils.CreateDataDiskName(vmName, disk.Name, disk.Lun)
 		d := createDataDisk(disk.Lun, armcompute.CachingTypes(disk.Caching), deleteOption, disk.DiskSizeGB, armcompute.StorageAccountTypes(disk.StorageAccountType), diskName)
 		dataDisks = append(dataDisks, d)
 	}

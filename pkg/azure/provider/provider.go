@@ -69,6 +69,7 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 	if err != nil {
 		return
 	}
+
 	subnet, err := helpers.GetSubnet(ctx, d.factory, connectConfig, providerSpec)
 	if err != nil {
 		return
@@ -79,10 +80,18 @@ func (d defaultDriver) CreateMachine(ctx context.Context, req *driver.CreateMach
 		return
 	}
 
-	vm, err := helpers.CreateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, plan, req.Secret, nicID, vmName)
+	// create disks with image ref since they can not be created together with the vm
+	// TODO parallelize creation with nic?
+	imageRefDiskIDs, err := helpers.CreateDisksWithImageRef(ctx, d.factory, connectConfig, providerSpec, vmName)
 	if err != nil {
 		return
 	}
+
+	vm, err := helpers.CreateVM(ctx, d.factory, connectConfig, providerSpec, imageReference, plan, req.Secret, nicID, vmName, imageRefDiskIDs)
+	if err != nil {
+		return
+	}
+
 	resp = helpers.ConstructCreateMachineResponse(providerSpec.Location, vmName)
 	helpers.LogVMCreation(providerSpec.Location, providerSpec.ResourceGroup, vm)
 	return

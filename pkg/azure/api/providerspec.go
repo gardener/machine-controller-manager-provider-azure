@@ -206,6 +206,8 @@ type AzureDataDisk struct {
 	StorageAccountType string `json:"storageAccountType,omitempty"`
 	// DiskSizeGB is the size of an empty disk in gigabytes.
 	DiskSizeGB int32 `json:"diskSizeGB,omitempty"`
+	// ImageRef optionally specifies an image source
+	ImageRef *AzureImageReference `json:"imageRef,omitempty"`
 }
 
 // AzureManagedDiskParameters is the parameters of a managed disk.

@@ -243,6 +243,10 @@ func validateDataDisks(disks []api.AzureDataDisk, fldPath *field.Path) field.Err
 		if utils.IsEmptyString(disk.StorageAccountType) {
 			allErrs = append(allErrs, field.Required(fldPath.Child("storageAccountType"), "must provide storageAccountType"))
 		}
+
+		if disk.ImageRef != nil {
+			allErrs = append(allErrs, validateStorageImageRef(*disk.ImageRef, fldPath.Child("imageRef"))...)
+		}
 	}
 
 	for lun, numOccurrence := range luns {

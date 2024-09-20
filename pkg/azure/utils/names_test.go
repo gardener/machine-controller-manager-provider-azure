@@ -47,7 +47,7 @@ func TestCreateDataDiskName(t *testing.T) {
 				Lun:        entry.lun,
 				DiskSizeGB: 10,
 			}
-			g.Expect(CreateDataDiskName(vmName, dataDisk)).To(Equal(entry.expectedDataDiskName))
+			g.Expect(CreateDataDiskName(vmName, dataDisk.Name, dataDisk.Lun)).To(Equal(entry.expectedDataDiskName))
 		})
 	}
 }
