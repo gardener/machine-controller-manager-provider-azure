@@ -65,7 +65,9 @@ func ValidateProviderSecret(secret *corev1.Secret) field.ErrorList {
 	}
 
 	if utils.IsEmptyString(string(secret.Data[api.ClientSecret])) && utils.IsEmptyString(string(secret.Data[api.AzureClientSecret])) && utils.IsEmptyString(string(secret.Data[api.AzureAlternativeClientSecret])) {
-		allErrs = append(allErrs, field.Required(secretDataPath.Child("clientSecret"), "must provide clientSecret"))
+		if utils.IsEmptyString(string(secret.Data["workloadIdentityTokenFile"])) {
+			allErrs = append(allErrs, field.Required(secretDataPath.Child("clientSecret"), "must provide clientSecret or workloadIdentityTokenFile"))
+		}
 	}
 
 	if utils.IsEmptyString(string(secret.Data[api.SubscriptionID])) && utils.IsEmptyString(string(secret.Data[api.AzureSubscriptionID])) && utils.IsEmptyString(string(secret.Data[api.AzureAlternativeSubscriptionID])) {
