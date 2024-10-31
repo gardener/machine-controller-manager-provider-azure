@@ -40,6 +40,9 @@ const (
 	ClientID string = "clientID"
 	// ClientSecret is a constant for a key name that is part of the Azure cloud credentials.
 	ClientSecret string = "clientSecret"
+	// WorkloadIdentityTokenFile is a constant for a key name that is part of the Azure cloud credentials.
+	// It identifies a path to a file that contains a token that can be used for authentication against Azure.
+	WorkloadIdentityTokenFile string = "workloadIdentityTokenFile"
 	// SubscriptionID is a constant for a key name that is part of the Azure cloud credentials.
 	SubscriptionID string = "subscriptionID"
 	// TenantID is a constant for a key name that is part of the Azure cloud credentials.

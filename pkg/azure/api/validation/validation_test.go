@@ -30,59 +30,61 @@ func TestValidateProviderSecret(t *testing.T) {
 				* To generate uuid use: `uuidgen | awk '{print tolower($0)}'`
 			    * To generate random string using allowed characters and specified length use: `cat /dev/urandom | LC_ALL=C tr -dc 'a-zA-Z0-9~' | fold -w 50 | head -n 1`
 		*/
-		testClientID       = "c9f8e78f-eba7-4d2d-97fe-ea4679dbbe63"
-		testClientSecret   = "to6D2mXsZ~lNJsUi0H5lZsRgrh7FlWMTXdTfeKaMO8fCbKmUYE"
-		testSubscriptionID = "8edcc1ad-04bc-419c-ad63-1a989956d466"
-		testTenantID       = "010bd0ff-5eae-446e-aea9-c1eac72e9c77"
-		testUserData       = "May the force be with you"
+		testClientID                  = "c9f8e78f-eba7-4d2d-97fe-ea4679dbbe63"
+		testClientSecret              = "to6D2mXsZ~lNJsUi0H5lZsRgrh7FlWMTXdTfeKaMO8fCbKmUYE"
+		testWorkloadIdentityTokenFile = "/tmp/test/token"
+		testSubscriptionID            = "8edcc1ad-04bc-419c-ad63-1a989956d466"
+		testTenantID                  = "010bd0ff-5eae-446e-aea9-c1eac72e9c77"
+		testUserData                  = "May the force be with you"
 	)
 
 	table := []struct {
-		description    string
-		clientID       string
-		clientSecret   string
-		subscriptionID string
-		tenantID       string
-		testUserData   string
-		expectedErrors int
-		matcher        gomegatypes.GomegaMatcher
+		description               string
+		clientID                  string
+		clientSecret              string
+		workloadIdentityTokenFile string
+		subscriptionID            string
+		tenantID                  string
+		testUserData              string
+		expectedErrors            int
+		matcher                   gomegatypes.GomegaMatcher
 	}{
 		{
 			"should forbid empty clientID",
-			"", testClientSecret, testSubscriptionID, testTenantID, testUserData, 1,
+			"", testClientSecret, testWorkloadIdentityTokenFile, testSubscriptionID, testTenantID, testUserData, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientID")}))),
 		},
 		// just testing one field with spaces. handling for spaces for all required fields is done the same way.
 		{"should forbid clientID when it only has spaces",
-			"  ", testClientSecret, testSubscriptionID, testTenantID, testUserData, 1,
+			"  ", testClientSecret, testWorkloadIdentityTokenFile, testSubscriptionID, testTenantID, testUserData, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientID")}))),
 		},
-		{"should forbid empty clientSecret",
-			testClientID, "", testSubscriptionID, testTenantID, testUserData, 1,
+		{"should forbid empty clientSecret and workloadIdentityTokenFile",
+			testClientID, "", "", testSubscriptionID, testTenantID, testUserData, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientSecret")}))),
 		},
 		{"should forbid empty subscriptionID",
-			testClientID, testClientSecret, "", testTenantID, testUserData, 1,
+			testClientID, testClientSecret, testWorkloadIdentityTokenFile, "", testTenantID, testUserData, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.subscriptionID")}))),
 		},
 		{"should forbid empty tenantID",
-			testClientID, testClientSecret, testSubscriptionID, "", testUserData, 1,
+			testClientID, testClientSecret, testWorkloadIdentityTokenFile, testSubscriptionID, "", testUserData, 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.tenantID")}))),
 		},
 		{
 			"should forbid empty userData",
-			testClientID, testClientSecret, testSubscriptionID, testTenantID, "", 1,
+			testClientID, testClientSecret, testWorkloadIdentityTokenFile, testSubscriptionID, testTenantID, "", 1,
 			ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.userData")}))),
 		},
 		{"should forbid empty clientID and tenantID",
-			"", testClientSecret, testSubscriptionID, "", testUserData, 2,
+			"", testClientSecret, testWorkloadIdentityTokenFile, testSubscriptionID, "", testUserData, 2,
 			ConsistOf(
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientID")})),
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.tenantID")})),
 			),
 		},
 		{"should forbid when all required fields are absent",
-			"", "", "", "", "", 5,
+			"", "", "", "", "", "", 5,
 			ConsistOf(
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientID")})),
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.clientSecret")})),
@@ -91,13 +93,14 @@ func TestValidateProviderSecret(t *testing.T) {
 				PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("data.userData")})),
 			),
 		},
-		{"should succeed when all required fields are present", testClientID, testClientSecret, testSubscriptionID, testTenantID, testUserData, 0, nil},
+		{"should succeed when all required fields are present (w/o workloadIdentityTokenFile)", testClientID, testClientSecret, "", testSubscriptionID, testTenantID, testUserData, 0, nil},
+		{"should succeed when all required fields are present (w/o clientSecret)", testClientID, "", testWorkloadIdentityTokenFile, testSubscriptionID, testTenantID, testUserData, 0, nil},
 	}
 
 	g := NewWithT(t)
 	for _, entry := range table {
 		t.Run(entry.description, func(_ *testing.T) {
-			secret := createSecret(entry.clientID, entry.clientSecret, entry.subscriptionID, entry.tenantID, entry.testUserData)
+			secret := createSecret(entry.clientID, entry.clientSecret, entry.workloadIdentityTokenFile, entry.subscriptionID, entry.tenantID, entry.testUserData)
 			errList := ValidateProviderSecret(secret)
 			g.Expect(len(errList)).To(Equal(entry.expectedErrors))
 			if entry.matcher != nil {
@@ -554,13 +557,16 @@ func TestValidateTags(t *testing.T) {
 	))
 }
 
-func createSecret(clientID, clientSecret, subscriptionID, tenantID, userData string) *corev1.Secret {
+func createSecret(clientID, clientSecret, workloadIdentityTokenFile, subscriptionID, tenantID, userData string) *corev1.Secret {
 	data := make(map[string][]byte, 4)
 	if !utils.IsEmptyString(clientID) {
 		data["clientID"] = encodeAndConvertToBytes(clientID)
 	}
 	if !utils.IsEmptyString(clientSecret) {
 		data["clientSecret"] = encodeAndConvertToBytes(clientSecret)
+	}
+	if !utils.IsEmptyString(workloadIdentityTokenFile) {
+		data["workloadIdentityTokenFile"] = encodeAndConvertToBytes(workloadIdentityTokenFile)
 	}
 	if !utils.IsEmptyString(subscriptionID) {
 		data["subscriptionID"] = encodeAndConvertToBytes(subscriptionID)

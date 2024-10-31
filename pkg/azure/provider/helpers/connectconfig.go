@@ -31,7 +31,7 @@ func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret, cloudConfigurat
 		tenantID                  = ExtractCredentialsFromData(secret.Data, api.TenantID, api.AzureTenantID)
 		clientID                  = ExtractCredentialsFromData(secret.Data, api.ClientID, api.AzureClientID)
 		clientSecret              = ExtractCredentialsFromData(secret.Data, api.ClientSecret, api.AzureClientSecret)
-		workloadIdentityTokenFile = ExtractCredentialsFromData(secret.Data, "workloadIdentityTokenFile")
+		workloadIdentityTokenFile = ExtractCredentialsFromData(secret.Data, api.WorkloadIdentityTokenFile)
 		azCloudConfiguration      = DetermineAzureCloudConfiguration(cloudConfiguration)
 	)
 
