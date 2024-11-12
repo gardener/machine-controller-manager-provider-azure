@@ -64,10 +64,16 @@ func ValidateProviderSecret(secret *corev1.Secret) field.ErrorList {
 		allErrs = append(allErrs, field.Required(secretDataPath.Child("clientID"), "must provide clientID"))
 	}
 
-	if utils.IsEmptyString(string(secret.Data[api.ClientSecret])) &&
-		utils.IsEmptyString(string(secret.Data[api.AzureClientSecret])) &&
-		utils.IsEmptyString(string(secret.Data[api.AzureAlternativeClientSecret])) &&
-		utils.IsEmptyString(string(secret.Data[api.WorkloadIdentityTokenFile])) {
+	var (
+		emptyClientSecret = utils.IsEmptyString(string(secret.Data[api.ClientSecret])) &&
+			utils.IsEmptyString(string(secret.Data[api.AzureClientSecret])) &&
+			utils.IsEmptyString(string(secret.Data[api.AzureAlternativeClientSecret]))
+		emptyWorkloadIdentityTokenFile = utils.IsEmptyString(string(secret.Data[api.WorkloadIdentityTokenFile]))
+	)
+
+	if !emptyClientSecret && !emptyWorkloadIdentityTokenFile {
+		allErrs = append(allErrs, field.Required(secretDataPath.Child("clientSecret"), "clientSecret is mutually exclusive with workloadIdentityTokenFile"))
+	} else if emptyClientSecret && emptyWorkloadIdentityTokenFile {
 		allErrs = append(allErrs, field.Required(secretDataPath.Child("clientSecret"), "must provide clientSecret or workloadIdentityTokenFile"))
 	}
 
