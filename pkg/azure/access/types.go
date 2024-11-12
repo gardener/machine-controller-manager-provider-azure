@@ -21,10 +21,10 @@ type ConnectConfig struct {
 	TenantID string
 	// ClientID is a unique identity assigned by azure active directory to an application.
 	ClientID string
-	// ClientSecret is a certificate issues for the ClientID.
+	// ClientSecret is a certificate issued for the ClientID.
 	// This field is mutually exclusive with WorkloadIdentityTokenFile.
 	ClientSecret string
-	// WorkloadIdentityTokenFile is the file that a token that is used to be exchanged for Azure credentials.
+	// WorkloadIdentityTokenFile is the file containing a federated token for authentication against Azure.
 	// This field is mutually exclusive with ClientSecret.
 	WorkloadIdentityTokenFile string
 	// ClientOptions are the options to use when connecting with clients.
