@@ -6,9 +6,10 @@ package helpers
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
-	"strings"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/api/validation"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
@@ -26,19 +27,21 @@ func ValidateSecretAndCreateConnectConfig(secret *corev1.Secret, cloudConfigurat
 	}
 
 	var (
-		subscriptionID       = ExtractCredentialsFromData(secret.Data, api.SubscriptionID, api.AzureSubscriptionID)
-		tenantID             = ExtractCredentialsFromData(secret.Data, api.TenantID, api.AzureTenantID)
-		clientID             = ExtractCredentialsFromData(secret.Data, api.ClientID, api.AzureClientID)
-		clientSecret         = ExtractCredentialsFromData(secret.Data, api.ClientSecret, api.AzureClientSecret)
-		azCloudConfiguration = DetermineAzureCloudConfiguration(cloudConfiguration)
+		subscriptionID            = ExtractCredentialsFromData(secret.Data, api.SubscriptionID, api.AzureSubscriptionID)
+		tenantID                  = ExtractCredentialsFromData(secret.Data, api.TenantID, api.AzureTenantID)
+		clientID                  = ExtractCredentialsFromData(secret.Data, api.ClientID, api.AzureClientID)
+		clientSecret              = ExtractCredentialsFromData(secret.Data, api.ClientSecret, api.AzureClientSecret)
+		workloadIdentityTokenFile = ExtractCredentialsFromData(secret.Data, api.WorkloadIdentityTokenFile)
+		azCloudConfiguration      = DetermineAzureCloudConfiguration(cloudConfiguration)
 	)
 
 	return access.ConnectConfig{
-		SubscriptionID: subscriptionID,
-		TenantID:       tenantID,
-		ClientID:       clientID,
-		ClientSecret:   clientSecret,
-		ClientOptions:  azcore.ClientOptions{Cloud: azCloudConfiguration},
+		SubscriptionID:            subscriptionID,
+		TenantID:                  tenantID,
+		ClientID:                  clientID,
+		ClientSecret:              clientSecret,
+		WorkloadIdentityTokenFile: workloadIdentityTokenFile,
+		ClientOptions:             azcore.ClientOptions{Cloud: azCloudConfiguration},
 	}, nil
 }
 

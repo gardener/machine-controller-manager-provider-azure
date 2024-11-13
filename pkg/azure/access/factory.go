@@ -33,6 +33,17 @@ func NewDefaultAccessFactory() Factory {
 
 // GetDefaultTokenCredentials provides the azure token credentials using the ConnectConfig passed as an argument.
 func GetDefaultTokenCredentials(connectConfig ConnectConfig) (azcore.TokenCredential, error) {
+	if len(connectConfig.WorkloadIdentityTokenFile) > 0 {
+		return azidentity.NewWorkloadIdentityCredential(
+			&azidentity.WorkloadIdentityCredentialOptions{
+				TenantID:      connectConfig.TenantID,
+				ClientID:      connectConfig.ClientID,
+				TokenFilePath: connectConfig.WorkloadIdentityTokenFile,
+				ClientOptions: connectConfig.ClientOptions,
+			},
+		)
+	}
+
 	return azidentity.NewClientSecretCredential(
 		connectConfig.TenantID,
 		connectConfig.ClientID,
