@@ -669,7 +669,7 @@ func LogVMCreation(location, resourceGroup string, vm *armcompute.VirtualMachine
 		}
 		msgBuilder.WriteString(" ]")
 	}
-	klog.Infof(msgBuilder.String())
+	klog.Infof("%s", msgBuilder.String())
 }
 
 func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcompute.ImageReference, plan *armcompute.Plan, secret *corev1.Secret, nicID, vmName string, imageRefDiskIDs map[DataDiskLun]DiskID) (armcompute.VirtualMachine, error) {

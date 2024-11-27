@@ -15,3 +15,6 @@ main
 
 # Output of the go coverage tool
 *coverprofile.out*
+
+# gosec
+gosec-report.sarif

@@ -1,8 +1,12 @@
 # SPDX-FileCopyrightText: 2019 SAP SE or an SAP affiliate company and Gardener contributors
 #
 # SPDX-License-Identifier: Apache-2.0
-
+MCM_DIR   	:= $(shell go list -m -f "{{.Dir}}" github.com/gardener/machine-controller-manager)
+include $(MCM_DIR)/hack/tools.mk
 -include .env
+# TODO(thiyyakat): Variables have to be reset because the MCM repo uses relative paths for them. Once that is fixed, we can remove the reset logic.
+TOOLS_DIR := $(MCM_DIR)/hack/tools
+TOOLS_BIN_DIR := $(TOOLS_DIR)/bin
 export
 
 BINARY_PATH         		:= bin/
@@ -13,6 +17,7 @@ PROVIDER_NAME       		:= Azure
 PROJECT_NAME        		:= gardener
 TARGET_CLUSTER_NAME			:= shoot--project--cluster-name
 IS_CONTROL_CLUSTER_SEED 	:= true
+PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
 
 # Below ones are used in tests
 LEADER_ELECT 	    := "true"
@@ -126,3 +131,14 @@ clean:
 .PHONY: add-license-headers
 add-license-headers: $(GO_ADD_LICENSE)
 	@./hack/add_license_headers.sh ${YEAR}
+
+.PHONY: adjust-install-gosec.sh
+	@chmod +xw $(TOOLS_DIR)/install-gosec.sh
+
+.PHONY: sast
+sast: adjust-install-gosec.sh $(GOSEC)
+	@./hack/sast.sh
+
+.PHONY: sast-report
+sast-report:  adjust-install-gosec.sh $(GOSEC)
+	@./hack/sast.sh --gosec-report true
