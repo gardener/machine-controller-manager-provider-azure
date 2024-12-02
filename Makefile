@@ -2,11 +2,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 MCM_DIR   	:= $(shell go list -m -f "{{.Dir}}" github.com/gardener/machine-controller-manager)
+TOOLS_DIR := hack/tools
 include $(MCM_DIR)/hack/tools.mk
 -include .env
-# TODO(thiyyakat): Variables have to be reset because the MCM repo uses relative paths for them. Once that is fixed, we can remove the reset logic.
-TOOLS_DIR := $(MCM_DIR)/hack/tools
-TOOLS_BIN_DIR := $(TOOLS_DIR)/bin
+
 export
 
 BINARY_PATH         		:= bin/
@@ -132,13 +131,10 @@ clean:
 add-license-headers: $(GO_ADD_LICENSE)
 	@./hack/add_license_headers.sh ${YEAR}
 
-.PHONY: adjust-install-gosec.sh
-	@chmod +xw $(TOOLS_DIR)/install-gosec.sh
-
 .PHONY: sast
-sast: adjust-install-gosec.sh $(GOSEC)
+sast: $(GOSEC)
 	@./hack/sast.sh
 
 .PHONY: sast-report
-sast-report:  adjust-install-gosec.sh $(GOSEC)
+sast-report: $(GOSEC)
 	@./hack/sast.sh --gosec-report true
