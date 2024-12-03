@@ -115,7 +115,7 @@ func (m *MachineResources) HandleDataDisksOnVMDelete() {
 // HasResources checks if the MachineResources object has any of VM, NIC, OSDisk, DataDisk resources.
 // This will be used to just delete an instance of MachineResources when it has none of the resources.
 func (m *MachineResources) HasResources() bool {
-	return m.VM != nil || m.NIC != nil || m.OSDisk != nil || (m.DataDisks != nil && len(m.DataDisks) > 0)
+	return m.VM != nil || m.NIC != nil || m.OSDisk != nil || len(m.DataDisks) > 0
 }
 
 // UpdateNICDeleteOpt updates the delete option for NIC.
@@ -156,7 +156,7 @@ func (m *MachineResources) AttachDataDisk(spec api.AzureProviderSpec, diskName s
 	if _, ok := m.DataDisks[diskName]; ok {
 		return fmt.Errorf("disk %s already exists, cannot create a new disk with the same name", diskName)
 	}
-	dataDisk := createDataDisk(int32(len(m.DataDisks)+1), "None", &deleteOption, 20, testhelp.StorageAccountType, diskName)
+	dataDisk := createDataDisk(int32(len(m.DataDisks)+1), "None", &deleteOption, 20, testhelp.StorageAccountType, diskName) // #nosec G115 -- Test only
 	d := createDiskResource(spec, diskName, m.VM.ID, nil)
 	m.DataDisks[diskName] = d
 	m.VM.Properties.StorageProfile.DataDisks = append(m.VM.Properties.StorageProfile.DataDisks, dataDisk)

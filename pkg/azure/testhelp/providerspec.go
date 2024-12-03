@@ -125,6 +125,7 @@ func (b *ProviderSpecBuilder) WithDefaultStorageProfile() *ProviderSpecBuilder {
 func (b *ProviderSpecBuilder) WithDataDisks(diskName string, numDisks int) *ProviderSpecBuilder {
 	dataDisks := make([]api.AzureDataDisk, 0, numDisks)
 	for i := 0; i < numDisks; i++ {
+		// #nosec G115 -- Test only
 		d := api.AzureDataDisk{
 			Name:               diskName,
 			Lun:                int32(i),

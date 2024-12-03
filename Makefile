@@ -1,8 +1,11 @@
 # SPDX-FileCopyrightText: 2019 SAP SE or an SAP affiliate company and Gardener contributors
 #
 # SPDX-License-Identifier: Apache-2.0
-
+MCM_DIR   	:= $(shell go list -m -f "{{.Dir}}" github.com/gardener/machine-controller-manager)
+TOOLS_DIR := hack/tools
+include $(MCM_DIR)/hack/tools.mk
 -include .env
+
 export
 
 BINARY_PATH         		:= bin/
@@ -13,6 +16,7 @@ PROVIDER_NAME       		:= Azure
 PROJECT_NAME        		:= gardener
 TARGET_CLUSTER_NAME			:= shoot--project--cluster-name
 IS_CONTROL_CLUSTER_SEED 	:= true
+PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
 
 # Below ones are used in tests
 LEADER_ELECT 	    := "true"
@@ -126,3 +130,11 @@ clean:
 .PHONY: add-license-headers
 add-license-headers: $(GO_ADD_LICENSE)
 	@./hack/add_license_headers.sh ${YEAR}
+
+.PHONY: sast
+sast: $(GOSEC)
+	@./hack/sast.sh
+
+.PHONY: sast-report
+sast-report: $(GOSEC)
+	@./hack/sast.sh --gosec-report true

@@ -26,7 +26,7 @@ export PATH="${GOBIN}:${PATH}"
 
 # Install golangci-lint (linting tool).
 if [[ -z "${GOLANGCI_LINT_VERSION}" ]]; then
-  export GOLANGCI_LINT_VERSION=v1.57.1
+  export GOLANGCI_LINT_VERSION=v1.60.3
 fi
 echo "Fetching golangci-lint tool"
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@"${GOLANGCI_LINT_VERSION}"
@@ -34,9 +34,14 @@ echo "Successfully fetched golangci-lint"
 golangci-lint version
 
 ###############################################################################
+cd ${SOURCE_PATH}
+
 PACKAGES="$(go list -e ./... | grep -vE '/tmp/')"
 LINT_FOLDERS="$(echo ${PACKAGES} | sed "s|github.com/gardener/machine-controller-manager-provider-azure|.|g")"
 
 echo "Executing golangci-lint"
 # golangci-lint can't be run from outside the directory
 (cd ${SOURCE_PATH} && golangci-lint run -c .golangci.yaml --timeout 10m)
+
+# Run Static Application Security Testing (SAST) using gosec
+make sast-report
