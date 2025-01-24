@@ -85,3 +85,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace github.com/gardener/machine-controller-manager => github.com/aaronfern/machine-controller-manager v0.0.0-20250121164622-8f3a2d57141a
