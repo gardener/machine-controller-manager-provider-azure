@@ -248,9 +248,6 @@ function check_cluster_state() {
 ############################################## <Modules> ########################################################
 
 function run_integration_tests() {
-    echo "Printing env.."
-    env
-    echo "---"
     echo "Starting integration tests..."
     set +e
 
