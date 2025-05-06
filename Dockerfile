@@ -11,7 +11,7 @@ COPY . .
 RUN .ci/build
 
 #############      machine-controller               #############
-FROM gcr.io/distroless/static-debian11:nonroot AS machine-controller
+FROM gcr.io/distroless/static-debian12:nonroot AS machine-controller
 WORKDIR /
 
 COPY --from=builder /go/src/github.com/gardener/machine-controller-manager-provider-azure/bin/rel/machine-controller /machine-controller
