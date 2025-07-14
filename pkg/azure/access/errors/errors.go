@@ -23,6 +23,8 @@ const (
 	SkuNotAvailableAzErrorCode = "SkuNotAvailable"
 	// AllocationFailedAzErrorCode is an Azure error code that indicates that there is insufficient capacity in the region
 	AllocationFailedAzErrorCode = "AllocationFailed"
+	// ResourceQuotaExceededAzErrorCode is an Azure error code that indicates that the quota has exceeded for a subscription, resource group, or error code
+	ResourceQuotaExceededAzErrorCode = "ResourceQuotaExceeded"
 	// CorrelationRequestIDAzHeaderKey is the Azure API response header key whose value is a request correlation ID.
 	CorrelationRequestIDAzHeaderKey = "x-ms-correlation-request-id"
 	// RequestIDAzHeaderKey is the Azure API response header key whose value is the request ID.
@@ -88,7 +90,7 @@ func GetMatchingErrorCode(err error) codes.Code {
 	if errors.As(err, &respErr) {
 		azErrorCode := respErr.ErrorCode
 		switch azErrorCode {
-		case ZonalAllocationFailedAzErrorCode, SkuNotAvailableAzErrorCode, AllocationFailedAzErrorCode:
+		case ZonalAllocationFailedAzErrorCode, SkuNotAvailableAzErrorCode, AllocationFailedAzErrorCode, ResourceQuotaExceededAzErrorCode:
 			return codes.ResourceExhausted
 		default:
 			return codes.Internal
