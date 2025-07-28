@@ -27,6 +27,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          echo 'Install Ginkgo'
+          go install github.com/onsi/ginkgo/v2/ginkgo
+          ginkgo version
+
           KUBECONFIG=/tmp/kubeconfig \
           service_account_kubeconfig=/tmp/kubeconfig \
             .ci/pipeline_integration_test
