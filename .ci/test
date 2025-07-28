@@ -18,11 +18,7 @@ else
 	READLINK_BIN="readlink"
 fi
 
-if [[ -z "${SOURCE_PATH}" ]]; then
-	export SOURCE_PATH="$(${READLINK_BIN} -f $(dirname ${0})/..)"
-else
-	export SOURCE_PATH="$(${READLINK_BIN} -f "${SOURCE_PATH}")"
-fi
+export SOURCE_PATH="$(${READLINK_BIN} -f $(dirname ${0})/..)"
 
 # The `go <cmd>` commands requires to see the target repository to be part of a
 # Go workspace. Thus, if we are not yet in a Go workspace, let's create one

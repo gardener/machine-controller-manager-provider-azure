@@ -10,7 +10,6 @@ mkdir -p dev
 mcm_repo_path="dev/mcm"
 logs_path=.ci/controllers-test/logs
 TEST_RESULT=
-cli_path=/cc/utils/cli.py
 SEED_NAME=
 CREDENTIALS_SECRET_NAME=shoot-operator-az-team
 GARDEN_CORE_NAMESPACE=garden-core
@@ -36,6 +35,14 @@ export CONTROL_CLUSTER_NAMESPACE
 export MACHINE_CONTROLLER_MANAGER_DEPLOYMENT_NAME="machine-controller-manager"
 export TARGET_CLUSTER_NAME
 
+if [ -z "${service_account_kubeconfig-:}" ]; then
+    echo "Error: `service_account_kubeconfig env-var`" must be set
+    exit 1
+elif [ ! -f "${service_account_kubeconfig}" ]; then
+    echo "Error: ${service_account_kubeconfig} is not an existing file (expected kubeconfig)"
+    exit 1
+fi
+
 ############################################## <Initialization> ##############################################
 
 function setup_ginkgo() {
@@ -45,14 +52,12 @@ function setup_ginkgo() {
     echo "Successfully installed Ginkgo."
 }
 
-function fetch_service_account_kubeconfig() {
-    echo "fetch_service_account_kubeconfig: ${cli_path} config attribute --cfg-type kubernetes --cfg-name mcm-ci-garden-dev-virtual --key kubeconfig  > dev/sa_kubeconfig.yaml"
-    ${cli_path} config attribute --cfg-type kubernetes --cfg-name mcm-ci-garden-dev-virtual --key kubeconfig  > dev/sa_kubeconfig.yaml
-}
-
 function request_kubeconfig() {
     rawUrl="/apis/core.gardener.cloud/v1beta1/namespaces/$1/shoots/$2/adminkubeconfig"
-    kubectl --kubeconfig=dev/sa_kubeconfig.yaml create -f <(printf '{"spec":{"expirationSeconds":%s}}' $KUBECONFIG_EXPIRY) --raw "$rawUrl" | jq -r ".status.kubeconfig" | base64 -d  > "$3"
+    kubectl  \
+        --kubeconfig=${service_account_kubeconfig} \
+        create  \
+        -f <(printf '{"spec":{"expirationSeconds":%s}}' $KUBECONFIG_EXPIRY) --raw "$rawUrl" | jq -r ".status.kubeconfig" | base64 -d  > "$3"
 }
 
 # Fetch *-ci-it cluster kubeconfig
@@ -63,7 +68,9 @@ function fetch_oot_cluster_kubeconfig() {
 
 function fetch_control_cluster_kubeconfig() {
     NAMESPACE='garden'
-    kubectl --kubeconfig=dev/sa_kubeconfig.yaml get shoot $TEST_SHOOT -oyaml > dev/shoot.yaml
+    kubectl \
+        --kubeconfig="${service_account_kubeconfig}" \
+        get shoot $TEST_SHOOT -oyaml > dev/shoot.yaml
     SEED_NAME=$(yq eval '.status.seedName' dev/shoot.yaml)
     request_kubeconfig $NAMESPACE $SEED_NAME "dev/control_kubeconfig.yaml"
 }
@@ -83,13 +90,6 @@ function install_dependencies() {
     chmod +x ./yq_linux_amd64
     mv ./yq_linux_amd64 /usr/local/bin/yq
     printf "Successfully installed yq\n"
-
-    # install kubectl
-    printf "\nDownloading and installing kubectl\n"
-    curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/linux/amd64/kubectl
-    chmod +x ./kubectl
-    mv ./kubectl /usr/local/bin/kubectl
-    printf "Successfully installed kubectl\n"
 
     #install ginkgo
     if ! [ -x "$(command -v ginkgo)" ]; then
@@ -183,8 +183,9 @@ function print_controller_logs {
 
 printf "\n\t\t\t----- Start of Test Script -----------\n"
 install_dependencies
-fetch_service_account_kubeconfig
+echo "fetching oot-cluster-kubeconfig"
 fetch_oot_cluster_kubeconfig
+echo "fetching control-cluster-kubeconfig"
 fetch_control_cluster_kubeconfig
 #if cluster state is not clean then don't run the tests
 check_cluster_state
