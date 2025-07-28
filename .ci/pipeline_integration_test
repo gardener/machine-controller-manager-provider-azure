@@ -183,7 +183,9 @@ function print_controller_logs {
 
 printf "\n\t\t\t----- Start of Test Script -----------\n"
 install_dependencies
+echo "fetching oot-cluster-kubeconfig"
 fetch_oot_cluster_kubeconfig
+echo "fetching control-cluster-kubeconfig"
 fetch_control_cluster_kubeconfig
 #if cluster state is not clean then don't run the tests
 check_cluster_state
