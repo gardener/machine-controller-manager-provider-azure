@@ -91,13 +91,6 @@ function install_dependencies() {
     mv ./yq_linux_amd64 /usr/local/bin/yq
     printf "Successfully installed yq\n"
 
-    # install kubectl
-    printf "\nDownloading and installing kubectl\n"
-    curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/linux/amd64/kubectl
-    chmod +x ./kubectl
-    mv ./kubectl /usr/local/bin/kubectl
-    printf "Successfully installed kubectl\n"
-
     #install ginkgo
     if ! [ -x "$(command -v ginkgo)" ]; then
     setup_ginkgo
