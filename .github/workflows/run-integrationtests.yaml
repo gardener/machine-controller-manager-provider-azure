@@ -17,6 +17,9 @@ jobs:
       contents: read
     steps:
       - uses: azure/setup-kubectl@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
       - uses: gardener/cc-utils/.github/actions/trusted-checkout@master
       - uses: gardener/cc-utils/.github/actions/kubernetes-auth@master
         with:
