@@ -11,11 +11,22 @@ on:
 
 jobs:
   integrationtest:
+    runs-on: ubuntu-latest-static-ip
     permissions:
       id-token: write
       contents: read
-    uses: gardener/cc-utils/.github/workflows/run-testmachinery-tests.yaml@master
-    with:
-      test-command: |
-        set -euo pipefail
-        .ci/test
+    steps:
+      - uses: azure/setup-kubectl@v4
+      - uses: gardener/cc-utils/.github/actions/trusted-checkout@master
+      - uses: gardener/cc-utils/.github/actions/kubernetes-auth@master
+        with:
+          cluster-cfg: gardener/clusters/testmachinery-canary.yaml
+          kubeconfig-path: /tmp/kubeconfig
+          audience: garden-mcm-ci--az-ci-it
+      - name: run-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          KUBECONFIG=/tmp/kubeconfig \
+          service_account_kubeconfig=/tmp/kubeconfig \
+            .ci/test
