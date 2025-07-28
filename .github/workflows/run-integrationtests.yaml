@@ -29,4 +29,4 @@ jobs:
           set -euo pipefail
           KUBECONFIG=/tmp/kubeconfig \
           service_account_kubeconfig=/tmp/kubeconfig \
-            .ci/test
+            .ci/pipeline_integration_test
