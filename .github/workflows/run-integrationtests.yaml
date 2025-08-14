@@ -1,0 +1,18 @@
+name: Integration-Tests
+description: |
+  Runs Integrationtests using TestMachinery
+
+on:
+  # only run manually, as integrationtest-workflow will not yet work
+  workflow_dispatch:
+
+jobs:
+  integrationtest:
+    permissions:
+      id-token: write
+      contents: read
+    uses: gardener/cc-utils/.github/workflows/run-testmachinery-tests.yaml@master
+    with:
+      test-command: |
+        set -euo pipefail
+        .ci/test
