@@ -74,6 +74,8 @@ type AzureProviderSpec struct {
 	SubnetInfo AzureSubnetInfo `json:"subnetInfo,omitempty"`
 	// CloudConfiguration contains config that controls which cloud to connect to
 	CloudConfiguration *CloudConfiguration `json:"cloudConfiguration,omitempty"`
+	// BackendAddressPoolConfig contains the configuration for the Azure Load Balancer.
+	BackendAddressPoolConfig *AzureBackendAddressPoolConfig `json:"backendAddressPoolConfig,omitempty"`
 }
 
 // AzureVirtualMachineProperties describes the properties of a Virtual Machine.
@@ -329,4 +331,9 @@ const (
 type CloudConfiguration struct {
 	// Name is the name of the cloud to connect to, e.g. "AzurePublic" or "AzureChina".
 	Name string `json:"name"`
+}
+
+// AzureBackendAddressPoolConfig is the configuration for a backend pool address in an Azure Load Balancer.
+type AzureBackendAddressPoolConfig struct {
+	ID string `json:"id"`
 }
