@@ -552,6 +552,14 @@ func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.
 	vm, err := accesshelpers.CreateVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmCreationParams)
 	if err != nil {
 		errCode := accesserrors.GetMatchingErrorCode(err)
+		if errCode == codes.ResourceExhausted {
+			klog.Error("VM quota limit reached or Azure is currently out of capacity, cannot create VM. Attempting to delete any partially created resources")
+			delVMErr := accesshelpers.DeleteVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmName)
+			if delVMErr != nil {
+				klog.Errorf("Failed to delete partially created resources after quota limit reached. err: %v", delVMErr)
+				err = errors.Join(err, delVMErr)
+			}
+		}
 		return nil, status.WrapError(errCode, fmt.Sprintf("Failed to create VirtualMachine: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err), err)
 	}
 	klog.Infof("Successfully created VM: [ResourceGroup: %s, Name: %s]", providerSpec.ResourceGroup, vmName)
