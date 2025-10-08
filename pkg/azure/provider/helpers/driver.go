@@ -552,6 +552,13 @@ func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.
 	vm, err := accesshelpers.CreateVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmCreationParams)
 	if err != nil {
 		errCode := accesserrors.GetMatchingErrorCode(err)
+		if errCode == codes.ResourceExhausted {
+			klog.Error("VM quota limit reached, cannot create VM. Attempting to delete any partially created resources")
+			err := accesshelpers.DeleteVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmName)
+			if err != nil {
+				klog.Error("Failed to delete partially created resources after quota limit reached")
+			}
+		}
 		return nil, status.WrapError(errCode, fmt.Sprintf("Failed to create VirtualMachine: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err), err)
 	}
 	klog.Infof("Successfully created VM: [ResourceGroup: %s, Name: %s]", providerSpec.ResourceGroup, vmName)
