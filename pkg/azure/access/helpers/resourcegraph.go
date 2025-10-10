@@ -57,6 +57,7 @@ func QueryAndMap[T any](ctx context.Context, client *armresourcegraph.Client, su
 		pageCount++
 
 		if resources.TotalRecords == pointer.Int64(0) {
+			klog.Infof("Query completed: fetched %d pages, no results retrieved", pageCount)
 			return results, nil
 		}
 
