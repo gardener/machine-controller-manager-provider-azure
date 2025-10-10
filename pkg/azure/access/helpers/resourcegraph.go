@@ -48,7 +48,7 @@ func QueryAndMap[T any](ctx context.Context, client *armresourcegraph.Client, su
 
 		resources, err := client.Resources(ctx, queryRequest, nil)
 		if err != nil {
-			errors.LogAzAPIError(err, "ResourceGraphQuery failure to execute Query: %s", query)
+			errors.LogAzAPIError(err, "ResourceGraphQuery failure to execute Query: %s, with skipToken: %s", query, *skipToken)
 			return nil, err
 		}
 
