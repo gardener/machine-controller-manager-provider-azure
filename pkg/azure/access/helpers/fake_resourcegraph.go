@@ -22,7 +22,7 @@ type FakeResourceGraphClient struct {
 	RecordedRequests []armresourcegraph.QueryRequest
 }
 
-// Creates a new FakeResourceGraphClient.
+// NewFakeResourceGraphClient creates a new FakeResourceGraphClient for testing.
 func NewFakeResourceGraphClient() *FakeResourceGraphClient {
 	return &FakeResourceGraphClient{
 		Responses:        []armresourcegraph.ClientResourcesResponse{},
@@ -31,9 +31,9 @@ func NewFakeResourceGraphClient() *FakeResourceGraphClient {
 	}
 }
 
-// Implements the ResourceGraphClient interface.
+// Resources implements the ResourceGraphClient interface.
 // Returns the next response/error in the sequence based on CallCount.
-func (f *FakeResourceGraphClient) Resources(_ context.Context, query armresourcegraph.QueryRequest, options *armresourcegraph.ClientResourcesOptions) (armresourcegraph.ClientResourcesResponse, error) {
+func (f *FakeResourceGraphClient) Resources(_ context.Context, query armresourcegraph.QueryRequest, _ *armresourcegraph.ClientResourcesOptions) (armresourcegraph.ClientResourcesResponse, error) {
 	f.RecordedRequests = append(f.RecordedRequests, query)
 	index := f.CallCount
 	f.CallCount++
@@ -49,13 +49,13 @@ func (f *FakeResourceGraphClient) Resources(_ context.Context, query armresource
 	return armresourcegraph.ClientResourcesResponse{}, nil
 }
 
-// Adds a response to be returned by the fake client.
+// AddResponse adds a response to be returned by the fake client.
 func (f *FakeResourceGraphClient) AddResponse(response armresourcegraph.ClientResourcesResponse) *FakeResourceGraphClient {
 	f.Responses = append(f.Responses, response)
 	return f
 }
 
-// Adds an error to be returned by the fake client.
+// AddError adds an error to be returned by the fake client.
 func (f *FakeResourceGraphClient) AddError(err error) *FakeResourceGraphClient {
 	f.Errors = append(f.Errors, err)
 	return f
