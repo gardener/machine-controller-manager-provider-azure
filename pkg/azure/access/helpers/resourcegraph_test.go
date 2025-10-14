@@ -39,7 +39,7 @@ func testVMMapper(row map[string]interface{}) *TestVM {
 }
 
 // Create a test mapper that returns nil (helper function to test filtering)
-func nilReturningMapper(row map[string]interface{}) *TestVM {
+func nilReturningMapper(_ map[string]interface{}) *TestVM {
 	return nil
 }
 

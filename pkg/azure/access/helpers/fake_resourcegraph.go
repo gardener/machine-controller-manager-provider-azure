@@ -22,7 +22,7 @@ type FakeResourceGraphClient struct {
 	RecordedRequests []armresourcegraph.QueryRequest
 }
 
-// NewFakeResourceGraphClient creates a new FakeResourceGraphClient.
+// Creates a new FakeResourceGraphClient.
 func NewFakeResourceGraphClient() *FakeResourceGraphClient {
 	return &FakeResourceGraphClient{
 		Responses:        []armresourcegraph.ClientResourcesResponse{},
@@ -31,9 +31,9 @@ func NewFakeResourceGraphClient() *FakeResourceGraphClient {
 	}
 }
 
-// Resources implements the ResourceGraphClient interface.
-// It returns the next response/error in the sequence based on CallCount.
-func (f *FakeResourceGraphClient) Resources(ctx context.Context, query armresourcegraph.QueryRequest, options *armresourcegraph.ClientResourcesOptions) (armresourcegraph.ClientResourcesResponse, error) {
+// Implements the ResourceGraphClient interface.
+// Returns the next response/error in the sequence based on CallCount.
+func (f *FakeResourceGraphClient) Resources(_ context.Context, query armresourcegraph.QueryRequest, options *armresourcegraph.ClientResourcesOptions) (armresourcegraph.ClientResourcesResponse, error) {
 	f.RecordedRequests = append(f.RecordedRequests, query)
 	index := f.CallCount
 	f.CallCount++
@@ -49,19 +49,19 @@ func (f *FakeResourceGraphClient) Resources(ctx context.Context, query armresour
 	return armresourcegraph.ClientResourcesResponse{}, nil
 }
 
-// AddResponse adds a response to be returned by the fake client.
+// Adds a response to be returned by the fake client.
 func (f *FakeResourceGraphClient) AddResponse(response armresourcegraph.ClientResourcesResponse) *FakeResourceGraphClient {
 	f.Responses = append(f.Responses, response)
 	return f
 }
 
-// AddError adds an error to be returned by the fake client.
+// Adds an error to be returned by the fake client.
 func (f *FakeResourceGraphClient) AddError(err error) *FakeResourceGraphClient {
 	f.Errors = append(f.Errors, err)
 	return f
 }
 
-// Reset resets the fake client state.
+// Reset the fake client state.
 func (f *FakeResourceGraphClient) Reset() {
 	f.Responses = []armresourcegraph.ClientResourcesResponse{}
 	f.Errors = []error{}
