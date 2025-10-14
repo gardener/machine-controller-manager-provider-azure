@@ -21,13 +21,22 @@ const (
 	resourceGraphQueryServiceLabel = "resource_graph_query"
 )
 
+// ResourceGraphClient is an interface for Azure Resource Graph client operations.
+// This allows for easier testing by enabling mock implementations.
+type ResourceGraphClient interface {
+	Resources(ctx context.Context, query armresourcegraph.QueryRequest, options *armresourcegraph.ClientResourcesOptions) (armresourcegraph.ClientResourcesResponse, error)
+}
+
+// Azure client implements interface
+var _ ResourceGraphClient = (*armresourcegraph.Client)(nil)
+
 // MapperFn maps a row of result (represented as map[string]interface{}) to any type T.
 type MapperFn[T any] func(map[string]interface{}) *T
 
 // QueryAndMap fires a resource graph KUSTO query constructing it from queryTemplate and templateArgs.
 // The result of the query are then mapped using a mapperFn and the result or an error is returned.
 // NOTE: All calls to this Azure API are instrumented as prometheus metric.
-func QueryAndMap[T any](ctx context.Context, client *armresourcegraph.Client, subscriptionID string, mapperFn MapperFn[T], queryTemplate string, templateArgs ...any) (results []T, err error) {
+func QueryAndMap[T any](ctx context.Context, client ResourceGraphClient, subscriptionID string, mapperFn MapperFn[T], queryTemplate string, templateArgs ...any) (results []T, err error) {
 	defer instrument.AZAPIMetricRecorderFn(resourceGraphQueryServiceLabel, &err)()
 
 	query := fmt.Sprintf(queryTemplate, templateArgs...)
