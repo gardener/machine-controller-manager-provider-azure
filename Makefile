@@ -106,7 +106,7 @@ build:
 PLATFORM ?= linux/amd64
 .PHONY: docker-image
 docker-image:
-	@docker buildx build --platform $(PLATFORM) -t $(IMAGE_REPOSITORY):$(IMAGE_TAG) .
+	@docker buildx build --load --platform $(PLATFORM) -t $(IMAGE_REPOSITORY):$(IMAGE_TAG) .
 
 .PHONY: docker-login
 docker-login:
