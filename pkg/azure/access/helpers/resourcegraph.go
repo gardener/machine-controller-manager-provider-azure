@@ -13,7 +13,6 @@ import (
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/instrument"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 )
 
@@ -65,7 +64,7 @@ func QueryAndMap[T any](ctx context.Context, client ResourceGraphClient, subscri
 		}
 		pageCount++
 
-		if resources.TotalRecords == pointer.Int64(0) {
+		if ptr.Deref(resources.TotalRecords, 0) == 0 {
 			klog.Infof("Query completed: fetched %d pages, no results retrieved", pageCount)
 			return results, nil
 		}

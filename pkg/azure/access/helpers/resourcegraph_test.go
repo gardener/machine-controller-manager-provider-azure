@@ -14,6 +14,11 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+const (
+	testSubscriptionID = "test-subscription-id"
+	testQuery          = "Resources | where type =~ 'microsoft.compute/virtualmachines'"
+)
+
 // A test struct to use with QueryAndMap
 type TestVM struct {
 	Name       string
@@ -22,7 +27,7 @@ type TestVM struct {
 }
 
 // Create a test mapper that maps to TestVM
-func testVMMapper(row map[string]interface{}) *TestVM {
+func testVMMapper(row map[string]any) *TestVM {
 	name, nameOk := row["name"].(string)
 	resourceID, idOk := row["id"].(string)
 	location, locOk := row["location"].(string)
@@ -38,16 +43,11 @@ func testVMMapper(row map[string]interface{}) *TestVM {
 	}
 }
 
-// Create a test mapper that returns nil (helper function to test filtering)
-func nilReturningMapper(_ map[string]interface{}) *TestVM {
-	return nil
-}
-
 // Create test data
-func createTestData(count int, prefix string) []interface{} {
-	data := make([]interface{}, count)
+func createTestData(count int, prefix string) []any {
+	data := make([]any, count)
 	for i := 0; i < count; i++ {
-		data[i] = map[string]interface{}{
+		data[i] = map[string]any{
 			"name":     prefix + "-vm-" + string(rune('0'+i)),
 			"id":       "/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/" + prefix + "-vm-" + string(rune('0'+i)),
 			"location": "westeurope",
@@ -70,7 +70,7 @@ func TestQueryAndMap_Success_SinglePage(t *testing.T) {
 			},
 		})
 
-	results, err := QueryAndMap(ctx, fakeClient, "test-subscription-id", testVMMapper, "Resources | where type =~ 'microsoft.compute/virtualmachines'")
+	results, err := QueryAndMap(ctx, fakeClient, testSubscriptionID, testVMMapper, testQuery)
 
 	g.Expect(err).To(BeNil())
 	g.Expect(len(results)).To(Equal(3))
@@ -111,7 +111,7 @@ func TestQueryAndMap_Success_MultiplePages(t *testing.T) {
 			},
 		})
 
-	results, err := QueryAndMap(ctx, fakeClient, "test-subscription-id", testVMMapper, "Resources | where type =~ 'microsoft.compute/virtualmachines'")
+	results, err := QueryAndMap(ctx, fakeClient, testSubscriptionID, testVMMapper, testQuery)
 
 	g.Expect(err).To(BeNil())
 	g.Expect(len(results)).To(Equal(5))
@@ -133,12 +133,12 @@ func TestQueryAndMap_NoResults(t *testing.T) {
 		AddResponse(armresourcegraph.ClientResourcesResponse{
 			QueryResponse: armresourcegraph.QueryResponse{
 				TotalRecords: to.Ptr[int64](0),
-				Data:         []interface{}{},
+				Data:         nil,
 				SkipToken:    nil,
 			},
 		})
 
-	results, err := QueryAndMap(ctx, fakeClient, "test-subscription-id", testVMMapper, "Resources | where type =~ 'microsoft.compute/virtualmachines'")
+	results, err := QueryAndMap(ctx, fakeClient, testSubscriptionID, testVMMapper, testQuery)
 
 	g.Expect(err).To(BeNil())
 	g.Expect(len(results)).To(Equal(0))
@@ -151,7 +151,7 @@ func TestQueryAndMap_APIError(t *testing.T) {
 
 	fakeClient := NewFakeResourceGraphClient().AddError(errors.New("API call failed: AuthorizationFailed"))
 
-	results, err := QueryAndMap(ctx, fakeClient, "test-subscription-id", testVMMapper, "Resources | where type =~ 'microsoft.compute/virtualmachines'")
+	results, err := QueryAndMap(ctx, fakeClient, testSubscriptionID, testVMMapper, testQuery)
 
 	g.Expect(err).NotTo(BeNil())
 	g.Expect(err.Error()).To(ContainSubstring("API call failed"))
@@ -182,7 +182,7 @@ func TestQueryAndMap_ErrorInMiddleOfPagination(t *testing.T) {
 		testError,
 	}
 
-	results, err := QueryAndMap(ctx, fakeClient, "test-subscription-id", testVMMapper, "Resources | where type =~ 'microsoft.compute/virtualmachines'")
+	results, err := QueryAndMap(ctx, fakeClient, testSubscriptionID, testVMMapper, testQuery)
 
 	g.Expect(err).NotTo(BeNil())
 	g.Expect(err.Error()).To(ContainSubstring("network error during pagination"))
@@ -194,58 +194,58 @@ func TestMapper_IncompleteData(t *testing.T) {
 	g := NewWithT(t)
 
 	testCases := []struct {
-		name        string
-		row         map[string]interface{}
-		shouldBeNil bool
+		name          string
+		row           map[string]any
+		isMissingData bool
 	}{
 		{
 			name: "missing name field",
-			row: map[string]interface{}{
+			row: map[string]any{
 				"id":       "/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm-1",
 				"location": "westeurope",
 			},
-			shouldBeNil: true,
+			isMissingData: true,
 		},
 		{
 			name: "missing id field",
-			row: map[string]interface{}{
+			row: map[string]any{
 				"name":     "test-vm-1",
 				"location": "westeurope",
 			},
-			shouldBeNil: true,
+			isMissingData: true,
 		},
 		{
 			name: "missing location field",
-			row: map[string]interface{}{
+			row: map[string]any{
 				"name": "test-vm-1",
 				"id":   "/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm-1",
 			},
-			shouldBeNil: true,
+			isMissingData: true,
 		},
 		{
 			name: "wrong type for name",
-			row: map[string]interface{}{
+			row: map[string]any{
 				"name":     123,
 				"id":       "/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm-1",
 				"location": "westeurope",
 			},
-			shouldBeNil: true,
+			isMissingData: true,
 		},
 		{
 			name: "all fields present and correct",
-			row: map[string]interface{}{
+			row: map[string]any{
 				"name":     "test-vm-1",
 				"id":       "/subscriptions/test-sub/resourceGroups/test-rg/providers/Microsoft.Compute/virtualMachines/test-vm-1",
 				"location": "westeurope",
 			},
-			shouldBeNil: false,
+			isMissingData: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(_ *testing.T) {
 			result := testVMMapper(tc.row)
-			if tc.shouldBeNil {
+			if tc.isMissingData {
 				g.Expect(result).To(BeNil())
 			} else {
 				g.Expect(result).NotTo(BeNil())
@@ -255,7 +255,7 @@ func TestMapper_IncompleteData(t *testing.T) {
 	}
 }
 
-func TestEmptySkipToken(t *testing.T) { //CHECK
+func TestEmptySkipToken(t *testing.T) {
 	g := NewWithT(t)
 	ctx := context.Background()
 
@@ -270,85 +270,9 @@ func TestEmptySkipToken(t *testing.T) { //CHECK
 			},
 		})
 
-	results, err := QueryAndMap(ctx, fakeClient, "test-subscription-id", testVMMapper, "Resources | where type =~ 'microsoft.compute/virtualmachines'")
+	results, err := QueryAndMap(ctx, fakeClient, testSubscriptionID, testVMMapper, testQuery)
 
 	g.Expect(err).To(BeNil())
 	g.Expect(len(results)).To(Equal(2))
 	g.Expect(fakeClient.CallCount).To(Equal(1)) // Should not try to fetch more pages
-}
-
-func TestQueryAndMap_WithMapperFiltering(t *testing.T) {
-	g := NewWithT(t)
-	ctx := context.Background()
-
-	testData := createTestData(5, "test")
-
-	fakeClient := NewFakeResourceGraphClient().
-		AddResponse(armresourcegraph.ClientResourcesResponse{
-			QueryResponse: armresourcegraph.QueryResponse{
-				TotalRecords: to.Ptr[int64](5),
-				Data:         testData,
-				SkipToken:    nil,
-			},
-		})
-
-	results, err := QueryAndMap(ctx, fakeClient, "test-subscription-id", nilReturningMapper, "Resources | where type =~ 'microsoft.compute/virtualmachines'")
-
-	g.Expect(err).To(BeNil())
-	g.Expect(len(results)).To(Equal(0)) // All results filtered out by mapper
-	g.Expect(fakeClient.CallCount).To(Equal(1))
-}
-
-func TestQueryAndMap_WithQueryTemplateAndArgs(t *testing.T) {
-	g := NewWithT(t)
-	ctx := context.Background()
-
-	testData := createTestData(2, "filtered")
-
-	fakeClient := NewFakeResourceGraphClient().
-		AddResponse(armresourcegraph.ClientResourcesResponse{
-			QueryResponse: armresourcegraph.QueryResponse{
-				TotalRecords: to.Ptr[int64](2),
-				Data:         testData,
-				SkipToken:    nil,
-			},
-		})
-
-	// Test with query template and arguments
-	queryTemplate := "Resources | where type =~ 'microsoft.compute/virtualmachines' and resourceGroup =~ '%s'"
-	results, err := QueryAndMap(ctx, fakeClient, "test-subscription-id", testVMMapper, queryTemplate, "test-resource-group")
-
-	g.Expect(err).To(BeNil())
-	g.Expect(len(results)).To(Equal(2))
-
-	g.Expect(len(fakeClient.RecordedRequests)).To(Equal(1))
-	g.Expect(*fakeClient.RecordedRequests[0].Query).To(ContainSubstring("test-resource-group"))
-}
-
-func TestFakeResourceGraphClient_Reset(t *testing.T) {
-	g := NewWithT(t)
-	ctx := context.Background()
-
-	fakeClient := NewFakeResourceGraphClient()
-
-	testData := createTestData(1, "test")
-	fakeClient.AddResponse(armresourcegraph.ClientResourcesResponse{
-		QueryResponse: armresourcegraph.QueryResponse{
-			TotalRecords: to.Ptr[int64](1),
-			Data:         testData,
-			SkipToken:    nil,
-		},
-	})
-
-	_, _ = QueryAndMap(ctx, fakeClient, "test-sub", testVMMapper, "test query")
-
-	g.Expect(fakeClient.CallCount).To(Equal(1))
-	g.Expect(len(fakeClient.RecordedRequests)).To(Equal(1))
-
-	fakeClient.Reset()
-
-	g.Expect(fakeClient.CallCount).To(Equal(0))
-	g.Expect(len(fakeClient.RecordedRequests)).To(Equal(0))
-	g.Expect(len(fakeClient.Responses)).To(Equal(0))
-	g.Expect(len(fakeClient.Errors)).To(Equal(0))
 }

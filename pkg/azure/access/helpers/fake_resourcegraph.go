@@ -60,11 +60,3 @@ func (f *FakeResourceGraphClient) AddError(err error) *FakeResourceGraphClient {
 	f.Errors = append(f.Errors, err)
 	return f
 }
-
-// Reset the fake client state.
-func (f *FakeResourceGraphClient) Reset() {
-	f.Responses = []armresourcegraph.ClientResourcesResponse{}
-	f.Errors = []error{}
-	f.CallCount = 0
-	f.RecordedRequests = []armresourcegraph.QueryRequest{}
-}
