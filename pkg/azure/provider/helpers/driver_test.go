@@ -99,7 +99,8 @@ func TestCreateVM(t *testing.T) {
 			existingVMNames:        []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
-			vmAccessApiBehavior:    fakes.NewAPIBehaviorSpec().AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginCreateOrUpdate, testInternalServerError),
+			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
+				AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginCreateOrUpdate, testInternalServerError),
 			checkErrorFn: func(g *WithT, err error) {
 				var statusErr *status.Status
 				g.Expect(errors.As(err, &statusErr)).To(BeTrue())
@@ -112,7 +113,9 @@ func TestCreateVM(t *testing.T) {
 			existingVMNames:        []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
-			vmAccessApiBehavior:    fakes.NewAPIBehaviorSpec().AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginDelete, testInternalServerError).AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginCreateOrUpdate, testConflictError),
+			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
+				AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginCreateOrUpdate, testConflictError).
+				AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginDelete, testInternalServerError),
 			checkErrorFn: func(g *WithT, err error) {
 				var statusErr *status.Status
 				g.Expect(errors.As(err, &statusErr)).To(BeTrue())
@@ -126,7 +129,8 @@ func TestCreateVM(t *testing.T) {
 			existingVMNames:        []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
-			vmAccessApiBehavior:    fakes.NewAPIBehaviorSpec().AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginCreateOrUpdate, testConflictError),
+			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
+				AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginCreateOrUpdate, testConflictError),
 			checkErrorFn: func(g *WithT, err error) {
 				var statusErr *status.Status
 				g.Expect(errors.As(err, &statusErr)).To(BeTrue())
