@@ -85,6 +85,8 @@ func TestCreateVM(t *testing.T) {
 		targetVMName           string
 		shouldOperationSucceed bool
 		vmAccessApiBehavior    *fakes.APIBehaviorSpec
+		nicAccessApiBehavior   *fakes.APIBehaviorSpec
+		diskAccessApiBehavior  *fakes.APIBehaviorSpec
 		checkErrorFn           func(g *WithT, err error)
 	}{
 		{
@@ -93,9 +95,11 @@ func TestCreateVM(t *testing.T) {
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: true,
 			vmAccessApiBehavior:    nil,
+			nicAccessApiBehavior:   nil,
+			diskAccessApiBehavior:  nil,
 		},
 		{
-			description:            "should return error when BeginCreateOrUpdate returns back an error",
+			description:            "should return error when VM creation returns back an error that is not ZonalAllocationFailed",
 			existingVMNames:        []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
@@ -109,7 +113,22 @@ func TestCreateVM(t *testing.T) {
 			},
 		},
 		{
-			description:            "should return joined error when BeginCreateOrUpdate has a ResourceExhausted error and BeginDelete also has an error",
+			description:            "should return error when VM creation has a ResourceExhausted error but VM deletion succeeds",
+			existingVMNames:        []string{"vm-1"},
+			targetVMName:           "vm-1",
+			shouldOperationSucceed: false,
+			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
+				AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginCreateOrUpdate, testConflictError),
+			checkErrorFn: func(g *WithT, err error) {
+				var statusErr *status.Status
+				g.Expect(errors.As(err, &statusErr)).To(BeTrue())
+				g.Expect(statusErr.Code()).To(Equal(codes.ResourceExhausted))
+				g.Expect(errors.Is(statusErr.Cause(), testConflictError)).To(BeTrue())
+				g.Expect(errors.Is(statusErr.Cause(), testInternalServerError)).NotTo(BeTrue())
+			},
+		},
+		{
+			description:            "should return joined error when VM Creation has a ResourceExhausted error and VM deletion also has an error",
 			existingVMNames:        []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
@@ -125,18 +144,37 @@ func TestCreateVM(t *testing.T) {
 			},
 		},
 		{
-			description:            "should return error when BeginCreateOrUpdate has a ResourceExhausted error but BeginDelete does not have errors",
+			description:            "should return joined error when BeginCreateOrUpdate has a ResourceExhausted error and NIC deletion has an error, but VM/disk deletion does not have an error",
 			existingVMNames:        []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
 			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
 				AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginCreateOrUpdate, testConflictError),
+			nicAccessApiBehavior: fakes.NewAPIBehaviorSpec().
+				AddErrorResourceReaction("vm-1-nic", testhelp.AccessMethodBeginDelete, testInternalServerError),
 			checkErrorFn: func(g *WithT, err error) {
 				var statusErr *status.Status
 				g.Expect(errors.As(err, &statusErr)).To(BeTrue())
 				g.Expect(statusErr.Code()).To(Equal(codes.ResourceExhausted))
 				g.Expect(errors.Is(statusErr.Cause(), testConflictError)).To(BeTrue())
-				g.Expect(errors.Is(statusErr.Cause(), testInternalServerError)).NotTo(BeTrue())
+				g.Expect(err.Error()).To(ContainSubstring("Errors during deletion of NIC/Disks associated to VM"))
+			},
+		},
+		{
+			description:            "should return joined error when BeginCreateOrUpdate has a ResourceExhausted error and disk deletion has an error, but VM/nic deletion does not have an error",
+			existingVMNames:        []string{"vm-1"},
+			targetVMName:           "vm-1",
+			shouldOperationSucceed: false,
+			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
+				AddErrorResourceReaction("vm-1", testhelp.AccessMethodBeginCreateOrUpdate, testConflictError),
+			diskAccessApiBehavior: fakes.NewAPIBehaviorSpec().
+				AddErrorResourceReaction("vm-1-os-disk", testhelp.AccessMethodBeginDelete, testInternalServerError),
+			checkErrorFn: func(g *WithT, err error) {
+				var statusErr *status.Status
+				g.Expect(errors.As(err, &statusErr)).To(BeTrue())
+				g.Expect(statusErr.Code()).To(Equal(codes.ResourceExhausted))
+				g.Expect(errors.Is(statusErr.Cause(), testConflictError)).To(BeTrue())
+				g.Expect(err.Error()).To(ContainSubstring("Errors during deletion of NIC/Disks associated to VM"))
 			},
 		},
 	}
@@ -159,7 +197,14 @@ func TestCreateVM(t *testing.T) {
 			fakeFactory := fakes.NewFactory(testResourceGroupName)
 			vmAccess, err := fakeFactory.NewVirtualMachineAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(entry.vmAccessApiBehavior).Build()
 			g.Expect(err).To(BeNil())
+			nicAccess, err := fakeFactory.NewNICAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(entry.nicAccessApiBehavior).Build()
+			g.Expect(err).To(BeNil())
+			diskAccess, err := fakeFactory.NewDiskAccessBuilder().WithClusterState(clusterState).WithAPIBehaviorSpec(entry.diskAccessApiBehavior).Build()
+			g.Expect(err).To(BeNil())
+
 			fakeFactory.WithVirtualMachineAccess(vmAccess)
+			fakeFactory.WithNetworkInterfacesAccess(nicAccess)
+			fakeFactory.WithDisksAccess(diskAccess)
 
 			imageRefDiskIDs := make(map[DataDiskLun]DiskID)
 
