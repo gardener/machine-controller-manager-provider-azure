@@ -81,7 +81,7 @@ func TestCreateVM(t *testing.T) {
 
 	table := []struct {
 		description            string
-		existingVMNames        []string
+		VMNamesForTestSetup    []string
 		targetVMName           string
 		shouldOperationSucceed bool
 		vmAccessApiBehavior    *fakes.APIBehaviorSpec
@@ -91,7 +91,7 @@ func TestCreateVM(t *testing.T) {
 	}{
 		{
 			description:            "should successfully create a VM",
-			existingVMNames:        []string{"vm-1"},
+			VMNamesForTestSetup:    []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: true,
 			vmAccessApiBehavior:    nil,
@@ -100,7 +100,7 @@ func TestCreateVM(t *testing.T) {
 		},
 		{
 			description:            "should return error when VM creation returns back an error that is not ZonalAllocationFailed",
-			existingVMNames:        []string{"vm-1"},
+			VMNamesForTestSetup:    []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
 			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
@@ -114,7 +114,7 @@ func TestCreateVM(t *testing.T) {
 		},
 		{
 			description:            "should return error when VM creation has a ResourceExhausted error but VM deletion succeeds",
-			existingVMNames:        []string{"vm-1"},
+			VMNamesForTestSetup:    []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
 			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
@@ -129,7 +129,7 @@ func TestCreateVM(t *testing.T) {
 		},
 		{
 			description:            "should return joined error when VM Creation has a ResourceExhausted error and VM deletion also has an error",
-			existingVMNames:        []string{"vm-1"},
+			VMNamesForTestSetup:    []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
 			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
@@ -145,7 +145,7 @@ func TestCreateVM(t *testing.T) {
 		},
 		{
 			description:            "should return joined error when BeginCreateOrUpdate has a ResourceExhausted error and NIC deletion has an error, but VM/disk deletion does not have an error",
-			existingVMNames:        []string{"vm-1"},
+			VMNamesForTestSetup:    []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
 			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
@@ -162,7 +162,7 @@ func TestCreateVM(t *testing.T) {
 		},
 		{
 			description:            "should return joined error when BeginCreateOrUpdate has a ResourceExhausted error and disk deletion has an error, but VM/nic deletion does not have an error",
-			existingVMNames:        []string{"vm-1"},
+			VMNamesForTestSetup:    []string{"vm-1"},
 			targetVMName:           "vm-1",
 			shouldOperationSucceed: false,
 			vmAccessApiBehavior: fakes.NewAPIBehaviorSpec().
@@ -189,7 +189,7 @@ func TestCreateVM(t *testing.T) {
 			// Create cluster state
 			clusterState := fakes.NewClusterState(providerSpec)
 
-			for _, vmName := range entry.existingVMNames {
+			for _, vmName := range entry.VMNamesForTestSetup {
 				clusterState.AddMachineResources(fakes.NewMachineResourcesBuilder(providerSpec, vmName).BuildAllResources())
 			}
 
