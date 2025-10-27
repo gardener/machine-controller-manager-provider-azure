@@ -555,7 +555,7 @@ func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.
 		if errCode == codes.ResourceExhausted {
 			klog.Error("VM quota limit reached or Azure is currently out of capacity, cannot create VM. Attempting to delete any partially created resources")
 
-			cleanupErr := CleanupVMResources(ctx, factory, vmAccess, vmName, connectConfig, providerSpec)
+			cleanupErr := cleanupVMResources(ctx, factory, vmAccess, vmName, connectConfig, providerSpec)
 			if cleanupErr != nil {
 				klog.Errorf("failed to delete partially created resources after VM creation failed: cleanup error: %v", cleanupErr)
 				err = errors.Join(err, cleanupErr)
@@ -567,8 +567,8 @@ func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.
 	return vm, nil
 }
 
-// CleanupVMResources cleans up resources related to a VM
-func CleanupVMResources(ctx context.Context, factory access.Factory, vmAccess *armcompute.VirtualMachinesClient, vmName string, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) (err error) {
+// cleanupVMResources cleans up resources related to a VM
+func cleanupVMResources(ctx context.Context, factory access.Factory, vmAccess *armcompute.VirtualMachinesClient, vmName string, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) (err error) {
 	delVMErr := accesshelpers.DeleteVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmName)
 	delNicDiskErr := CheckAndDeleteLeftoverNICsAndDisks(ctx, factory, vmName, connectConfig, providerSpec)
 
