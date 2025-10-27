@@ -552,10 +552,32 @@ func CreateVM(ctx context.Context, factory access.Factory, connectConfig access.
 	vm, err := accesshelpers.CreateVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmCreationParams)
 	if err != nil {
 		errCode := accesserrors.GetMatchingErrorCode(err)
+		if errCode == codes.ResourceExhausted {
+			klog.Error("VM quota limit reached or Azure is currently out of capacity, cannot create VM. Attempting to delete any partially created resources")
+
+			cleanupErr := cleanupVMResources(ctx, factory, vmAccess, vmName, connectConfig, providerSpec)
+			if cleanupErr != nil {
+				klog.Errorf("failed to delete partially created resources after VM creation failed: cleanup error: %v", cleanupErr)
+				err = errors.Join(err, cleanupErr)
+			}
+		}
 		return nil, status.WrapError(errCode, fmt.Sprintf("Failed to create VirtualMachine: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, vmName, err), err)
 	}
 	klog.Infof("Successfully created VM: [ResourceGroup: %s, Name: %s]", providerSpec.ResourceGroup, vmName)
 	return vm, nil
+}
+
+// cleanupVMResources cleans up resources related to a VM
+func cleanupVMResources(ctx context.Context, factory access.Factory, vmAccess *armcompute.VirtualMachinesClient, vmName string, connectConfig access.ConnectConfig, providerSpec api.AzureProviderSpec) (err error) {
+	delVMErr := accesshelpers.DeleteVirtualMachine(ctx, vmAccess, providerSpec.ResourceGroup, vmName)
+	delNicDiskErr := CheckAndDeleteLeftoverNICsAndDisks(ctx, factory, vmName, connectConfig, providerSpec)
+
+	if delVMErr != nil || delNicDiskErr != nil {
+		klog.Errorf("failed to delete partially created resources after VM creation failed: VM deletion error: %v, NIC/Disk deletion error: %v", delVMErr, delNicDiskErr)
+		err = errors.Join(err, delVMErr, delNicDiskErr)
+	}
+
+	return
 }
 
 // CreateDisksWithImageRef creates a disk with CreationData (e.g. ImageReference or GalleryImageReference)
