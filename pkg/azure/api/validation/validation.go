@@ -128,6 +128,7 @@ func validateProperties(properties api.AzureVirtualMachineProperties, fldPath *f
 	allErrs = append(allErrs, validateOSProfile(properties.OsProfile, fldPath.Child("osProfile"))...)
 	// validate availability set and vmss
 	allErrs = append(allErrs, validateAvailabilityAndScalingConfig(properties, fldPath)...)
+	allErrs = append(allErrs, validateCapacityReservationConfig(properties.CapacityReservation, fldPath.Child("capacityReservation"))...)
 	allErrs = append(allErrs, validateSecurityProfile(properties.SecurityProfile, fldPath.Child("securityProfile"))...)
 	return allErrs
 }
@@ -289,6 +290,22 @@ func validateAvailabilityAndScalingConfig(properties api.AzureVirtualMachineProp
 	*/
 	if !exactlyOneShouldBeTrue(isZoneConfigured, isAvailabilitySetConfigured, isVirtualMachineScaleSetConfigured) {
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.availabilitySet|.virtualMachineScaleSet"), "Only one of Zone, AvailabilitySet and VirtualMachineScaleSet can be set."))
+	}
+
+	return allErrs
+}
+
+func validateCapacityReservationConfig(capacityReservationConfig *api.CapacityReservation, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if capacityReservationConfig == nil {
+		return allErrs
+	}
+
+	if capacityReservationGroup := capacityReservationConfig.CapacityReservationGroup; capacityReservationGroup != nil {
+		if *capacityReservationGroup == "" {
+			allErrs = append(allErrs, field.Required(fldPath.Child("capacityReservationGroup"), "capacityReservationGroup must not be empty."))
+		}
 	}
 
 	return allErrs
