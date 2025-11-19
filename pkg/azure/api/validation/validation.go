@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
@@ -302,12 +303,14 @@ func validateCapacityReservationConfig(capacityReservationConfig *api.CapacityRe
 		return allErrs
 	}
 
-	if capacityReservationGroup := capacityReservationConfig.CapacityReservationGroup; capacityReservationGroup != nil {
-		if *capacityReservationGroup == "" {
-			allErrs = append(allErrs, field.Required(fldPath.Child("capacityReservationGroup"), "capacityReservationGroup must not be empty."))
+	if capacityReservationGroupID := capacityReservationConfig.CapacityReservationGroupID; capacityReservationGroupID != nil {
+		resourceID, err := arm.ParseResourceID(*capacityReservationGroupID)
+		if err != nil {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("capacityReservationGroupID"), *capacityReservationGroupID, fmt.Sprintf("invalid Azure resource ID: %v", err)))
+		} else if resourceID.ResourceType.Type != "CapacityReservationGroups" {
+			allErrs = append(allErrs, field.Invalid(fldPath.Child("capacityReservationGroupID"), *capacityReservationGroupID, "provided resource ID must be of a capacity reservation group"))
 		}
 	}
-
 	return allErrs
 }
 

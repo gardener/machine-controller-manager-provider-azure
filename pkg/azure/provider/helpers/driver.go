@@ -781,9 +781,9 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 		}
 	}
 
-	if capacityReservation := providerSpec.Properties.CapacityReservation; capacityReservation != nil {
+	if capacityReservationConfig := providerSpec.Properties.CapacityReservation; capacityReservationConfig != nil {
 		vm.Properties.CapacityReservation = &armcompute.CapacityReservationProfile{
-			CapacityReservationGroup: &armcompute.SubResource{ID: capacityReservation.CapacityReservationGroup},
+			CapacityReservationGroup: &armcompute.SubResource{ID: capacityReservationConfig.CapacityReservationGroupID},
 		}
 	}
 
