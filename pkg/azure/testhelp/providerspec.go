@@ -145,6 +145,12 @@ func (b *ProviderSpecBuilder) WithSecurityProfile(sec *api.AzureSecurityProfile)
 	return b
 }
 
+// WithCapacityReservation configures the capacity reservation settings for the VM
+func (b *ProviderSpecBuilder) WithCapacityReservation(capacityReservationConfig *api.CapacityReservation) *ProviderSpecBuilder {
+	b.spec.Properties.CapacityReservation = capacityReservationConfig
+	return b
+}
+
 // WithDefaultOsProfile sets a default OS profile in the provider spec.
 func (b *ProviderSpecBuilder) WithDefaultOsProfile() *ProviderSpecBuilder {
 	b.spec.Properties.OsProfile = api.AzureOSProfile{
