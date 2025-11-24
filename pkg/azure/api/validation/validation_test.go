@@ -561,6 +561,26 @@ func TestValidateTags(t *testing.T) {
 	))
 }
 
+func TestCapacityReservationConfig(t *testing.T) {
+	fldPath := field.NewPath("providerSpec.capacityReservation")
+
+	// invalid resource group IDs should fail validation
+	testConfig := &api.CapacityReservation{CapacityReservationGroupID: ptr.To("Foo/bar/baz")}
+	g := NewWithT(t)
+	errList := validateCapacityReservationConfig(testConfig, fldPath)
+	g.Expect(len(errList)).To(Equal(1))
+	g.Expect(errList).To(ConsistOf(
+		PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeInvalid), "Field": Equal("providerSpec.capacityReservation.capacityReservationGroupID")})),
+	))
+
+	// IDs for other resource types should fail validation
+	testConfig = &api.CapacityReservation{CapacityReservationGroupID: ptr.To("/subscriptions/foo/resourceGroups/bar/providers/Microsoft.Compute/FooResource/foobar")}
+	errList = validateCapacityReservationConfig(testConfig, fldPath)
+	g.Expect(errList).To(ConsistOf(
+		PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeInvalid), "Field": Equal("providerSpec.capacityReservation.capacityReservationGroupID")})),
+	))
+}
+
 func createSecret(clientID, clientSecret, workloadIdentityTokenFile, subscriptionID, tenantID, userData string) *corev1.Secret {
 	data := make(map[string][]byte, 4)
 	if !utils.IsEmptyString(clientID) {
