@@ -576,9 +576,15 @@ func TestCapacityReservationConfig(t *testing.T) {
 	// IDs for other resource types should fail validation
 	testConfig = &api.CapacityReservation{CapacityReservationGroupID: ptr.To("/subscriptions/foo/resourceGroups/bar/providers/Microsoft.Compute/FooResource/foobar")}
 	errList = validateCapacityReservationConfig(testConfig, fldPath)
+	g.Expect(len(errList)).To(Equal(1))
 	g.Expect(errList).To(ConsistOf(
 		PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeInvalid), "Field": Equal("providerSpec.capacityReservation.capacityReservationGroupID")})),
 	))
+
+	// Valid ID should work
+	testConfig = &api.CapacityReservation{CapacityReservationGroupID: ptr.To("/subscriptions/foo/resourceGroups/bar/providers/Microsoft.Compute/CapacityReservationGroups/foobar")}
+	errList = validateCapacityReservationConfig(testConfig, fldPath)
+	g.Expect(errList).To(BeEmpty())
 }
 
 func createSecret(clientID, clientSecret, workloadIdentityTokenFile, subscriptionID, tenantID, userData string) *corev1.Secret {
