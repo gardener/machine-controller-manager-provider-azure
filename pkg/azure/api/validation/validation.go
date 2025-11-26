@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
 	"github.com/gardener/machine-controller-manager/pkg/apis/machine/v1alpha1"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
@@ -128,6 +129,7 @@ func validateProperties(properties api.AzureVirtualMachineProperties, fldPath *f
 	allErrs = append(allErrs, validateOSProfile(properties.OsProfile, fldPath.Child("osProfile"))...)
 	// validate availability set and vmss
 	allErrs = append(allErrs, validateAvailabilityAndScalingConfig(properties, fldPath)...)
+	allErrs = append(allErrs, validateCapacityReservationConfig(properties.CapacityReservation, fldPath.Child("capacityReservation"))...)
 	allErrs = append(allErrs, validateSecurityProfile(properties.SecurityProfile, fldPath.Child("securityProfile"))...)
 	return allErrs
 }
@@ -291,6 +293,38 @@ func validateAvailabilityAndScalingConfig(properties api.AzureVirtualMachineProp
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("zone|.availabilitySet|.virtualMachineScaleSet"), "Only one of Zone, AvailabilitySet and VirtualMachineScaleSet can be set."))
 	}
 
+	return allErrs
+}
+
+func validateCapacityReservationConfig(capacityReservationConfig *api.CapacityReservation, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if capacityReservationConfig == nil {
+		return allErrs
+	}
+
+	if capacityReservationGroupID := capacityReservationConfig.CapacityReservationGroupID; capacityReservationGroupID != nil {
+		resourceID, err := arm.ParseResourceID(*capacityReservationGroupID)
+		if err != nil {
+			allErrs = append(
+				allErrs,
+				field.Invalid(
+					fldPath.Child("capacityReservationGroupID"),
+					*capacityReservationGroupID,
+					fmt.Sprintf("invalid Azure resource ID: %v", err),
+				),
+			)
+		} else if resourceType := resourceID.ResourceType.Type; !strings.EqualFold(resourceType, "CapacityReservationGroups") {
+			allErrs = append(
+				allErrs,
+				field.Invalid(
+					fldPath.Child("capacityReservationGroupID"),
+					*capacityReservationGroupID,
+					fmt.Sprintf("provided resource ID must be of type 'CapacityReservationGroups', got '%s'", resourceType),
+				),
+			)
+		}
+	}
 	return allErrs
 }
 

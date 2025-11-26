@@ -771,12 +771,19 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 			}
 		}
 	}
+
 	if diskSecurityProfile := providerSpec.Properties.StorageProfile.OsDisk.ManagedDisk.SecurityProfile; diskSecurityProfile != nil {
 		if diskSecurityProfile.SecurityEncryptionType != nil {
 			securityEncryptionType := armcompute.SecurityEncryptionTypes(*diskSecurityProfile.SecurityEncryptionType)
 			vm.Properties.StorageProfile.OSDisk.ManagedDisk.SecurityProfile = &armcompute.VMDiskSecurityProfile{
 				SecurityEncryptionType: &securityEncryptionType,
 			}
+		}
+	}
+
+	if capacityReservationConfig := providerSpec.Properties.CapacityReservation; capacityReservationConfig != nil {
+		vm.Properties.CapacityReservation = &armcompute.CapacityReservationProfile{
+			CapacityReservationGroup: &armcompute.SubResource{ID: capacityReservationConfig.CapacityReservationGroupID},
 		}
 	}
 

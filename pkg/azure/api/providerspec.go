@@ -116,6 +116,14 @@ type AzureVirtualMachineProperties struct {
 	MachineSet *AzureMachineSetConfig `json:"machineSet,omitempty"`
 	// SecurityProfile specifies the security profile to be used for the virtual machine.
 	SecurityProfile *AzureSecurityProfile `json:"securityProfile,omitempty"`
+	// CapacityReservation represents the configuration for capacity reservations on Azure.
+	CapacityReservation *CapacityReservation `json:"capacityReservation,omitempty"`
+}
+
+// CapacityReservation represents the configuration for capacity reservations on Azure.
+type CapacityReservation struct {
+	// CapacityReservationGroupID is the resource ID of the capacity reservation group to use.
+	CapacityReservationGroupID *string `json:"capacityReservationGroupID,omitempty"`
 }
 
 // AzureSecurityProfile specifies the security profile to be used for the virtual machine.
