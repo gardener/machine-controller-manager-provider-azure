@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
@@ -393,12 +394,13 @@ func CreateNICIfNotExists(ctx context.Context, factory access.Factory, connectCo
 	if err != nil {
 		return "", status.WrapError(codes.Internal, fmt.Sprintf("failed to create NIC: [ResourceGroup: %s, Name: %s], Err: %v", providerSpec.ResourceGroup, nicName, err), err)
 	}
+
 	klog.Infof("Successfully created NIC: [ResourceGroup: %s, NIC: [Name: %s, ID: %s]]", resourceGroup, nicName, *nic.ID)
 	return *nic.ID, nil
 }
 
 func createNICParams(providerSpec api.AzureProviderSpec, subnet *armnetwork.Subnet, nicName string) armnetwork.Interface {
-	return armnetwork.Interface{
+	ifc := armnetwork.Interface{
 		Location: to.Ptr(providerSpec.Location),
 		Properties: &armnetwork.InterfacePropertiesFormat{
 			EnableAcceleratedNetworking: providerSpec.Properties.NetworkProfile.AcceleratedNetworking,
@@ -407,6 +409,7 @@ func createNICParams(providerSpec api.AzureProviderSpec, subnet *armnetwork.Subn
 				{
 					Name: &nicName,
 					Properties: &armnetwork.InterfaceIPConfigurationPropertiesFormat{
+						Primary:                   ptr.To(true),
 						PrivateIPAllocationMethod: to.Ptr(armnetwork.IPAllocationMethodDynamic),
 						Subnet:                    subnet,
 					},
@@ -417,6 +420,12 @@ func createNICParams(providerSpec api.AzureProviderSpec, subnet *armnetwork.Subn
 		Tags: createNICTags(providerSpec.Tags),
 		Name: &nicName,
 	}
+	if providerSpec.BackendAddressPoolConfig != nil {
+		ifc.Properties.IPConfigurations[0].Properties.LoadBalancerBackendAddressPools = []*armnetwork.BackendAddressPool{
+			{ID: ptr.To(providerSpec.BackendAddressPoolConfig.ID)},
+		}
+	}
+	return ifc
 }
 
 func createNICTags(tags map[string]string) map[string]*string {
