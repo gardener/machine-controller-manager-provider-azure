@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/utils"
@@ -25,6 +26,10 @@ const (
 	AllocationFailedAzErrorCode = "AllocationFailed"
 	// ResourceQuotaExceededAzErrorCode is an Azure error code that indicates that the quota has exceeded for a subscription, resource group, or error code
 	ResourceQuotaExceededAzErrorCode = "ResourceQuotaExceeded"
+	// OperationNotAllowedAzErrorCode is an Azure error code that indicates that the operation isn't allowed.
+	OperationNotAllowedAzErrorCode = "OperationNotAllowed"
+	// BadRequestAzErrorCode is an Azure error code that indicates that the request is invalid.
+	BadRequestAzErrorCode = "BadRequest"
 	// CorrelationRequestIDAzHeaderKey is the Azure API response header key whose value is a request correlation ID.
 	CorrelationRequestIDAzHeaderKey = "x-ms-correlation-request-id"
 	// RequestIDAzHeaderKey is the Azure API response header key whose value is the request ID.
@@ -92,6 +97,20 @@ func GetMatchingErrorCode(err error) codes.Code {
 		switch azErrorCode {
 		case ZonalAllocationFailedAzErrorCode, SkuNotAvailableAzErrorCode, AllocationFailedAzErrorCode, ResourceQuotaExceededAzErrorCode:
 			return codes.ResourceExhausted
+		case OperationNotAllowedAzErrorCode:
+			re := regexp.MustCompile(`(?i)exceeding.*quota`)
+			if re.MatchString(err.Error()) {
+				return codes.ResourceExhausted
+			} else {
+				return codes.Internal
+			}
+		case BadRequestAzErrorCode:
+			re := regexp.MustCompile(`(?i)not\s+supported`)
+			if re.MatchString(err.Error()) {
+				return codes.ResourceExhausted
+			} else {
+				return codes.Internal
+			}
 		default:
 			return codes.Internal
 		}
