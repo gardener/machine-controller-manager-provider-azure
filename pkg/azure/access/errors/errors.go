@@ -28,7 +28,7 @@ const (
 	ResourceQuotaExceededAzErrorCode = "ResourceQuotaExceeded"
 	// OperationNotAllowedAzErrorCode is an Azure error code that indicates that the operation isn't allowed.
 	OperationNotAllowedAzErrorCode = "OperationNotAllowed"
-	// BadRequest is an Azure error code that indicates that the request is invalid.
+	// BadRequestAzErrorCode is an Azure error code that indicates that the request is invalid.
 	BadRequestAzErrorCode = "BadRequest"
 	// CorrelationRequestIDAzHeaderKey is the Azure API response header key whose value is a request correlation ID.
 	CorrelationRequestIDAzHeaderKey = "x-ms-correlation-request-id"
