@@ -49,6 +49,10 @@ var (
 		ErrorCodeAzHeaderKey,
 		ClientRequestIDAzHeaderKey,
 	)
+	// ExceedingQuotaRegex is a regex pattern to identify if an "OperationNotAllowed" error is caused by exceeding quota limits.
+	ExceedingQuotaRegex = regexp.MustCompile(`(?i)exceeding.*quota`)
+	// NotSupportedRegex is a regex pattern to identify if a "BadRequest" error is caused by an unsupported operation or resource.
+	NotSupportedRegex = regexp.MustCompile(`(?i)not\s+supported`)
 )
 
 // IsNotFoundAzAPIError checks if error is an AZ API error and if it is a 404 response code.
@@ -98,21 +102,13 @@ func GetMatchingErrorCode(err error) codes.Code {
 		case ZonalAllocationFailedAzErrorCode, SkuNotAvailableAzErrorCode, AllocationFailedAzErrorCode, ResourceQuotaExceededAzErrorCode:
 			return codes.ResourceExhausted
 		case OperationNotAllowedAzErrorCode:
-			re := regexp.MustCompile(`(?i)exceeding.*quota`)
-			if re.MatchString(err.Error()) {
+			if ExceedingQuotaRegex.MatchString(err.Error()) {
 				return codes.ResourceExhausted
-			} else {
-				return codes.Internal
 			}
 		case BadRequestAzErrorCode:
-			re := regexp.MustCompile(`(?i)not\s+supported`)
-			if re.MatchString(err.Error()) {
+			if NotSupportedRegex.MatchString(err.Error()) {
 				return codes.ResourceExhausted
-			} else {
-				return codes.Internal
 			}
-		default:
-			return codes.Internal
 		}
 	}
 	return codes.Internal
