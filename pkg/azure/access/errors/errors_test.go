@@ -65,7 +65,7 @@ type falseNotSupportedWrapper struct {
 func (w *falseNotSupportedWrapper) Error() string { return "bad request: some other reason" }
 func (w *falseNotSupportedWrapper) Unwrap() error { return w.resp }
 
-func TestGetMCMErrorCode(t *testing.T) {
+func TestGetMatchingErrorCode(t *testing.T) {
 	table := []input{
 		{inputError: &azcore.ResponseError{ErrorCode: ZonalAllocationFailedAzErrorCode}, expectedCode: codes.ResourceExhausted},
 		{inputError: &azcore.ResponseError{ErrorCode: SkuNotAvailableAzErrorCode}, expectedCode: codes.ResourceExhausted},
