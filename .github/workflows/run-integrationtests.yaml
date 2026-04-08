@@ -11,7 +11,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    uses: gardener/cc-utils/.github/workflows/run-testmachinery-tests.yaml@master
+    uses: gardener/cc-utils/.github/workflows/run-testmachinery-tests.yaml@v1
     with:
       test-command: |
         set -euo pipefail
