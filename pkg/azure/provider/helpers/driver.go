@@ -26,7 +26,6 @@ import (
 	"golang.org/x/crypto/ssh"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
 
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 	accesserrors "github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access/errors"
@@ -399,10 +398,10 @@ func CreateNICIfNotExists(ctx context.Context, factory access.Factory, connectCo
 
 func createNICParams(providerSpec api.AzureProviderSpec, subnet *armnetwork.Subnet, nicName string) armnetwork.Interface {
 	return armnetwork.Interface{
-		Location: to.Ptr(providerSpec.Location),
+		Location: new(providerSpec.Location),
 		Properties: &armnetwork.InterfacePropertiesFormat{
 			EnableAcceleratedNetworking: providerSpec.Properties.NetworkProfile.AcceleratedNetworking,
-			EnableIPForwarding:          to.Ptr(true),
+			EnableIPForwarding:          new(true),
 			IPConfigurations: []*armnetwork.InterfaceIPConfiguration{
 				{
 					Name: &nicName,
@@ -422,7 +421,7 @@ func createNICParams(providerSpec api.AzureProviderSpec, subnet *armnetwork.Subn
 func createNICTags(tags map[string]string) map[string]*string {
 	nicTags := make(map[string]*string, len(tags))
 	for k, v := range tags {
-		nicTags[k] = to.Ptr(v)
+		nicTags[k] = new(v)
 	}
 	return nicTags
 }
@@ -487,10 +486,10 @@ func getImageReference(providerSpec api.AzureProviderSpec) armcompute.ImageRefer
 	// Since the AzureProviderSpec has passed validation its safe to assume that URN is set.
 	urnParts := strings.Split(*imgRefInfo.URN, ":")
 	return armcompute.ImageReference{
-		Publisher: to.Ptr(urnParts[0]),
-		Offer:     to.Ptr(urnParts[1]),
-		SKU:       to.Ptr(urnParts[2]),
-		Version:   to.Ptr(urnParts[3]),
+		Publisher: new(urnParts[0]),
+		Offer:     new(urnParts[1]),
+		SKU:       new(urnParts[2]),
+		Version:   new(urnParts[3]),
 	}
 }
 
@@ -622,14 +621,14 @@ func createDiskCreationParams(ctx context.Context, specDataDisk api.AzureDataDis
 		return armcompute.Disk{}, err
 	}
 	params = armcompute.Disk{
-		Location: to.Ptr(providerSpec.Location),
+		Location: new(providerSpec.Location),
 		Properties: &armcompute.DiskProperties{
 			CreationData: creationData,
-			DiskSizeGB:   to.Ptr[int32](specDataDisk.DiskSizeGB),
+			DiskSizeGB:   new(specDataDisk.DiskSizeGB),
 			OSType:       to.Ptr(armcompute.OperatingSystemTypesLinux),
 		},
 		SKU: &armcompute.DiskSKU{
-			Name: to.Ptr(armcompute.DiskStorageAccountTypes(specDataDisk.StorageAccountType)),
+			Name: new(armcompute.DiskStorageAccountTypes(specDataDisk.StorageAccountType)),
 		},
 		Tags:  utils.CreateResourceTags(providerSpec.Tags),
 		Zones: getZonesFromProviderSpec(providerSpec),
@@ -675,19 +674,19 @@ func createDiskCreationData(ctx context.Context, specDataDisk api.AzureDataDisk,
 func LogVMCreation(location, resourceGroup string, vm *armcompute.VirtualMachine) {
 	msgBuilder := strings.Builder{}
 	vmName := *vm.Name
-	msgBuilder.WriteString(fmt.Sprintf("Successfully create Machine in [Location: %s, ResourceGroup: %s] with the following resources:\n", location, resourceGroup))
-	msgBuilder.WriteString(fmt.Sprintf("VirtualMachine: [ID: %s, Name: %s]\n", *vm.ID, vmName))
+	fmt.Fprintf(&msgBuilder, "Successfully create Machine in [Location: %s, ResourceGroup: %s] with the following resources:\n", location, resourceGroup)
+	fmt.Fprintf(&msgBuilder, "VirtualMachine: [ID: %s, Name: %s]\n", *vm.ID, vmName)
 	if !utils.IsSliceNilOrEmpty(vm.Properties.NetworkProfile.NetworkInterfaces) {
 		nic := vm.Properties.NetworkProfile.NetworkInterfaces[0]
-		msgBuilder.WriteString(fmt.Sprintf("NIC: [ID: %s, Name: %s]\n", *nic.ID, utils.CreateNICName(vmName)))
+		fmt.Fprintf(&msgBuilder, "NIC: [ID: %s, Name: %s]\n", *nic.ID, utils.CreateNICName(vmName))
 	}
 	if vm.Properties.StorageProfile.OSDisk != nil {
-		msgBuilder.WriteString(fmt.Sprintf("OSDisk: %s\n", *vm.Properties.StorageProfile.OSDisk.Name))
+		fmt.Fprintf(&msgBuilder, "OSDisk: %s\n", *vm.Properties.StorageProfile.OSDisk.Name)
 	}
 	if !utils.IsSliceNilOrEmpty(vm.Properties.StorageProfile.DataDisks) {
 		msgBuilder.WriteString("DataDisks: [ ")
 		for _, dataDisk := range vm.Properties.StorageProfile.DataDisks {
-			msgBuilder.WriteString(fmt.Sprintf("{Name: %s} ", *dataDisk.Name))
+			fmt.Fprintf(&msgBuilder, "{Name: %s} ", *dataDisk.Name)
 		}
 		msgBuilder.WriteString(" ]")
 	}
@@ -706,11 +705,11 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 	}
 
 	vm := armcompute.VirtualMachine{
-		Location: to.Ptr(providerSpec.Location),
+		Location: new(providerSpec.Location),
 		Plan:     plan,
 		Properties: &armcompute.VirtualMachineProperties{
 			HardwareProfile: &armcompute.HardwareProfile{
-				VMSize: to.Ptr(armcompute.VirtualMachineSizeTypes(providerSpec.Properties.HardwareProfile.VMSize)),
+				VMSize: new(armcompute.VirtualMachineSizeTypes(providerSpec.Properties.HardwareProfile.VMSize)),
 			},
 			NetworkProfile: &armcompute.NetworkProfile{
 				NetworkInterfaces: []*armcompute.NetworkInterfaceReference{
@@ -718,17 +717,17 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 						ID: &nicID,
 						Properties: &armcompute.NetworkInterfaceReferenceProperties{
 							DeleteOption: to.Ptr(armcompute.DeleteOptionsDelete),
-							Primary:      to.Ptr(true),
+							Primary:      new(true),
 						},
 					},
 				},
 			},
 			OSProfile: &armcompute.OSProfile{
-				AdminUsername: to.Ptr(providerSpec.Properties.OsProfile.AdminUsername),
+				AdminUsername: new(providerSpec.Properties.OsProfile.AdminUsername),
 				ComputerName:  &vmName,
-				CustomData:    to.Ptr(base64.StdEncoding.EncodeToString(secret.Data["userData"])),
+				CustomData:    new(base64.StdEncoding.EncodeToString(secret.Data["userData"])),
 				LinuxConfiguration: &armcompute.LinuxConfiguration{
-					DisablePasswordAuthentication: to.Ptr(providerSpec.Properties.OsProfile.LinuxConfiguration.DisablePasswordAuthentication),
+					DisablePasswordAuthentication: new(providerSpec.Properties.OsProfile.LinuxConfiguration.DisablePasswordAuthentication),
 					SSH:                           sshConfiguration,
 				},
 			},
@@ -736,14 +735,14 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 				DataDisks:      dataDisks,
 				ImageReference: &imageRef,
 				OSDisk: &armcompute.OSDisk{
-					CreateOption: to.Ptr(armcompute.DiskCreateOptionTypes(providerSpec.Properties.StorageProfile.OsDisk.CreateOption)),
-					Caching:      to.Ptr(armcompute.CachingTypes(providerSpec.Properties.StorageProfile.OsDisk.Caching)),
+					CreateOption: new(armcompute.DiskCreateOptionTypes(providerSpec.Properties.StorageProfile.OsDisk.CreateOption)),
+					Caching:      new(armcompute.CachingTypes(providerSpec.Properties.StorageProfile.OsDisk.Caching)),
 					DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
-					DiskSizeGB:   pointer.Int32(providerSpec.Properties.StorageProfile.OsDisk.DiskSizeGB),
+					DiskSizeGB:   new(providerSpec.Properties.StorageProfile.OsDisk.DiskSizeGB),
 					ManagedDisk: &armcompute.ManagedDiskParameters{
-						StorageAccountType: to.Ptr(armcompute.StorageAccountTypes(providerSpec.Properties.StorageProfile.OsDisk.ManagedDisk.StorageAccountType)),
+						StorageAccountType: new(armcompute.StorageAccountTypes(providerSpec.Properties.StorageProfile.OsDisk.ManagedDisk.StorageAccountType)),
 					},
-					Name: to.Ptr(utils.CreateOSDiskName(vmName)),
+					Name: new(utils.CreateOSDiskName(vmName)),
 				},
 			},
 			AvailabilitySet:        getAvailabilitySet(providerSpec.Properties.AvailabilitySet),
@@ -803,14 +802,14 @@ func getDataDisks(dataDiskSpecs []api.AzureDataDisk, vmName string, imageRefDisk
 		}
 		dataDisk := &armcompute.DataDisk{
 			CreateOption: to.Ptr(armcompute.DiskCreateOptionTypesEmpty),
-			Lun:          to.Ptr(specDataDisk.Lun),
-			Caching:      to.Ptr(caching),
+			Lun:          new(specDataDisk.Lun),
+			Caching:      new(caching),
 			DeleteOption: to.Ptr(armcompute.DiskDeleteOptionTypesDelete),
-			DiskSizeGB:   pointer.Int32(specDataDisk.DiskSizeGB),
+			DiskSizeGB:   new(specDataDisk.DiskSizeGB),
 			ManagedDisk: &armcompute.ManagedDiskParameters{
-				StorageAccountType: to.Ptr(armcompute.StorageAccountTypes(specDataDisk.StorageAccountType)),
+				StorageAccountType: new(armcompute.StorageAccountTypes(specDataDisk.StorageAccountType)),
 			},
-			Name: to.Ptr(dataDiskName),
+			Name: new(dataDiskName),
 		}
 		if specDataDisk.ImageRef != nil {
 			diskID := imageRefDiskIDs[DataDiskLun(specDataDisk.Lun)]
@@ -844,7 +843,7 @@ func getAvailabilitySet(specAvailabilitySet *api.AzureSubResource) *armcompute.S
 		return nil
 	}
 	return &armcompute.SubResource{
-		ID: to.Ptr(specAvailabilitySet.ID),
+		ID: new(specAvailabilitySet.ID),
 	}
 }
 
@@ -853,7 +852,7 @@ func getVirtualMachineScaleSet(specVMSS *api.AzureSubResource) *armcompute.SubRe
 		return nil
 	}
 	return &armcompute.SubResource{
-		ID: to.Ptr(specVMSS.ID),
+		ID: new(specVMSS.ID),
 	}
 }
 
@@ -872,8 +871,8 @@ func getSSHConfiguration(sshSpecConfig api.AzureSSHConfiguration) (*armcompute.S
 	return &armcompute.SSHConfiguration{
 		PublicKeys: []*armcompute.SSHPublicKey{
 			{
-				KeyData: to.Ptr(publicKey),
-				Path:    to.Ptr(sshSpecConfig.PublicKeys.Path),
+				KeyData: new(publicKey),
+				Path:    new(sshSpecConfig.PublicKeys.Path),
 			},
 		},
 	}, nil
@@ -895,7 +894,7 @@ func generateDummyPublicKey() (string, error) {
 func getZonesFromProviderSpec(spec api.AzureProviderSpec) []*string {
 	var zones []*string
 	if spec.Properties.Zone != nil {
-		zones = append(zones, to.Ptr(strconv.Itoa(*spec.Properties.Zone)))
+		zones = append(zones, new(strconv.Itoa(*spec.Properties.Zone)))
 	}
 	return zones
 }
@@ -906,7 +905,7 @@ func getDiagnosticsProfile(profile *api.AzureDiagnosticsProfile) *armcompute.Dia
 	}
 	return &armcompute.DiagnosticsProfile{
 		BootDiagnostics: &armcompute.BootDiagnostics{
-			Enabled:    to.Ptr(profile.Enabled),
+			Enabled:    new(profile.Enabled),
 			StorageURI: profile.StorageURI,
 		},
 	}
