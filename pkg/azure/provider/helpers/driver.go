@@ -755,6 +755,10 @@ func createVMCreationParams(providerSpec api.AzureProviderSpec, imageRef armcomp
 		Identity: getVMIdentity(providerSpec.Properties.IdentityID),
 	}
 
+	if diskControllerType := providerSpec.Properties.StorageProfile.DiskControllerType; diskControllerType != "" {
+		vm.Properties.StorageProfile.DiskControllerType = to.Ptr(armcompute.DiskControllerTypes(diskControllerType))
+	}
+
 	// Processing for CVMs
 	if securityProfile := providerSpec.Properties.SecurityProfile; securityProfile != nil {
 		vm.Properties.SecurityProfile = &armcompute.SecurityProfile{}

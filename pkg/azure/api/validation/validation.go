@@ -177,8 +177,24 @@ func validateHardwareProfile(hwProfile api.AzureHardwareProfile, fldPath *field.
 func validateStorageProfile(storageProfile api.AzureStorageProfile, fldPath *field.Path) field.ErrorList {
 	var allErrs field.ErrorList
 	allErrs = append(allErrs, validateStorageImageRef(storageProfile.ImageReference, fldPath.Child("imageReference"))...)
+	allErrs = append(allErrs, validateDiskControllerType(storageProfile.DiskControllerType, fldPath.Child("diskControllerType"))...)
 	allErrs = append(allErrs, validateOSDisk(storageProfile.OsDisk, fldPath.Child("osDisk"))...)
 	allErrs = append(allErrs, validateDataDisks(storageProfile.DataDisks, fldPath.Child("dataDisks"))...)
+	return allErrs
+}
+
+func validateDiskControllerType(diskControllerType string, fldPath *field.Path) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if utils.IsEmptyString(diskControllerType) {
+		return allErrs
+	}
+
+	validValues := []string{"SCSI", "NVMe"}
+	if ok := isValidEnumString(diskControllerType, validValues); !ok {
+		allErrs = append(allErrs, field.NotSupported(fldPath, diskControllerType, validValues))
+	}
+
 	return allErrs
 }
 

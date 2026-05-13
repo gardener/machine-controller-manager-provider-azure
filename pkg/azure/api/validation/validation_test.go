@@ -172,6 +172,24 @@ func TestValidateHardwareProfile(t *testing.T) {
 	g.Expect(errList).To(ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeRequired), "Field": Equal("providerSpec.properties.hardwareProfile.vmSize")}))))
 }
 
+func TestValidateStorageProfile(t *testing.T) {
+	fldPath := field.NewPath("providerSpec.properties.storageProfile")
+	storageProfile := api.AzureStorageProfile{
+		ImageReference: api.AzureImageReference{URN: ptr.To("publisher:offer:sku:version")},
+		OsDisk: api.AzureOSDisk{
+			DiskSizeGB:   20,
+			CreateOption: "FromImage",
+		},
+	}
+
+	g := NewWithT(t)
+	storageProfile.DiskControllerType = "NVMe"
+	g.Expect(validateStorageProfile(storageProfile, fldPath)).To(BeEmpty())
+
+	storageProfile.DiskControllerType = "unknown"
+	g.Expect(validateStorageProfile(storageProfile, fldPath)).To(ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeNotSupported), "Field": Equal("providerSpec.properties.storageProfile.diskControllerType")}))))
+}
+
 func TestValidateOSDisk(t *testing.T) {
 	fldPath := field.NewPath("providerSpec.properties.storageProfile.osDisk")
 	table := []struct {

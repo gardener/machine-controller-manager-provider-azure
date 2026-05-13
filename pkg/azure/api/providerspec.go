@@ -163,6 +163,8 @@ type AzureMachineSetConfig struct {
 type AzureStorageProfile struct {
 	// ImageReference specifies information about the image to use. One can specify information about platform images, marketplace images, or virtual machine images.
 	ImageReference AzureImageReference `json:"imageReference,omitempty"`
+	// DiskControllerType specifies the disk controller type configured for the VM. Possible values are: SCSI, NVMe.
+	DiskControllerType string `json:"diskControllerType,omitempty"`
 	// OsDisk contains the information about the operating system disk used by the VM.
 	// See [https://learn.microsoft.com/en-us/azure/virtual-machines/managed-disks-overview#os-disk].
 	OsDisk AzureOSDisk `json:"osDisk,omitempty"`
