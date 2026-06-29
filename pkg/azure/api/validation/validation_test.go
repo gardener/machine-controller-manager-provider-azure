@@ -186,6 +186,12 @@ func TestValidateStorageProfile(t *testing.T) {
 	storageProfile.DiskControllerType = "NVMe"
 	g.Expect(validateStorageProfile(storageProfile, fldPath)).To(BeEmpty())
 
+	storageProfile.DiskControllerType = "SCSI"
+	g.Expect(validateStorageProfile(storageProfile, fldPath)).To(BeEmpty())
+
+	storageProfile.DiskControllerType = ""
+	g.Expect(validateStorageProfile(storageProfile, fldPath)).To(BeEmpty())
+
 	storageProfile.DiskControllerType = "unknown"
 	g.Expect(validateStorageProfile(storageProfile, fldPath)).To(ConsistOf(PointTo(MatchFields(IgnoreExtras, Fields{"Type": Equal(field.ErrorTypeNotSupported), "Field": Equal("providerSpec.properties.storageProfile.diskControllerType")}))))
 }
