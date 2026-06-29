@@ -190,7 +190,7 @@ func validateDiskControllerType(diskControllerType string, fldPath *field.Path) 
 		return allErrs
 	}
 
-	validValues := []string{"SCSI", "NVMe"}
+	validValues := stringTypesToString(armcompute.PossibleDiskControllerTypesValues())
 	if ok := isValidEnumString(diskControllerType, validValues); !ok {
 		allErrs = append(allErrs, field.NotSupported(fldPath, diskControllerType, validValues))
 	}
