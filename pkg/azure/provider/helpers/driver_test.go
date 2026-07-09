@@ -8,17 +8,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
-	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp/fakes"
-	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
-	corev1 "k8s.io/api/core/v1"
 	"testing"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v5"
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/access"
 	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp"
-	. "github.com/onsi/gomega"
-
+	"github.com/gardener/machine-controller-manager-provider-azure/pkg/azure/testhelp/fakes"
+	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/codes"
 	"github.com/gardener/machine-controller-manager/pkg/util/provider/machinecodes/status"
+	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestDeriveInstanceID(t *testing.T) {
@@ -83,6 +83,7 @@ func TestCreateVM(t *testing.T) {
 		description            string
 		VMNamesForTestSetup    []string
 		targetVMName           string
+		diskControllerType     string
 		shouldOperationSucceed bool
 		vmAccessApiBehavior    *fakes.APIBehaviorSpec
 		nicAccessApiBehavior   *fakes.APIBehaviorSpec
@@ -93,6 +94,7 @@ func TestCreateVM(t *testing.T) {
 			description:            "should successfully create a VM",
 			VMNamesForTestSetup:    []string{"vm-1"},
 			targetVMName:           "vm-1",
+			diskControllerType:     "NVMe",
 			shouldOperationSucceed: true,
 			vmAccessApiBehavior:    nil,
 			nicAccessApiBehavior:   nil,
@@ -185,6 +187,7 @@ func TestCreateVM(t *testing.T) {
 		t.Run(entry.description, func(_ *testing.T) {
 			// Build Provider Spec
 			providerSpec := testhelp.NewProviderSpecBuilder(testResourceGroupName, testShootNs, testWorkerPool0Name).WithDefaultValues().Build()
+			providerSpec.Properties.StorageProfile.DiskControllerType = entry.diskControllerType
 
 			// Create cluster state
 			clusterState := fakes.NewClusterState(providerSpec)
@@ -217,6 +220,11 @@ func TestCreateVM(t *testing.T) {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(vm).NotTo(BeNil())
 				g.Expect(*vm.Name).To(Equal(entry.targetVMName))
+				if entry.diskControllerType != "" {
+					g.Expect(vm.Properties.StorageProfile.DiskControllerType).To(PointTo(Equal(armcompute.DiskControllerTypes(entry.diskControllerType))))
+				} else {
+					g.Expect(vm.Properties.StorageProfile.DiskControllerType).To(BeNil())
+				}
 			} else {
 				g.Expect(err).To(HaveOccurred())
 				g.Expect(vm).To(BeNil())
