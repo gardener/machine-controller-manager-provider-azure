@@ -17,6 +17,7 @@ PROVIDER_NAME       		:= Azure
 PROJECT_NAME        		:= gardener
 TARGET_CLUSTER_NAME			:= shoot--project--cluster-name
 IS_CONTROL_CLUSTER_SEED 	:= true
+TARGET_PLATFORMS    		?= linux/$(shell go env GOARCH)
 PATH := $(abspath $(TOOLS_BIN_DIR)):$(PATH)
 
 # Below ones are used in tests
@@ -103,10 +104,9 @@ build-local:
 build:
 	@.ci/build
 
-PLATFORM ?= linux/amd64
 .PHONY: docker-image
 docker-image:
-	@docker buildx build --platform $(PLATFORM) -t $(IMAGE_REPOSITORY):$(IMAGE_TAG) .
+	@docker buildx build --platform $(TARGET_PLATFORMS) -t $(IMAGE_REPOSITORY):$(IMAGE_TAG) .
 
 .PHONY: docker-login
 docker-login:
