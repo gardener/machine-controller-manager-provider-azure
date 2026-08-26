@@ -7,7 +7,7 @@ This file was copied and modified from the kubernetes/kubernetes project
 https://github.com/kubernetes/kubernetes/release-1.8/cmd/kube-controller-manager/controller_manager.go
 
 Modifications:
-SPDX-FileCopyrightText: Copyright Contributors to the Gardener project
+SPDX-FileCopyrightText: Contributors to the Gardener project
 */
 
 package main
