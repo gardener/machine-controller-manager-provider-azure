@@ -12,6 +12,8 @@
 *.html
 main
 .cache_ggshield
+.ci/controllers-test/logs/*.log
+.ci/controllers-test/logs/*.log.*
 
 # Output of the go coverage tool
 *coverprofile.out*
