@@ -10,3 +10,5 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    with:
+      prepare-action-path: ./.github/actions/setup-go
