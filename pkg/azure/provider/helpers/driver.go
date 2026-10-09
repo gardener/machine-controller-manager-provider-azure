@@ -188,7 +188,7 @@ func DeleteVirtualMachine(ctx context.Context, vmAccess *armcompute.VirtualMachi
 	klog.Infof("Deleting VM: [ResourceGroup: %s, Name: %s]", resourceGroup, vmName)
 	err := accesshelpers.DeleteVirtualMachine(ctx, vmAccess, resourceGroup, vmName)
 	if err != nil {
-		return status.WrapError(codes.Internal, fmt.Sprintf("Failed to delete VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
+		return status.WrapError(accesserrors.GetMatchingErrorCode(err), fmt.Sprintf("Failed to delete VM: [ResourceGroup: %s, Name: %s], Err: %v", resourceGroup, vmName, err), err)
 	}
 	return nil
 }
