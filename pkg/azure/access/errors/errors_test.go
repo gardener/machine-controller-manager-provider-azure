@@ -75,6 +75,7 @@ func TestGetMatchingErrorCode(t *testing.T) {
 		{inputError: &notSupportedWrapper{resp: &azcore.ResponseError{ErrorCode: BadRequestAzErrorCode}}, expectedCode: codes.ResourceExhausted},
 		{inputError: &falseExceedingQuotaWrapper{resp: &azcore.ResponseError{ErrorCode: OperationNotAllowedAzErrorCode}}, expectedCode: codes.Internal},
 		{inputError: &falseNotSupportedWrapper{&azcore.ResponseError{ErrorCode: BadRequestAzErrorCode}}, expectedCode: codes.Internal},
+		{inputError: &azcore.ResponseError{ErrorCode: ConflictAzErrorCode}, expectedCode: codes.Unavailable},
 		{inputError: &azcore.ResponseError{ErrorCode: "unknown error"}, expectedCode: codes.Internal},
 	}
 	g := NewWithT(t)
