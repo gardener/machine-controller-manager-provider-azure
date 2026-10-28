@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 #############      builder                          #############
-FROM golang:1.26.2 AS builder
+FROM golang:1.26.10 AS builder
 
 WORKDIR /go/src/github.com/gardener/machine-controller-manager-provider-azure
 COPY . .
