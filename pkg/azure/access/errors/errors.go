@@ -30,6 +30,8 @@ const (
 	OperationNotAllowedAzErrorCode = "OperationNotAllowed"
 	// BadRequestAzErrorCode is an Azure error code that indicates that the request is invalid.
 	BadRequestAzErrorCode = "BadRequest"
+	// ConflictAzErrorCode is an Azure error code that indicates the request conflicts with a concurrent operation on the same resource. It is transient and safe to retry.
+	ConflictAzErrorCode = "Conflict"
 	// CorrelationRequestIDAzHeaderKey is the Azure API response header key whose value is a request correlation ID.
 	CorrelationRequestIDAzHeaderKey = "x-ms-correlation-request-id"
 	// RequestIDAzHeaderKey is the Azure API response header key whose value is the request ID.
@@ -109,6 +111,10 @@ func GetMatchingErrorCode(err error) codes.Code {
 			if NotSupportedRegex.MatchString(err.Error()) {
 				return codes.ResourceExhausted
 			}
+		case ConflictAzErrorCode:
+			// A 409 Conflict ("concurrent request") is transient. Return Unavailable so MCM retries
+			// with backoff instead of marking the machine permanently failed.
+			return codes.Unavailable
 		}
 	}
 	return codes.Internal
